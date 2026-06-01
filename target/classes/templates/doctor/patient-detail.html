@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Hồ sơ bệnh nhân')}"></head>
+<body>
+<div th:replace="~{fragments :: sidebar('patients')}"></div>
+
+<main class="main">
+  <header th:replace="~{fragments :: topbar('Hồ sơ bệnh nhân')}"></header>
+  <div class="content">
+
+    <!-- Patient header -->
+    <div class="detail-header">
+      <div class="detail-info">
+        <div class="detail-avatar" th:text="${patient.fullName.charAt(0)}"
+             style="background:linear-gradient(135deg,#e05a5a,#c0392b);">A</div>
+        <div>
+          <div class="detail-name" th:text="${patient.fullName}">Tên bệnh nhân</div>
+          <div class="detail-meta">
+            <span th:text="'Sinh: ' + ${#temporals.format(patient.dob, 'dd/MM/yyyy')}">Sinh:</span>
+            <span th:text="${patient.gender}">Nam</span>
+            <span th:text="${patient.phone}">SĐT</span>
+          </div>
+        </div>
+      </div>
+      <div class="detail-actions">
+        <a th:href="@{/doctor/ai-predict(patientId=${patient.patientId})}" class="btn btn-ai">
+          <i class="ti ti-brain"></i> Dự đoán AI
+        </a>
+        <a th:href="@{/doctor/patients}" class="btn btn-ghost">← Quay lại</a>
+      </div>
+    </div>
+
+    <!-- Consultation history -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="ti ti-clipboard-list"></i> Lịch sử khám</div>
+        <span style="font-size:12px;color:#8a96b0;" th:text="${records.size()} + ' lần khám'">0 lần khám</span>
+      </div>
+      <table class="patient-table">
+        <thead>
+          <tr>
+            <th>Ngày khám</th>
+            <th>Ghi chú lâm sàng</th>
+            <th>Phác đồ điều trị</th>
+            <th>Nguy cơ AI</th>
+            <th>Trạng thái</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:each="r : ${records}">
+            <td th:text="${#temporals.format(r.visitDate, 'dd/MM/yyyy HH:mm')}"
+                style="font-size:12px;font-family:monospace;color:#8a96b0;">--</td>
+            <td th:text="${r.consultationNotes}" style="font-size:13px;max-width:200px;">--</td>
+            <td th:text="${r.treatmentPlan}" style="font-size:13px;max-width:200px;">--</td>
+            <td>
+              <span th:if="${r.aiRiskPrediction != null}"
+                    class="risk-badge"
+                    th:classappend="'risk-' + ${r.aiRiskPrediction.riskLevel}"
+                    th:text="${r.aiRiskPrediction.riskLevel + ' ' + r.aiRiskPrediction.riskScore + '%'}">--</span>
+              <span th:if="${r.aiRiskPrediction == null}" style="color:#4a5568;font-size:12px;">Chưa có</span>
+            </td>
+            <td>
+              <span class="risk-badge risk-LOW" th:text="${r.status}">Completed</span>
+            </td>
+          </tr>
+          <tr th:if="${#lists.isEmpty(records)}">
+            <td colspan="5" style="text-align:center;color:#8a96b0;padding:30px;">
+              Chưa có lịch sử khám
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</main>
+<script th:src="@{/js/main.js}"></script>
+</body>
+</html>

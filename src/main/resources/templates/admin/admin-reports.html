@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<title>Báo cáo Hệ thống — CardioCare</title>
+<!-- Google Font & Chart.js -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background: #0a0f1e;
+  color: #e8edf5;
+  min-height: 100vh;
+  padding: 40px 20px;
+}
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+.logo-title {
+  font-size: 24px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo-icon {
+  background: linear-gradient(135deg, #10b981, #059669);
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+}
+.nav-actions {
+  display: flex;
+  gap: 12px;
+}
+.btn-nav {
+  background: rgba(255,255,255,0.08);
+  color: #e8edf5;
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+.btn-nav:hover {
+  background: rgba(255,255,255,0.15);
+}
+.btn-export {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  transition: opacity 0.2s;
+}
+.btn-export:hover { opacity: 0.9; }
+
+/* Tab buttons */
+.tab-buttons {
+  display: flex;
+  background: #0a0f1e;
+  padding: 4px;
+  border-radius: 8px;
+  gap: 4px;
+  margin-bottom: 24px;
+}
+.tab-btn {
+  padding: 10px 24px;
+  color: #8a96b0;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+  border: none;
+  background: none;
+}
+.tab-btn.active {
+  background: #10b981;
+  color: white;
+}
+
+/* Grid layout for reports charts */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+  gap: 24px;
+  margin-bottom: 35px;
+}
+.chart-card {
+  background: #111827;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 24px;
+  min-height: 380px;
+}
+.chart-card h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #8a96b0;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.chart-card h3 span { font-size: 11px; font-weight: 500; background: rgba(59,130,246,0.15); color: #60a5fa; padding: 4px 8px; border-radius: 4px; }
+.chart-container {
+  position: relative;
+  height: 280px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Export modal */
+.export-modal {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(10,15,30,0.85);
+  backdrop-filter: blur(4px);
+  align-items: center; justify-content: center;
+  z-index: 1000;
+}
+.export-modal-content {
+  background: #111827;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+}
+.export-modal-content h3 {
+  font-size: 18px;
+  margin-bottom: 24px;
+  color: #e8edf5;
+}
+.export-option {
+  display: block;
+  width: 100%;
+  padding: 14px 20px;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: #1a2440;
+  color: #e8edf5;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.export-option:hover { background: #243352; border-color: #10b981; }
+.export-option .opt-icon { font-size: 20px; }
+.export-cancel {
+  margin-top: 8px;
+  background: none;
+  border: none;
+  color: #8a96b0;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 8px;
+}
+.export-cancel:hover { color: #e8edf5; }
+
+/* System logs table container */
+.main-card {
+  background: #111827;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 30px;
+}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+.card-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+.filter-row {
+  display: flex;
+  gap: 12px;
+}
+.search-input {
+  background: #1a2440;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 8px 14px;
+  color: #e8edf5;
+  font-size: 13px;
+  outline: none;
+  width: 250px;
+}
+.search-input:focus { border-color: #10b981; }
+
+.table-wrapper {
+  overflow-x: auto;
+  max-height: 400px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+th {
+  color: #8a96b0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  position: sticky;
+  top: 0;
+  background: #111827;
+}
+td {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 13px;
+  color: #e8edf5;
+}
+.log-row:hover td {
+  background: rgba(255,255,255,0.02);
+}
+.badge {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-block;
+}
+.badge-success { background: rgba(16,185,129,0.15); color: #34d399; }
+.badge-error { background: rgba(224,90,90,0.15); color: #f87171; }
+.badge-info { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.badge-warn { background: rgba(245,158,11,0.15); color: #fbbf24; }
+
+.page-hidden {
+  display: none !important;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.page-btn {
+  background: rgba(255,255,255,0.08);
+  color: #e8edf5;
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  transition: all 0.2s;
+  border: none;
+}
+.page-btn:hover {
+  background: rgba(255,255,255,0.15);
+}
+.page-btn.active {
+  background: #10b981;
+  color: white;
+  border-color: #10b981;
+}
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media print {
+  body { background: white !important; color: black !important; padding: 0; }
+  .header, .tab-buttons, .export-modal, .search-input, .filter-row, .pagination-container { display: none !important; }
+  .page-hidden { display: table-row !important; }
+  .chart-card, .main-card { border: none; background: white !important; color: black !important; page-break-inside: avoid; }
+  .chart-card h3 { color: #333 !important; }
+  th { background: #f3f4f6 !important; color: black !important; position: static !important; }
+  td { color: black !important; border-bottom: 1px solid #e5e7eb; }
+  .card-title { color: black !important; }
+  .table-wrapper { max-height: none !important; overflow: visible !important; }
+  #chartsSection.print-hide, #logsSection.print-hide { display: none !important; }
+}
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.85; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-title">
+      <div class="logo-icon">📈</div>
+      Báo cáo & Nhật ký Hệ thống
+    </div>
+    <div class="nav-actions">
+      <a th:href="@{/admin/dashboard}" class="btn-nav">← Về Dashboard Quản lý</a>
+      <button class="btn-export" onclick="openExportModal()">📄 Xuất file báo cáo (PDF)</button>
+    </div>
+  </div>
+
+  <!-- Tab buttons -->
+  <div class="tab-buttons">
+    <button class="tab-btn active" id="tabCharts" onclick="switchReportTab('charts')">📊 Báo cáo Vận hành</button>
+    <button class="tab-btn" id="tabLogs" onclick="switchReportTab('logs')">📋 Nhật ký Hoạt động</button>
+  </div>
+
+  <!-- Global Operational Filters -->
+  <div class="main-card" style="margin-bottom: 24px; padding: 20px 24px; background: linear-gradient(145deg, #111827, #0f172a); border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 8px 32px 0 rgba(0,0,0,0.37);">
+    <form method="GET" th:action="@{/admin/reports}" style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap; justify-content: space-between;">
+      <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap; flex-grow: 1;">
+        <!-- Search Input -->
+        <div style="position: relative; display: flex; align-items: center;">
+          <span style="position: absolute; left: 14px; color: #64748b; font-size: 14px;">🔍</span>
+          <input type="text" class="search-input" name="search" id="logSearch" placeholder="Lọc theo hành động, tài khoản..." oninput="filterLogs()" th:value="${search}" style="width: 280px; padding-left: 38px; background: #1e293b; border-color: rgba(255,255,255,0.1);">
+        </div>
+        
+        <!-- Start Date -->
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 13px; color: #94a3b8; font-weight: 500;">Từ ngày:</span>
+          <input type="date" class="search-input" name="startDate" th:value="${startDate}" style="width: 160px; background: #1e293b; border-color: rgba(255,255,255,0.1); color-scheme: dark;">
+        </div>
+        
+        <!-- End Date -->
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 13px; color: #94a3b8; font-weight: 500;">Đến ngày:</span>
+          <input type="date" class="search-input" name="endDate" th:value="${endDate}" style="width: 160px; background: #1e293b; border-color: rgba(255,255,255,0.1); color-scheme: dark;">
+        </div>
+      </div>
+      
+      <!-- Filter Actions -->
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <button type="submit" class="btn-export" style="background: #10b981; padding: 10px 24px; border-radius: 8px; font-weight: 600; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(16,185,129,0.25);">
+          <span>⚡</span> Áp dụng bộ lọc
+        </button>
+        <a th:href="@{/admin/reports}" class="btn-nav" style="padding: 9px 18px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; height: 38px; background: rgba(255,255,255,0.06); font-weight: 600; color: #94a3b8;">
+          Xóa lọc
+        </a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Section 1: Báo cáo Vận hành (Charts) -->
+  <div id="chartsSection">
+    <!-- If date range is selected: render the charts grid -->
+    <div th:if="${dateRangeSelected}" class="charts-grid">
+      <div class="chart-card">
+        <h3>Phân tích Rủi ro Tim mạch <span>Dữ liệu AI</span></h3>
+        <div class="chart-container">
+          <canvas id="riskChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>Tần suất hoạt động của Medical Staff <span>Theo log thao tác</span></h3>
+        <div class="chart-container">
+          <canvas id="staffChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- If date range is NOT selected: render the premium instruction card -->
+    <div th:if="${!dateRangeSelected}" class="main-card" style="text-align: center; padding: 60px 40px; background: linear-gradient(145deg, #111827, #0f172a); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px;">
+      <div style="font-size: 50px; margin-bottom: 20px; animation: pulse 2s infinite;">📅</div>
+      <h3 style="font-size: 20px; font-weight: 700; color: #e8edf5; margin-bottom: 12px;">Yêu cầu chọn khoảng thời gian</h3>
+      <p style="font-size: 14px; color: #8a96b0; max-width: 500px; margin: 0 auto 24px auto; line-height: 1.6;">
+        Để hiển thị biểu đồ vận hành và phân tích hoạt động của nhân viên y tế chính xác nhất, vui lòng thiết lập khoảng thời gian (Từ ngày - Đến ngày) trên thanh công cụ lọc phía trên.
+      </p>
+      <div style="display: inline-flex; align-items: center; gap: 8px; color: #10b981; font-weight: 600; font-size: 13px; background: rgba(16,185,129,0.1); padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(16,185,129,0.2);">
+        <span>💡</span> Mẹo: Hãy sử dụng thanh công cụ lọc phía trên để bắt đầu.
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 2: Nhật ký Hoạt động (Logs) -->
+  <div id="logsSection" style="display:none;">
+    <div class="main-card">
+      <div class="card-header">
+        <div class="card-title">Nhật ký hoạt động hệ thống (System Audit Logs)</div>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Thời gian</th>
+              <th>Tài khoản</th>
+              <th>Hành động</th>
+              <th>Chi tiết thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="logsBody">
+            <!-- If date range is NOT selected: show prompt -->
+            <tr th:if="${!dateRangeSelected}">
+              <td colspan="4" style="text-align: center; color: #8a96b0; padding: 60px 20px;">
+                <div style="font-size: 40px; margin-bottom: 16px;">🔍</div>
+                <div style="font-weight: 600; color: #e8edf5; font-size: 15px; margin-bottom: 8px;">Chưa chọn khoảng thời gian truy vấn</div>
+                <div style="font-size: 13px; max-width: 400px; margin: 0 auto; line-height: 1.5;">Vui lòng thiết lập ngày bắt đầu và ngày kết thúc trên thanh công cụ lọc phía trên để hiển thị danh sách nhật ký hoạt động.</div>
+              </td>
+            </tr>
+
+            <!-- If date range IS selected: show logs -->
+            <tr th:if="${dateRangeSelected}" th:each="log : ${logs}" class="log-row">
+              <td th:text="${#temporals.format(log.timestamp, 'dd/MM/yyyy HH:mm:ss')}" style="white-space: nowrap; color: #8a96b0;">30/05/2026 21:00:00</td>
+              <td th:text="${log.username}" style="font-weight: 600;">admin</td>
+              <td>
+                <span class="badge"
+                      th:classappend="${#strings.contains(log.action, 'FAILED') or #strings.contains(log.action, 'LOCK') ? 'badge-error' : (#strings.contains(log.action, 'CREATE') ? 'badge-success' : 'badge-info')}"
+                      th:text="${log.action}">LOGIN_SUCCESS</span>
+              </td>
+              <td th:text="${log.details}">Đăng nhập quản trị thành công</td>
+            </tr>
+            <tr th:if="${dateRangeSelected and logs.isEmpty()}">
+              <td colspan="4" style="text-align: center; color: #8a96b0; padding: 30px;">Chưa có nhật ký hoạt động nào được ghi nhận.</td>
+            </tr>
+          </tbody>
+      </div>
+
+      <!-- Pagination Controls -->
+      <div class="pagination-container">
+        <div style="font-size: 13px; color: #8a96b0;">
+          Hiển thị từ <span id="paginatedStart" style="font-weight: 600; color: #e8edf5;">1</span> đến <span id="paginatedEnd" style="font-weight: 600; color: #e8edf5;">10</span> trong tổng số <span id="paginatedTotal" style="font-weight: 600; color: #e8edf5;">0</span> bản ghi
+        </div>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <button id="btnPrev" class="page-btn" onclick="prevPage()">Trang trước</button>
+          <div id="pageNumbers" style="display: flex; gap: 6px;"></div>
+          <button id="btnNext" class="page-btn" onclick="nextPage()">Trang sau</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- Export Modal -->
+<div class="export-modal" id="exportModal" onclick="if(event.target===this) closeExportModal()">
+  <div class="export-modal-content">
+    <h3>Chọn nội dung xuất PDF</h3>
+    <button class="export-option" onclick="exportPDF('charts')">
+      <span class="opt-icon">📊</span> Báo cáo Vận hành (Biểu đồ)
+    </button>
+    <button class="export-option" onclick="exportPDF('logs')">
+      <span class="opt-icon">📋</span> Nhật ký Hoạt động (Bảng log)
+    </button>
+    <button class="export-option" onclick="exportPDF('all')">
+      <span class="opt-icon">📑</span> Xuất tất cả
+    </button>
+    <button class="export-cancel" onclick="closeExportModal()">Hủy bỏ</button>
+  </div>
+</div>
+
+<!-- Render dynamic data into Javascript context safely -->
+<script th:inline="javascript">
+  /*<![CDATA[*/
+  const highRiskCount = /*[[${highRiskCount}]]*/ 3;
+  const mediumRiskCount = /*[[${mediumRiskCount}]]*/ 4;
+  const lowRiskCount = /*[[${lowRiskCount}]]*/ 8;
+
+  const staffActionsFrequency = /*[[${staffActionsFrequency}]]*/ {};
+  /*]]>*/
+
+  // 1. Render AI Risk Levels Pie Chart
+  const riskCanvas = document.getElementById('riskChart');
+  if (riskCanvas) {
+    const riskCtx = riskCanvas.getContext('2d');
+    const riskData = [highRiskCount, mediumRiskCount, lowRiskCount];
+
+    new Chart(riskCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Rủi ro CAO', 'Rủi ro TRUNG BÌNH', 'Bình thường/THẤP'],
+        datasets: [{
+          data: riskData,
+          backgroundColor: ['#ef4444', '#f59e0b', '#10b981'],
+          borderWidth: 2,
+          borderColor: '#111827'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: '#8a96b0', font: { family: 'Inter', size: 12 } }
+          }
+        }
+      }
+    });
+  }
+
+  // 2. Render Medical Staff Actions Frequency Bar Chart
+  const staffCanvas = document.getElementById('staffChart');
+  if (staffCanvas) {
+    const staffCtx = staffCanvas.getContext('2d');
+    const staffLabels = Object.keys(staffActionsFrequency);
+    const staffData = Object.values(staffActionsFrequency);
+
+    new Chart(staffCtx, {
+      type: 'bar',
+      data: {
+        labels: staffLabels,
+        datasets: [{
+          label: 'Số lượng thao tác cập nhật',
+          data: staffData,
+          backgroundColor: 'rgba(59, 130, 246, 0.75)',
+          borderColor: '#3b82f6',
+          borderWidth: 1,
+          borderRadius: 6
+        }]
+      },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#8a96b0', stepSize: 1 }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { color: '#8a96b0' }
+        }
+      },
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+}
+
+  // Pagination and Logs live filtering
+  let currentPage = 1;
+  const rowsPerPage = 10;
+  let filteredRows = [];
+
+  function initPagination() {
+    updateFilteredRows();
+    goToPage(1);
+  }
+
+  function updateFilteredRows() {
+    const query = document.getElementById("logSearch").value.toLowerCase();
+    const rows = Array.from(document.querySelectorAll(".log-row"));
+    
+    filteredRows = rows.filter(row => {
+      const text = row.textContent.toLowerCase();
+      const isMatch = text.includes(query);
+      row.style.display = isMatch ? "" : "none";
+      return isMatch;
+    });
+  }
+
+  function goToPage(page) {
+    currentPage = page;
+    const totalRows = filteredRows.length;
+    const totalPages = Math.ceil(totalRows / rowsPerPage) || 1;
+
+    if (currentPage < 1) currentPage = 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    const startIdx = (currentPage - 1) * rowsPerPage;
+    const endIdx = startIdx + rowsPerPage;
+
+    // Show/hide rows for active page
+    filteredRows.forEach((row, idx) => {
+      if (idx >= startIdx && idx < endIdx) {
+        row.classList.remove("page-hidden");
+      } else {
+        row.classList.add("page-hidden");
+      }
+    });
+
+    // Update statistics UI
+    document.getElementById("paginatedStart").textContent = totalRows === 0 ? 0 : startIdx + 1;
+    document.getElementById("paginatedEnd").textContent = Math.min(endIdx, totalRows);
+    document.getElementById("paginatedTotal").textContent = totalRows;
+
+    // Update navigation button status
+    const btnPrev = document.getElementById("btnPrev");
+    const btnNext = document.getElementById("btnNext");
+    btnPrev.disabled = currentPage === 1;
+    btnNext.disabled = currentPage === totalPages;
+
+    // Render page numbers buttons
+    const pageNumbersDiv = document.getElementById("pageNumbers");
+    pageNumbersDiv.innerHTML = "";
+
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, startPage + 4);
+    if (endPage - startPage < 4) {
+      startPage = Math.max(1, endPage - 4);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      const btn = document.createElement("button");
+      btn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
+      btn.textContent = i;
+      btn.onclick = () => goToPage(i);
+      pageNumbersDiv.appendChild(btn);
+    }
+  }
+
+  function prevPage() {
+    if (currentPage > 1) goToPage(currentPage - 1);
+  }
+
+  function nextPage() {
+    const totalPages = Math.ceil(filteredRows.length / rowsPerPage) || 1;
+    if (currentPage < totalPages) goToPage(currentPage + 1);
+  }
+
+  function filterLogs() {
+    updateFilteredRows();
+    goToPage(1);
+  }
+
+  // Tab switching
+  function switchReportTab(tab) {
+    const chartsSection = document.getElementById('chartsSection');
+    const logsSection   = document.getElementById('logsSection');
+    const tabCharts     = document.getElementById('tabCharts');
+    const tabLogs       = document.getElementById('tabLogs');
+
+    localStorage.setItem('activeReportTab', tab);
+
+    if (tab === 'charts') {
+      chartsSection.style.display = 'block';
+      logsSection.style.display   = 'none';
+      tabCharts.classList.add('active');
+      tabLogs.classList.remove('active');
+    } else {
+      chartsSection.style.display = 'none';
+      logsSection.style.display   = 'block';
+      tabCharts.classList.remove('active');
+      tabLogs.classList.add('active');
+    }
+  }
+
+  // Export modal
+  function openExportModal() {
+    document.getElementById('exportModal').style.display = 'flex';
+  }
+  function closeExportModal() {
+    document.getElementById('exportModal').style.display = 'none';
+  }
+
+  // Print only selected section
+  function exportPDF(section) {
+    closeExportModal();
+    const chartsEl = document.getElementById('chartsSection');
+    const logsEl   = document.getElementById('logsSection');
+
+    // Remove any previous print-hide class
+    chartsEl.classList.remove('print-hide');
+    logsEl.classList.remove('print-hide');
+
+    // Show both for printing, then hide the one not selected
+    const prevCharts = chartsEl.style.display;
+    const prevLogs   = logsEl.style.display;
+    chartsEl.style.display = 'block';
+    logsEl.style.display   = 'block';
+
+    if (section === 'charts') {
+      logsEl.classList.add('print-hide');
+    } else if (section === 'logs') {
+      chartsEl.classList.add('print-hide');
+    }
+    // 'all' → both visible
+
+    window.print();
+
+    // Restore original display state
+    chartsEl.style.display = prevCharts;
+    logsEl.style.display   = prevLogs;
+    chartsEl.classList.remove('print-hide');
+    logsEl.classList.remove('print-hide');
+  }
+
+  // Auto restore active tab on load
+  window.addEventListener('DOMContentLoaded', () => {
+    initPagination();
+    const savedTab = localStorage.getItem('activeReportTab') || 'charts';
+    switchReportTab(savedTab);
+  });
+</script>
+</body>
+</html>
