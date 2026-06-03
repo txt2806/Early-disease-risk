@@ -300,15 +300,22 @@ td {
 
 @media print {
   body { background: white !important; color: black !important; padding: 0; }
-  .header, .tab-buttons, .export-modal, .search-input, .filter-row, .pagination-container { display: none !important; }
+  .header, .tab-buttons, .export-modal, .search-input, .filter-row, .pagination-container, .print-hide { display: none !important; }
   .page-hidden { display: table-row !important; }
-  .chart-card, .main-card { border: none; background: white !important; color: black !important; page-break-inside: avoid; }
+  .chart-card { border: none; background: white !important; color: black !important; page-break-inside: avoid; }
+  .main-card { border: none; background: white !important; color: black !important; }
+  .charts-grid { display: block !important; }
+  .chart-card { margin-bottom: 30px !important; }
   .chart-card h3 { color: #333 !important; }
   th { background: #f3f4f6 !important; color: black !important; position: static !important; }
   td { color: black !important; border-bottom: 1px solid #e5e7eb; }
   .card-title { color: black !important; }
   .table-wrapper { max-height: none !important; overflow: visible !important; }
-  #chartsSection.print-hide, #logsSection.print-hide { display: none !important; }
+  .badge { border: 1px solid #ccc !important; color: black !important; background: transparent !important; }
+  .badge-success { border-color: #10b981 !important; color: #10b981 !important; }
+  .badge-error { border-color: #ef4444 !important; color: #ef4444 !important; }
+  .badge-info { border-color: #3b82f6 !important; color: #3b82f6 !important; }
+  .badge-warn { border-color: #f59e0b !important; color: #f59e0b !important; }
 }
 @keyframes pulse {
   0% { transform: scale(1); opacity: 0.85; }
@@ -339,7 +346,7 @@ td {
   </div>
 
   <!-- Global Operational Filters -->
-  <div class="main-card" style="margin-bottom: 24px; padding: 20px 24px; background: linear-gradient(145deg, #111827, #0f172a); border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 8px 32px 0 rgba(0,0,0,0.37);">
+  <div class="main-card print-hide" style="margin-bottom: 24px; padding: 20px 24px; background: linear-gradient(145deg, #111827, #0f172a); border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 8px 32px 0 rgba(0,0,0,0.37);">
     <form method="GET" th:action="@{/admin/reports}" style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap; justify-content: space-between;">
       <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap; flex-grow: 1;">
         <!-- Search Input -->

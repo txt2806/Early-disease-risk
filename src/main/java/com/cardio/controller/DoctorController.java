@@ -129,25 +129,57 @@ public class DoctorController {
         return "doctor/ai-predict";
     }
 
-    @PostMapping("/ai-predict")
-    public String runAIPredict(@ModelAttribute AIRequest aiRequest,
+    @PostMapping("/ai-predict/analyze")
+    public String runAIAnalyze(@ModelAttribute AIRequest aiRequest,
                                @RequestParam Integer patientId,
-                               @RequestParam String notes,
-                               @RequestParam String treatmentPlan,
                                @AuthenticationPrincipal UserDetails userDetails,
                                Model model) {
         DoctorProfile doctor = getCurrentDoctor(userDetails);
         PatientProfile patient = patientService.findById(patientId)
                 .orElseThrow(() -> new RuntimeException("Patient not found"));
 
-        AIRiskPrediction prediction = consultationService.createRecordWithAI(
-                patient, doctor, notes, treatmentPlan, aiRequest);
+        // Call AI Service (do not save to database yet)
+        com.cardio.dto.AIResponse aiResponse = aiService.predict(aiRequest);
+
+        // Build transient prediction to display on screen
+        AIRiskPrediction prediction = new AIRiskPrediction();
+        prediction.setRiskScore(java.math.BigDecimal.valueOf(aiResponse.getProbability() * 100));
+        prediction.setRiskLevel(aiResponse.getRisk_level());
+        prediction.setRiskExplanation(aiResponse.getMessage());
 
         model.addAttribute("doctor", doctor);
         model.addAttribute("patients", patientService.getAllPatients());
         model.addAttribute("aiRequest", aiRequest);
         model.addAttribute("prediction", prediction);
         model.addAttribute("selectedPatient", patient);
+        model.addAttribute("isSaved", false); // Not saved to database yet
+        return "doctor/ai-predict";
+    }
+
+    @PostMapping("/ai-predict/save")
+    public String saveRecordAndPrediction(@ModelAttribute AIRequest aiRequest,
+                                          @RequestParam Integer patientId,
+                                          @RequestParam String doctorNotes,
+                                          @RequestParam(required = false) String treatmentPlan,
+                                          @RequestParam java.math.BigDecimal riskScore,
+                                          @RequestParam String riskLevel,
+                                          @RequestParam String riskExplanation,
+                                          @AuthenticationPrincipal UserDetails userDetails,
+                                          Model model) {
+        DoctorProfile doctor = getCurrentDoctor(userDetails);
+        PatientProfile patient = patientService.findById(patientId)
+                .orElseThrow(() -> new RuntimeException("Patient not found"));
+
+        // Save records and prediction to database
+        AIRiskPrediction prediction = consultationService.saveRecordAfterPrediction(
+                patient, doctor, doctorNotes, treatmentPlan, riskScore, riskLevel, riskExplanation, aiRequest);
+
+        model.addAttribute("doctor", doctor);
+        model.addAttribute("patients", patientService.getAllPatients());
+        model.addAttribute("aiRequest", aiRequest);
+        model.addAttribute("prediction", prediction);
+        model.addAttribute("selectedPatient", patient);
+        model.addAttribute("isSaved", true); // Record is now saved
         return "doctor/ai-predict";
     }
 }

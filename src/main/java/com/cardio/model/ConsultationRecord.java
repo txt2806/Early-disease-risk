@@ -33,4 +33,10 @@ public class ConsultationRecord {
 
     @Column(name = "Status")
     private String status;
+
+    @OneToOne(mappedBy = "record", cascade = CascadeType.ALL)
+    private HeartClinicalMetrics clinicalMetrics;
+
+    @OneToOne(mappedBy = "record", cascade = CascadeType.ALL)
+    private AIRiskPrediction aiRiskPrediction;
 }
