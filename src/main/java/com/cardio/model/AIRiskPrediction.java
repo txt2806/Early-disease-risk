@@ -24,10 +24,10 @@ public class AIRiskPrediction {
     @Column(name = "RiskLevel")
     private String riskLevel;
 
-    @Column(name = "RiskExplanation", columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "RiskExplanation", columnDefinition = "TEXT")
     private String riskExplanation;
 
-    @Column(name = "HealthAdvice", columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "HealthAdvice", columnDefinition = "TEXT")
     private String healthAdvice;
 
     @Column(name = "IsAlertSent")

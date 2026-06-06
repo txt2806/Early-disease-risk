@@ -124,7 +124,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         };
         for (String[] pat : patients) {
             jdbcTemplate.update("INSERT INTO Patient_Profile (Username, PasswordHash, FullName, DOB, Gender, Phone, Address, Status) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE')", pat[0], passHash, pat[1], pat[2], pat[3], pat[4], pat[5]);
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE')", pat[0], passHash, pat[1], java.sql.Date.valueOf(pat[2]), pat[3], pat[4], pat[5]);
             syncUserWithFirebase(pat[0], "123", pat[1]);
         }
 
@@ -228,7 +228,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         // 2. Appointment
         try {
             jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS Appointment (" +
-                    "AppointmentID INT IDENTITY PRIMARY KEY, " +
+                    "AppointmentID SERIAL PRIMARY KEY, " +
                     "PatientID INT, " +
                     "DoctorID INT, " +
                     "ScheduledDate DATE NOT NULL, " +
@@ -242,7 +242,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         // 3. Heart_Clinical_Metrics
         try {
             jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS Heart_Clinical_Metrics (" +
-                    "MetricID INT IDENTITY PRIMARY KEY, " +
+                    "MetricID SERIAL PRIMARY KEY, " +
                     "RecordID INT UNIQUE, " +
                     "RecordedBy_StaffID INT, " +
                     "ChestPainType INT, " +
@@ -261,7 +261,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         // 4. Patient_Self_Monitoring
         try {
             jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS Patient_Self_Monitoring (" +
-                    "LogID INT IDENTITY PRIMARY KEY, " +
+                    "LogID SERIAL PRIMARY KEY, " +
                     "PatientID INT, " +
                     "LogDate TIMESTAMP NOT NULL, " +
                     "CurrentHeartRate INT, " +

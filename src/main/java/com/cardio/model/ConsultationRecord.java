@@ -25,10 +25,10 @@ public class ConsultationRecord {
     @Column(name = "VisitDate", nullable = false)
     private LocalDateTime visitDate;
 
-    @Column(name = "ConsultationNotes", columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "ConsultationNotes", columnDefinition = "TEXT")
     private String consultationNotes;
 
-    @Column(name = "TreatmentPlan", columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "TreatmentPlan", columnDefinition = "TEXT")
     private String treatmentPlan;
 
     @Column(name = "Status")

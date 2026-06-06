@@ -20,7 +20,7 @@ public class SystemLog {
     @Column(name = "Action", nullable = false)
     private String action;
 
-    @Column(name = "Details", columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "Details", columnDefinition = "TEXT")
     private String details;
 
     @Column(name = "Timestamp", nullable = false)

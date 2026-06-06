@@ -3,6 +3,7 @@ com\cardio\CardioApplication.class
 com\cardio\model\PatientProfile.class
 com\cardio\controller\AdminController.class
 com\cardio\controller\LoginController.class
+com\cardio\model\HeartClinicalMetrics.class
 com\cardio\repository\PatientRepository.class
 com\cardio\controller\RegisterController.class
 com\cardio\dto\AIResponse.class
@@ -19,6 +20,7 @@ com\cardio\config\SecurityConfig.class
 com\cardio\service\PatientService.class
 com\cardio\config\FirebaseConfig.class
 com\cardio\model\SystemUser.class
+com\cardio\repository\HeartClinicalMetricsRepository.class
 com\cardio\service\AIService.class
 com\cardio\config\DatabaseInitializer.class
 com\cardio\controller\DashboardRedirectController.class
