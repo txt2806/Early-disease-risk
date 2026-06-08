@@ -30,10 +30,6 @@ public class PatientService {
         return patientRepository.findById(id);
     }
 
-    public List<PatientProfile> searchByName(String name) {
-        return patientRepository.findByFullNameContainingIgnoreCase(name);
-    }
-
     public Page<PatientProfile> searchByName(String name, Pageable pageable) {
         return patientRepository.findByFullNameContainingIgnoreCase(name, pageable);
     }
@@ -45,9 +41,5 @@ public class PatientService {
             patient.setPasswordHash(passwordEncoder.encode("changeme123"));
         }
         return patientRepository.save(patient);
-    }
-
-    public void delete(Integer id) {
-        patientRepository.deleteById(id);
     }
 }

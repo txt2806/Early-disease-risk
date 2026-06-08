@@ -1,36 +1,13 @@
 -- 0. Dọn dẹp các bảng cũ nếu tồn tại (để tránh xung đột cấu trúc)
-DROP TABLE IF EXISTS "Record_ICD" CASCADE;
-DROP TABLE IF EXISTS "ICD_Catalog" CASCADE;
 DROP TABLE IF EXISTS "Patient_Self_Monitoring" CASCADE;
 DROP TABLE IF EXISTS "AI_Risk_Prediction" CASCADE;
 DROP TABLE IF EXISTS "Heart_Clinical_Metrics" CASCADE;
 DROP TABLE IF EXISTS "Consultation_Record" CASCADE;
-DROP TABLE IF EXISTS "Appointment" CASCADE;
 DROP TABLE IF EXISTS "Patient_Profile" CASCADE;
 DROP TABLE IF EXISTS "Doctor_Profile" CASCADE;
 DROP TABLE IF EXISTS "Staff_Profile" CASCADE;
 DROP TABLE IF EXISTS "System_Log" CASCADE;
-DROP TABLE IF EXISTS "app_users" CASCADE;
 
--- 0. Tạo bảng Tài khoản người dùng (tổng hợp đăng nhập)
-CREATE TABLE IF NOT EXISTS "app_users" (
-    "UserID"       SERIAL PRIMARY KEY,
-    "Username"     VARCHAR(50)  NOT NULL UNIQUE,
-    "PasswordHash" VARCHAR(255) NOT NULL,
-    "FullName"     VARCHAR(100) NOT NULL,
-    "Role"         VARCHAR(50)  NOT NULL,
-    "Status"       VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE',
-    "CreatedAt"    TIMESTAMP    NOT NULL DEFAULT NOW()
-);
-
--- Seed tài khoản Admin (mật khẩu: 123, mã hoá BCrypt)
-INSERT INTO "app_users" ("Username", "PasswordHash", "FullName", "Role")
-VALUES (
-    'admin@cardio.com',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
-    'System Administrator',
-    'ADMIN'
-) ON CONFLICT ("Username") DO NOTHING;
 
 -- 1. Tạo bảng Hồ sơ Nhân sự (Admin, Lễ tân, Điều dưỡng)
 CREATE TABLE IF NOT EXISTS "Staff_Profile" (
@@ -68,18 +45,6 @@ CREATE TABLE IF NOT EXISTS "Patient_Profile" (
     "Status"       VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE'
 );
 
--- 4. Tạo bảng Lịch hẹn (chặn trùng lịch bác sĩ)
-CREATE TABLE IF NOT EXISTS "Appointment" (
-    "AppointmentID" SERIAL PRIMARY KEY,
-    "PatientID"     INT,
-    "DoctorID"      INT,
-    "ScheduledDate" DATE        NOT NULL,
-    "TimeSlot"      TIME        NOT NULL,
-    "Status"        VARCHAR(20) NOT NULL DEFAULT 'Pending',
-    FOREIGN KEY ("PatientID") REFERENCES "Patient_Profile"("PatientID"),
-    FOREIGN KEY ("DoctorID")  REFERENCES "Doctor_Profile"("DoctorID"),
-    CONSTRAINT "uq_appointment_doctor_slot" UNIQUE ("DoctorID", "ScheduledDate", "TimeSlot")
-);
 
 -- 5. Tạo bảng Hồ sơ Tư vấn & Khám bệnh
 CREATE TABLE IF NOT EXISTS "Consultation_Record" (
@@ -135,21 +100,6 @@ CREATE TABLE IF NOT EXISTS "Patient_Self_Monitoring" (
     FOREIGN KEY ("PatientID") REFERENCES "Patient_Profile"("PatientID")
 );
 
--- 9. Tạo bảng Danh mục Mã bệnh ICD
-CREATE TABLE IF NOT EXISTS "ICD_Catalog" (
-    "ICDCode"     VARCHAR(20) PRIMARY KEY,
-    "DiseaseName" VARCHAR(255) NOT NULL
-);
-
--- 10. Tạo bảng trung gian Chi tiết bệnh lý tư vấn
-CREATE TABLE IF NOT EXISTS "Record_ICD" (
-    "RecordID" INT,
-    "ICDCode"  VARCHAR(20),
-    "Notes"    TEXT,
-    PRIMARY KEY ("RecordID", "ICDCode"),
-    FOREIGN KEY ("RecordID") REFERENCES "Consultation_Record"("RecordID"),
-    FOREIGN KEY ("ICDCode")  REFERENCES "ICD_Catalog"("ICDCode")
-);
 
 -- 11. Tạo bảng System Log
 CREATE TABLE IF NOT EXISTS "System_Log" (

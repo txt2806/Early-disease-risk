@@ -6,6 +6,7 @@ import com.cardio.repository.StaffRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.userdetails.*;
@@ -20,6 +21,7 @@ public class SecurityConfig {
     private final DoctorRepository doctorRepository;
     private final PatientRepository patientRepository;
     private final StaffRepository staffRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -57,33 +59,11 @@ public class SecurityConfig {
     public UserDetailsService userDetailsService() {
         return username -> {
             try {
-                // 1. Kiểm tra trong StaffRepository (Admin, Staff, Receptionist)
-                var staffOpt = staffRepository.findByUsername(username);
-                if (staffOpt.isPresent()) {
-                    var staff = staffOpt.get();
-                    boolean isLocked = "LOCKED".equalsIgnoreCase(staff.getStatus());
-                    return User.withUsername(staff.getUsername())
-                        .password(staff.getPasswordHash())
-                        .roles(staff.getRole() != null ? staff.getRole() : "STAFF")
-                        .accountLocked(isLocked)
-                        .build();
-                }
-
-                // 2. Kiểm tra trong DoctorRepository (Doctors)
-                var docOpt = doctorRepository.findByUsername(username);
-                if (docOpt.isPresent()) {
-                    var doctor = docOpt.get();
-                    boolean isLocked = "LOCKED".equalsIgnoreCase(doctor.getStatus());
-                    return User.withUsername(doctor.getUsername())
-                        .password(doctor.getPasswordHash())
-                        .roles("DOCTOR")
-                        .accountLocked(isLocked)
-                        .build();
-                }
-
-                // 3. Kiểm tra trong PatientRepository (Patients)
-                var patOpt = patientRepository.findByUsername(username);
-                if (!patOpt.isPresent()) {
+                // Query app_users table directly
+                java.util.List<java.util.Map<String, Object>> users = jdbcTemplate.queryForList(
+                    "SELECT * FROM app_users WHERE \"Username\" = ?", username);
+                
+                if (users.isEmpty()) {
                     // Trông giống số điện thoại? Thử tìm theo Phone
                     String phoneNorm1 = username;
                     String phoneNorm2 = username;
@@ -94,26 +74,39 @@ public class SecurityConfig {
                     }
                     final String norm1 = phoneNorm1;
                     final String norm2 = phoneNorm2;
-                    patOpt = patientRepository.findAll().stream()
+                    
+                    // Tìm kiếm patient theo phone
+                    var patOpt = patientRepository.findAll().stream()
                         .filter(p -> p.getPhone() != null && 
                                     (p.getPhone().equals(username) || 
                                      p.getPhone().equals(norm1) || 
                                      p.getPhone().equals(norm2)))
                         .findFirst();
+                        
+                    if (patOpt.isPresent()) {
+                        String realUsername = patOpt.get().getUsername();
+                        users = jdbcTemplate.queryForList(
+                            "SELECT * FROM app_users WHERE \"Username\" = ?", realUsername);
+                    }
                 }
 
-                if (patOpt.isPresent()) {
-                    var patient = patOpt.get();
-                    boolean isPatientLocked = "LOCKED".equalsIgnoreCase(patient.getStatus());
-                    // Luôn dùng email (patient.getUsername()) làm principal name
-                    return User.withUsername(patient.getUsername())
-                        .password(patient.getPasswordHash())
-                        .roles("PATIENT")
-                        .accountLocked(isPatientLocked)
-                        .build();
+                if (users.isEmpty()) {
+                    throw new UsernameNotFoundException("Không tìm thấy người dùng: " + username);
                 }
 
-                throw new UsernameNotFoundException("Không tìm thấy người dùng: " + username);
+                var user = users.get(0);
+                String dbUsername = (String) user.get("Username");
+                String passwordHash = (String) user.get("PasswordHash");
+                String role = (String) user.get("Role");
+                String status = (String) user.get("Status");
+                boolean isLocked = "LOCKED".equalsIgnoreCase(status);
+
+                return User.withUsername(dbUsername)
+                    .password(passwordHash)
+                    .roles(role)
+                    .accountLocked(isLocked)
+                    .build();
+
             } catch (UsernameNotFoundException ue) {
                 throw ue;
             } catch (Exception e) {

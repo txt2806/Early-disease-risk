@@ -352,8 +352,8 @@ public class RegisterController {
                 }
 
                 jdbcTemplate.update(
-                        "INSERT INTO Patient_Self_Monitoring (PatientID, LogDate, CurrentHeartRate, Symptoms, TriggeredAlert) VALUES (?, GETDATE(), ?, ?, ?)",
-                        patient.getPatientId(), heartRate, symptoms, triggeredAlert ? 1 : 0);
+                        "INSERT INTO Patient_Self_Monitoring (PatientID, LogDate, CurrentHeartRate, Symptoms, TriggeredAlert) VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?)",
+                        patient.getPatientId(), heartRate, symptoms, triggeredAlert);
             }
         } catch (Exception e) {
             System.err.println("Error adding self-monitoring log: " + e.getMessage());
