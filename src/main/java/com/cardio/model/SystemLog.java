@@ -6,23 +6,23 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "System_Log")
+@Table(name = "system_log")
 public class SystemLog {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "LogID")
+    @Column(name = "logid")
     private Integer logId;
 
-    @Column(name = "Username", nullable = false)
+    @Column(name = "username", nullable = false)
     private String username;
 
-    @Column(name = "Action", nullable = false)
+    @Column(name = "action", nullable = false)
     private String action;
 
-    @Column(name = "Details", columnDefinition = "TEXT")
+    @Column(name = "details", columnDefinition = "TEXT")
     private String details;
 
-    @Column(name = "Timestamp", nullable = false)
+    @Column(name = "timestamp", nullable = false)
     private LocalDateTime timestamp = LocalDateTime.now();
 }

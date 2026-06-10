@@ -1,5 +1,6 @@
 C:\Users\Admin\Documents\GitHub\Early-disease-risk\src\main\java\com\cardio\controller\DoctorController.java
 C:\Users\Admin\Documents\GitHub\Early-disease-risk\src\main\java\com\cardio\controller\LoginController.java
+C:\Users\Admin\Documents\GitHub\Early-disease-risk\src\main\java\com\cardio\util\AuthUtil.java
 C:\Users\Admin\Documents\GitHub\Early-disease-risk\src\main\java\com\cardio\model\PatientProfile.java
 C:\Users\Admin\Documents\GitHub\Early-disease-risk\src\main\java\com\cardio\model\ConsultationRecord.java
 C:\Users\Admin\Documents\GitHub\Early-disease-risk\src\main\java\com\cardio\controller\DashboardRedirectController.java
@@ -8,6 +9,7 @@ C:\Users\Admin\Documents\GitHub\Early-disease-risk\src\main\java\com\cardio\serv
 C:\Users\Admin\Documents\GitHub\Early-disease-risk\src\main\java\com\cardio\repository\DoctorRepository.java
 C:\Users\Admin\Documents\GitHub\Early-disease-risk\src\main\java\com\cardio\model\SystemLog.java
 C:\Users\Admin\Documents\GitHub\Early-disease-risk\src\main\java\com\cardio\repository\StaffRepository.java
+C:\Users\Admin\Documents\GitHub\Early-disease-risk\src\main\java\com\cardio\DbTest.java
 C:\Users\Admin\Documents\GitHub\Early-disease-risk\src\main\java\com\cardio\dto\AIRequest.java
 C:\Users\Admin\Documents\GitHub\Early-disease-risk\src\main\java\com\cardio\model\HeartClinicalMetrics.java
 C:\Users\Admin\Documents\GitHub\Early-disease-risk\src\main\java\com\cardio\config\SecurityConfig.java

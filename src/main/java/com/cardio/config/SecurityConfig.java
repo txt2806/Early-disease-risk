@@ -3,6 +3,8 @@ package com.cardio.config;
 import com.cardio.repository.DoctorRepository;
 import com.cardio.repository.PatientRepository;
 import com.cardio.repository.StaffRepository;
+import com.cardio.repository.SystemLogRepository;
+import com.cardio.model.SystemLog;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,6 +22,11 @@ public class SecurityConfig {
     private final DoctorRepository doctorRepository;
     private final PatientRepository patientRepository;
     private final StaffRepository staffRepository;
+<<<<<<< Updated upstream
+=======
+    private final SystemLogRepository systemLogRepository;
+    private final JdbcTemplate jdbcTemplate;
+>>>>>>> Stashed changes
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -34,6 +41,22 @@ public class SecurityConfig {
                 .loginProcessingUrl("/login")
                 .defaultSuccessUrl("/dashboard-redirect", true)
                 .failureHandler((request, response, exception) -> {
+                    String username = request.getParameter("username");
+                    try {
+                        SystemLog log = new SystemLog();
+                        log.setUsername(username != null && !username.trim().isEmpty() ? username : "unknown");
+                        log.setAction("LOGIN_FAILED");
+                        if (exception.getCause() instanceof LockedException || exception instanceof LockedException) {
+                            log.setDetails("Đăng nhập thất bại: Tài khoản bị khóa.");
+                        } else {
+                            log.setDetails("Đăng nhập thất bại: Sai tên đăng nhập hoặc mật khẩu.");
+                        }
+                        log.setTimestamp(java.time.LocalDateTime.now());
+                        systemLogRepository.save(log);
+                    } catch (Exception e) {
+                        System.err.println("Could not save login failure log: " + e.getMessage());
+                    }
+
                     if (exception.getCause() instanceof LockedException || exception instanceof LockedException) {
                         response.sendRedirect("/login?error=locked");
                     } else {
@@ -57,6 +80,7 @@ public class SecurityConfig {
     public UserDetailsService userDetailsService() {
         return username -> {
             try {
+<<<<<<< Updated upstream
                 // 1. Kiểm tra trong StaffRepository (Admin, Staff, Receptionist)
                 var staffOpt = staffRepository.findByUsername(username);
                 if (staffOpt.isPresent()) {
@@ -114,6 +138,82 @@ public class SecurityConfig {
                 }
 
                 throw new UsernameNotFoundException("Không tìm thấy người dùng: " + username);
+=======
+                // Query app_users table directly (case-insensitive)
+                java.util.List<java.util.Map<String, Object>> users = jdbcTemplate.queryForList(
+                    "SELECT * FROM app_users WHERE LOWER(\"Username\") = LOWER(?)", username);
+                
+                if (users.isEmpty()) {
+                    // Trông giống số điện thoại? Thử tìm theo Phone (hỗ trợ mọi định dạng biến thể)
+                    java.util.List<String> phoneVariations = com.cardio.util.AuthUtil.getPhoneVariations(username);
+                    
+                    // Tìm kiếm patient theo phone (Tối ưu hóa: Dùng findByPhoneIn thay vì findAll)
+                    var patOpt = patientRepository.findByPhoneIn(phoneVariations).stream()
+                        .findFirst();
+                        
+                    if (patOpt.isPresent()) {
+                        String realUsername = patOpt.get().getUsername();
+                        users = jdbcTemplate.queryForList(
+                            "SELECT * FROM app_users WHERE LOWER(\"Username\") = LOWER(?)", realUsername);
+                    }
+                }
+
+                if (!users.isEmpty()) {
+                    var user = users.get(0);
+                    String dbUsername = (String) user.get("Username");
+                    String passwordHash = (String) user.get("PasswordHash");
+                    String role = (String) user.get("Role");
+                    String status = (String) user.get("Status");
+                    boolean isLocked = "LOCKED".equalsIgnoreCase(status);
+
+                    return User.withUsername(dbUsername)
+                        .password(passwordHash)
+                        .roles(role)
+                        .accountLocked(isLocked)
+                        .build();
+                }
+
+                // FALLBACK: Nếu không tìm thấy trong app_users, truy vấn trực tiếp từ các bảng Profile
+                // 1. Tìm bệnh nhân theo Username/Email hoặc Phone
+                var patOpt = patientRepository.findByUsernameIgnoreCase(username);
+                if (!patOpt.isPresent()) {
+                    java.util.List<String> phoneVariations = com.cardio.util.AuthUtil.getPhoneVariations(username);
+                    patOpt = patientRepository.findByPhoneIn(phoneVariations).stream().findFirst();
+                }
+                if (patOpt.isPresent()) {
+                    var patient = patOpt.get();
+                    return User.withUsername(patient.getUsername())
+                        .password(patient.getPasswordHash())
+                        .roles("PATIENT")
+                        .accountLocked("LOCKED".equalsIgnoreCase(patient.getStatus()))
+                        .build();
+                }
+
+                // 2. Tìm bác sĩ theo Username
+                var docOpt = doctorRepository.findByUsernameIgnoreCase(username);
+                if (docOpt.isPresent()) {
+                    var doctor = docOpt.get();
+                    return User.withUsername(doctor.getUsername())
+                        .password(doctor.getPasswordHash())
+                        .roles("DOCTOR")
+                        .accountLocked("LOCKED".equalsIgnoreCase(doctor.getStatus()))
+                        .build();
+                }
+
+                // 3. Tìm nhân sự theo Username
+                var staffOpt = staffRepository.findByUsernameIgnoreCase(username);
+                if (staffOpt.isPresent()) {
+                    var staff = staffOpt.get();
+                    return User.withUsername(staff.getUsername())
+                        .password(staff.getPasswordHash())
+                        .roles(staff.getRole())
+                        .accountLocked("LOCKED".equalsIgnoreCase(staff.getStatus()))
+                        .build();
+                }
+
+                throw new UsernameNotFoundException("Không tìm thấy người dùng: " + username);
+
+>>>>>>> Stashed changes
             } catch (UsernameNotFoundException ue) {
                 throw ue;
             } catch (Exception e) {

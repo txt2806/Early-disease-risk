@@ -5,7 +5,9 @@ com\cardio\controller\AdminController.class
 com\cardio\controller\LoginController.class
 com\cardio\model\HeartClinicalMetrics.class
 com\cardio\repository\PatientRepository.class
+com\cardio\util\AuthUtil.class
 com\cardio\controller\RegisterController.class
+com\cardio\DbTest.class
 com\cardio\dto\AIResponse.class
 com\cardio\repository\ConsultationRepository.class
 com\cardio\repository\SystemLogRepository.class

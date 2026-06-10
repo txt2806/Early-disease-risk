@@ -4,6 +4,7 @@ import com.cardio.dto.AIRequest;
 import com.cardio.dto.AIResponse;
 import com.cardio.model.*;
 import com.cardio.repository.DoctorRepository;
+import com.cardio.repository.SystemLogRepository;
 import com.cardio.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,6 +29,7 @@ public class DoctorController {
     private final PatientService patientService;
     private final ConsultationService consultationService;
     private final AIService aiService;
+    private final SystemLogRepository systemLogRepository;
 
     // Helper lấy doctor đang đăng nhập
     private DoctorProfile getCurrentDoctor(UserDetails userDetails) {
@@ -84,8 +86,21 @@ public class DoctorController {
 
     @PostMapping("/patients/save")
     public String savePatient(@ModelAttribute PatientProfile patient,
+                              @AuthenticationPrincipal UserDetails userDetails,
                               RedirectAttributes ra) {
         patientService.save(patient);
+        if (userDetails != null) {
+            try {
+                SystemLog log = new SystemLog();
+                log.setUsername(userDetails.getUsername());
+                log.setAction("DOCTOR_ADD_PATIENT");
+                log.setDetails("Bác sĩ thêm bệnh nhân mới: " + patient.getFullName() + " (Email/Username: " + patient.getUsername() + ")");
+                log.setTimestamp(java.time.LocalDateTime.now());
+                systemLogRepository.save(log);
+            } catch (Exception ex) {
+                System.err.println("Error saving doctor add patient system audit log: " + ex.getMessage());
+            }
+        }
         ra.addFlashAttribute("success", "Đã thêm bệnh nhân " + patient.getFullName());
         return "redirect:/doctor/patients";
     }
@@ -169,10 +184,23 @@ public class DoctorController {
         DoctorProfile doctor = getCurrentDoctor(userDetails);
         PatientProfile patient = patientService.findById(patientId)
                 .orElseThrow(() -> new RuntimeException("Patient not found"));
-
         // Save records and prediction to database
         AIRiskPrediction prediction = consultationService.saveRecordAfterPrediction(
                 patient, doctor, doctorNotes, treatmentPlan, riskScore, riskLevel, riskExplanation, aiRequest);
+
+        if (userDetails != null) {
+            try {
+                SystemLog log = new SystemLog();
+                log.setUsername(userDetails.getUsername());
+                log.setAction("DOCTOR_SAVE_PREDICTION");
+                log.setDetails("Bác sĩ lưu kết quả chẩn đoán AI và hồ sơ khám cho bệnh nhân: " + patient.getFullName() + 
+                               " (Mức độ nguy cơ: " + riskLevel + ", Điểm số: " + riskScore + "%)");
+                log.setTimestamp(java.time.LocalDateTime.now());
+                systemLogRepository.save(log);
+            } catch (Exception ex) {
+                System.err.println("Error saving doctor save prediction system audit log: " + ex.getMessage());
+            }
+        }
 
         model.addAttribute("doctor", doctor);
         model.addAttribute("patients", patientService.getAllPatients());
