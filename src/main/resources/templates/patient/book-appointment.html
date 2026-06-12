@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Đặt lịch Hẹn khám')}"></head>
+<body>
+<div th:replace="~{fragments :: patientSidebar('book-appointment')}"></div>
+
+<main class="main">
+  <header th:replace="~{fragments :: simpleTopbar('Đặt lịch Hẹn khám')}"></header>
+  <div class="content">
+
+    <div class="alert-success" th:if="${success}" th:text="${success}" style="padding: 12px; margin-bottom: 20px; border-radius: 8px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);"></div>
+    <div class="alert-danger" th:if="${error}" th:text="${error}" style="padding: 12px; margin-bottom: 20px; border-radius: 8px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);"></div>
+
+    <div class="card" style="max-width: 650px; margin: 0 auto;">
+      <div class="card-header">
+        <div class="card-title">📅 Điền Thông tin Lịch hẹn</div>
+      </div>
+      <form th:action="@{/patient/book-appointment/save}" method="post" style="padding-top:10px;">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+
+        <!-- Chọn bác sĩ -->
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Chọn Bác sĩ điều trị</label>
+          <select name="doctorId" required 
+                  style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none; cursor:pointer;">
+            <option value="" disabled selected>-- Chọn Bác sĩ Tim mạch --</option>
+            <option th:each="doc : ${doctors}" th:value="${doc.doctorId}" th:text="${doc.fullName + ' - Chuyên khoa: ' + doc.specialty}"></option>
+          </select>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
+          <!-- Chọn ngày -->
+          <div class="form-group">
+            <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Chọn Ngày hẹn</label>
+            <input type="date" name="scheduledDate" id="scheduledDate" required 
+                   style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none;">
+          </div>
+
+          <!-- Chọn giờ -->
+          <div class="form-group">
+            <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Chọn Khung giờ khám</label>
+            <select name="timeSlot" required 
+                    style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none; cursor:pointer;">
+              <option value="" disabled selected>-- Chọn giờ khám --</option>
+              <option value="08:00:00">08:00 - 09:00</option>
+              <option value="09:00:00">09:00 - 10:00</option>
+              <option value="10:00:00">10:00 - 11:00</option>
+              <option value="11:00:00">11:00 - 12:00</option>
+              <option value="13:30:00">13:30 - 14:30</option>
+              <option value="14:30:00">14:30 - 15:30</option>
+              <option value="15:30:00">15:30 - 16:30</option>
+              <option value="16:30:00">16:30 - 17:30</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Tình trạng sơ bộ -->
+        <div class="form-group" style="margin-bottom: 24px;">
+          <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Tình trạng sơ bộ / Triệu chứng lâm sàng</label>
+          <textarea name="preliminaryStatus" rows="4" placeholder="Ví dụ: Đau nhẹ thắt ngực khi chạy bộ gắng sức, khó thở nhẹ vào ban đêm..." required 
+                    style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none; font-family:inherit; resize:vertical;"></textarea>
+        </div>
+
+        <button type="submit" class="btn" style="width:100%; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color:white; border:none; padding:12px; border-radius:8px; font-weight:600; cursor:pointer; font-size:14px; transition: opacity 0.2s;">Xác nhận Đặt lịch khám</button>
+      </form>
+    </div>
+
+  </div>
+</main>
+<script>
+// Prevent selecting past dates
+const dateInput = document.getElementById('scheduledDate');
+if (dateInput) {
+  const today = new Date().toISOString().split('T')[0];
+  dateInput.min = today;
+}
+</script>
+<script th:src="@{/js/main.js}"></script>
+</body>
+</html>

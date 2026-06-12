@@ -19,12 +19,19 @@ public class DashboardRedirectController {
         boolean isPatient = authentication.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_PATIENT"));
 
+        boolean isReceptionist = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_RECEPTIONIST"));
+
         if (isAdmin) {
             return "redirect:/admin/dashboard";
         }
         
         if (isPatient) {
-            return "redirect:/register/complete-profile?email=" + authentication.getName();
+            return "redirect:/patient/dashboard";
+        }
+
+        if (isReceptionist) {
+            return "redirect:/reception/dashboard";
         }
         
         return "redirect:/doctor/dashboard";

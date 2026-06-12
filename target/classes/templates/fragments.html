@@ -60,6 +60,100 @@
   </div>
 </aside>
 
+<!-- PATIENT SIDEBAR fragment -->
+<aside th:fragment="patientSidebar(page)" class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon">❤️</div>
+      <div>
+        <div class="logo-text">CardioCare</div>
+        <div class="logo-sub">PATIENT PORTAL</div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-label">Tổng quan</div>
+    <a th:href="@{/patient/dashboard}"
+       th:classappend="${page == 'dashboard'} ? ' active'" class="nav-item">
+      <i class="ti ti-layout-dashboard"></i> Dashboard
+    </a>
+
+    <div class="nav-label">Chức năng</div>
+    <a th:href="@{/patient/self-declare}"
+       th:classappend="${page == 'self-declare'} ? ' active'" class="nav-item">
+      <i class="ti ti-activity"></i> Khai báo sức khỏe
+    </a>
+    <a th:href="@{/patient/records}"
+       th:classappend="${page == 'records'} ? ' active'" class="nav-item">
+      <i class="ti ti-clipboard-list"></i> Xem bệnh án cũ
+    </a>
+    <a th:href="@{/patient/book-appointment}"
+       th:classappend="${page == 'book-appointment'} ? ' active'" class="nav-item">
+      <i class="ti ti-calendar-plus"></i> Đặt lịch khám
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="doctor-info">
+      <div class="doctor-avatar" th:text="${patient.fullName.charAt(0)}" style="background:#10b981;">P</div>
+      <div>
+        <div class="doctor-name" th:text="${patient.fullName}">Bệnh nhân</div>
+        <div class="doctor-role">Bệnh nhân</div>
+      </div>
+    </div>
+    <a th:href="@{/logout}" class="nav-item" style="margin-top:8px;color:#e05a5a;">
+      <i class="ti ti-logout"></i> Đăng xuất
+    </a>
+  </div>
+</aside>
+
+<!-- RECEPTION SIDEBAR fragment -->
+<aside th:fragment="receptionSidebar(page)" class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon">❤️</div>
+      <div>
+        <div class="logo-text">CardioCare</div>
+        <div class="logo-sub">RECEPTION PORTAL</div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-label">Quản lý tiếp đón</div>
+    <a th:href="@{/reception/dashboard}"
+       th:classappend="${page == 'dashboard'} ? ' active'" class="nav-item">
+      <i class="ti ti-checklist"></i> Quản lý ca hẹn
+    </a>
+    <a th:href="@{/reception/schedule}"
+       th:classappend="${page == 'schedule'} ? ' active'" class="nav-item">
+      <i class="ti ti-calendar-event"></i> Bảng lịch khám
+    </a>
+    <a th:href="@{/reception/patients}"
+       th:classappend="${page == 'patients'} ? ' active'" class="nav-item">
+      <i class="ti ti-users"></i> Danh sách bệnh nhân
+    </a>
+    <a th:href="@{/reception/appointments/new}"
+       th:classappend="${page == 'book-appointment'} ? ' active'" class="nav-item">
+      <i class="ti ti-calendar-plus"></i> Tiếp đón & Đăng ký
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="doctor-info">
+      <div class="doctor-avatar" th:text="${staff.fullName.charAt(0)}" style="background:#f59e0b;">L</div>
+      <div>
+        <div class="doctor-name" th:text="${staff.fullName}">Lễ tân</div>
+        <div class="doctor-role" th:text="${staff.role}">Tiếp đón</div>
+      </div>
+    </div>
+    <a th:href="@{/logout}" class="nav-item" style="margin-top:8px;color:#e05a5a;">
+      <i class="ti ti-logout"></i> Đăng xuất
+    </a>
+  </div>
+</aside>
+
 <!-- TOPBAR fragment -->
 <header th:fragment="topbar(title)" class="topbar">
   <div class="topbar-title" th:text="${title}">Dashboard</div>
@@ -71,5 +165,14 @@
     <i class="ti ti-bell"></i>
     <div class="notif-dot" th:if="${highAlertCount > 0}"></div>
   </a>
+</header>
+
+<!-- SIMPLE TOPBAR fragment -->
+<header th:fragment="simpleTopbar(title)" class="topbar">
+  <div class="topbar-title" th:text="${title}">Dashboard</div>
+  <div style="flex:1;"></div>
+  <div class="topbar-btn">
+    <i class="ti ti-user"></i>
+  </div>
 </header>
 </html>

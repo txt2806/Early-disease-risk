@@ -354,6 +354,21 @@ public class RegisterController {
                 jdbcTemplate.update(
                         "INSERT INTO Patient_Self_Monitoring (PatientID, LogDate, CurrentHeartRate, Symptoms, TriggeredAlert) VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?)",
                         patient.getPatientId(), heartRate, symptoms, triggeredAlert);
+<<<<<<< Updated upstream
+=======
+
+                // Save to system audit log
+                try {
+                    SystemLog log = new SystemLog();
+                    log.setUsername(email);
+                    log.setAction("PATIENT_SELF_MONITORING");
+                    log.setDetails("Bệnh nhân tự ghi chỉ số sức khỏe: Nhịp tim " + heartRate + " bpm, Triệu chứng: " + (symptoms != null && !symptoms.trim().isEmpty() ? symptoms : "Không có") + " (Cảnh báo: " + (triggeredAlert ? "Có" : "Không") + ")");
+                    log.setTimestamp(java.time.LocalDateTime.now());
+                    systemLogRepository.save(log);
+                } catch (Exception ex) {
+                    System.err.println("Error saving self-monitoring system audit log: " + ex.getMessage());
+                }
+>>>>>>> Stashed changes
             }
         } catch (Exception e) {
             System.err.println("Error adding self-monitoring log: " + e.getMessage());

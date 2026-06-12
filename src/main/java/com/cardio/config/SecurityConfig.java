@@ -21,7 +21,12 @@ public class SecurityConfig {
     private final DoctorRepository doctorRepository;
     private final PatientRepository patientRepository;
     private final StaffRepository staffRepository;
+<<<<<<< Updated upstream
     private final JdbcTemplate jdbcTemplate;
+=======
+    private final SystemLogRepository systemLogRepository;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+>>>>>>> Stashed changes
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -29,6 +34,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/login", "/login/profile", "/register", "/register/**", "/css/**", "/js/**").permitAll()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
+                .requestMatchers("/reception/**").hasAnyRole("RECEPTIONIST", "ADMIN")
+                .requestMatchers("/patient/**").hasAnyRole("PATIENT", "ADMIN")
+                .requestMatchers("/doctor/**").hasAnyRole("DOCTOR", "ADMIN")
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form
@@ -59,6 +67,7 @@ public class SecurityConfig {
     public UserDetailsService userDetailsService() {
         return username -> {
             try {
+<<<<<<< Updated upstream
                 // Query app_users table directly
                 java.util.List<java.util.Map<String, Object>> users = jdbcTemplate.queryForList(
                     "SELECT * FROM app_users WHERE \"Username\" = ?", username);
@@ -81,6 +90,18 @@ public class SecurityConfig {
                                     (p.getPhone().equals(username) || 
                                      p.getPhone().equals(norm1) || 
                                      p.getPhone().equals(norm2)))
+=======
+                // Query app_users table directly (case-insensitive)
+                java.util.List<java.util.Map<String, Object>> users = jdbcTemplate.queryForList(
+                    "SELECT * FROM app_users WHERE LOWER(\"Username\") = LOWER(?)", username);
+                
+                if (users.isEmpty()) {
+                    // Trông giống số điện thoại? Thử tìm theo Phone (hỗ trợ mọi định dạng biến thể)
+                    java.util.List<String> phoneVariations = com.cardio.util.AuthUtil.getPhoneVariations(username);
+                    
+                    // Tìm kiếm patient theo phone (Tối ưu hóa: Dùng findByPhoneIn thay vì findAll)
+                    var patOpt = patientRepository.findByPhoneIn(phoneVariations).stream()
+>>>>>>> Stashed changes
                         .findFirst();
                         
                     if (patOpt.isPresent()) {
@@ -107,6 +128,21 @@ public class SecurityConfig {
                     .accountLocked(isLocked)
                     .build();
 
+<<<<<<< Updated upstream
+=======
+                // 3. Tìm nhân sự theo Username
+                var staffOpt = staffRepository.findByUsernameIgnoreCase(username);
+                if (staffOpt.isPresent()) {
+                    var staff = staffOpt.get();
+                    return User.withUsername(staff.getUsername())
+                        .password(staff.getPasswordHash())
+                        .roles(staff.getRole())
+                        .accountLocked("LOCKED".equalsIgnoreCase(staff.getStatus()))
+                        .build();
+                }
+
+                throw new UsernameNotFoundException("Không tìm thấy người dùng: " + username);
+>>>>>>> Stashed changes
             } catch (UsernameNotFoundException ue) {
                 throw ue;
             } catch (Exception e) {

@@ -8,6 +8,11 @@ import java.util.Optional;
 
 public interface PatientRepository extends JpaRepository<PatientProfile, Integer> {
     Optional<PatientProfile> findByUsername(String username);
+<<<<<<< Updated upstream
+=======
+    Optional<PatientProfile> findByUsernameIgnoreCase(String username);
+    List<PatientProfile> findByFullNameContainingIgnoreCase(String name);
+>>>>>>> Stashed changes
     Page<PatientProfile> findByFullNameContainingIgnoreCase(String name, Pageable pageable);
 }
 
