@@ -42,7 +42,7 @@ public class ConsultationService {
         // 1. Lưu hồ sơ khám
         ConsultationRecord record = new ConsultationRecord();
         record.setPatient(patient);
-        record.setDoctor(doctor);
+        record.setDoctor(doctor != null && doctor.getDoctorId() != null ? doctor : null);
         record.setVisitDate(LocalDateTime.now());
         record.setConsultationNotes(notes);
         record.setTreatmentPlan(treatmentPlan);
@@ -124,7 +124,7 @@ public class ConsultationService {
         // 1. Lưu hồ sơ khám
         ConsultationRecord record = new ConsultationRecord();
         record.setPatient(patient);
-        record.setDoctor(doctor);
+        record.setDoctor(doctor != null && doctor.getDoctorId() != null ? doctor : null);
         record.setVisitDate(LocalDateTime.now());
         record.setConsultationNotes(doctorNotes);
         record.setTreatmentPlan(treatmentPlan);
