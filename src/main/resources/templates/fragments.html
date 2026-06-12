@@ -38,6 +38,10 @@
       <i class="ti ti-bell-ringing"></i> Cảnh báo
       <span class="nav-badge" th:text="${highAlertCount}" th:if="${highAlertCount > 0}">0</span>
     </a>
+    <a th:href="@{/doctor/thresholds}"
+       th:classappend="${page == 'thresholds'} ? ' active'" class="nav-item">
+      <i class="ti ti-adjustments-horizontal"></i> Ngưỡng cảnh báo
+    </a>
 
     <div class="nav-label">Công cụ</div>
     <a th:href="@{/doctor/ai-predict}"
