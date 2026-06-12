@@ -15,7 +15,7 @@
         <div style="font-size:22px;font-weight:700;color:#e8edf5;margin-bottom:4px;">Bệnh nhân</div>
         <div style="font-size:13px;color:#8a96b0;" th:text="${totalItems != null ? totalItems : patients.size()} + ' bệnh nhân'">0 bệnh nhân</div>
       </div>
-      <a th:href="@{/doctor/patients/new}" class="btn btn-primary">
+      <a th:href="@{/doctor/patients/new}" sec:authorize="hasAnyRole('RECEPTIONIST', 'DOCTOR', 'ADMIN')" class="btn btn-primary">
         <i class="ti ti-plus"></i> Thêm bệnh nhân
       </a>
     </div>
@@ -45,10 +45,10 @@
           <tr th:each="p : ${patients}">
             <td>
               <div class="patient-name-cell">
-                <div class="patient-avatar" th:text="${p.fullName.charAt(0)}">A</div>
+                <div class="patient-avatar" th:text="${p.fullName != null && !p.fullName.isEmpty() ? p.fullName.charAt(0) : 'U'}">A</div>
                 <div>
-                  <div class="patient-fullname" th:text="${p.fullName}">Tên</div>
-                  <div class="patient-id" th:text="'#BN' + p.patientId">BN001</div>
+                  <div class="patient-fullname" th:text="${p.fullName != null ? p.fullName : ''}">Tên</div>
+                  <div class="patient-id" th:text="'#BN' + ${p.patientId}">BN001</div>
                 </div>
               </div>
             </td>
@@ -61,7 +61,7 @@
                 <a th:href="@{/doctor/patients/{id}(id=${p.patientId})}" class="action-btn primary">
                   <i class="ti ti-file-text" style="font-size:12px"></i> Hồ sơ
                 </a>
-                <a th:href="@{/doctor/ai-predict(patientId=${p.patientId})}" class="action-btn">
+                <a th:href="@{/doctor/ai-predict(patientId=${p.patientId})}" sec:authorize="hasAnyRole('DOCTOR', 'ADMIN')" class="action-btn">
                   <i class="ti ti-brain" style="font-size:12px"></i> AI
                 </a>
               </div>

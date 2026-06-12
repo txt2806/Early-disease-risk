@@ -1,161 +1,162 @@
 -- 0. Dọn dẹp các bảng cũ nếu tồn tại (để tránh xung đột cấu trúc)
-DROP TABLE IF EXISTS "Record_ICD" CASCADE;
-DROP TABLE IF EXISTS "ICD_Catalog" CASCADE;
-DROP TABLE IF EXISTS "Patient_Self_Monitoring" CASCADE;
-DROP TABLE IF EXISTS "AI_Risk_Prediction" CASCADE;
-DROP TABLE IF EXISTS "Heart_Clinical_Metrics" CASCADE;
-DROP TABLE IF EXISTS "Consultation_Record" CASCADE;
-DROP TABLE IF EXISTS "Appointment" CASCADE;
-DROP TABLE IF EXISTS "Patient_Profile" CASCADE;
-DROP TABLE IF EXISTS "Doctor_Profile" CASCADE;
-DROP TABLE IF EXISTS "Staff_Profile" CASCADE;
-DROP TABLE IF EXISTS "System_Log" CASCADE;
-DROP TABLE IF EXISTS "app_users" CASCADE;
-
--- 0. Tạo bảng Tài khoản người dùng (tổng hợp đăng nhập)
-CREATE TABLE IF NOT EXISTS "app_users" (
-    "UserID"       SERIAL PRIMARY KEY,
-    "Username"     VARCHAR(50)  NOT NULL UNIQUE,
-    "PasswordHash" VARCHAR(255) NOT NULL,
-    "FullName"     VARCHAR(100) NOT NULL,
-    "Role"         VARCHAR(50)  NOT NULL,
-    "Status"       VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE',
-    "CreatedAt"    TIMESTAMP    NOT NULL DEFAULT NOW()
-);
-
--- Seed tài khoản Admin (mật khẩu: 123, mã hoá BCrypt)
-INSERT INTO "app_users" ("Username", "PasswordHash", "FullName", "Role")
-VALUES (
-    'admin@cardio.com',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
-    'System Administrator',
-    'ADMIN'
-) ON CONFLICT ("Username") DO NOTHING;
+-- Đối với SQL Server, ta cần xóa theo đúng thứ tự ràng buộc khóa ngoại
+IF OBJECT_ID('dbo.Record_ICD', 'U') IS NOT NULL DROP TABLE dbo.Record_ICD;
+IF OBJECT_ID('dbo.ICD_Catalog', 'U') IS NOT NULL DROP TABLE dbo.ICD_Catalog;
+IF OBJECT_ID('dbo.Patient_Self_Monitoring', 'U') IS NOT NULL DROP TABLE dbo.Patient_Self_Monitoring;
+IF OBJECT_ID('dbo.AI_Risk_Prediction', 'U') IS NOT NULL DROP TABLE dbo.AI_Risk_Prediction;
+IF OBJECT_ID('dbo.Heart_Clinical_Metrics', 'U') IS NOT NULL DROP TABLE dbo.Heart_Clinical_Metrics;
+IF OBJECT_ID('dbo.Consultation_Record', 'U') IS NOT NULL DROP TABLE dbo.Consultation_Record;
+IF OBJECT_ID('dbo.Appointment', 'U') IS NOT NULL DROP TABLE dbo.Appointment;
+IF OBJECT_ID('dbo.Patient_Profile', 'U') IS NOT NULL DROP TABLE dbo.Patient_Profile;
+IF OBJECT_ID('dbo.Doctor_Profile', 'U') IS NOT NULL DROP TABLE dbo.Doctor_Profile;
+IF OBJECT_ID('dbo.Staff_Profile', 'U') IS NOT NULL DROP TABLE dbo.Staff_Profile;
+IF OBJECT_ID('dbo.System_Log', 'U') IS NOT NULL DROP TABLE dbo.System_Log;
+GO
 
 -- 1. Tạo bảng Hồ sơ Nhân sự (Admin, Lễ tân, Điều dưỡng)
-CREATE TABLE IF NOT EXISTS "Staff_Profile" (
-    "StaffID"      SERIAL PRIMARY KEY,
-    "Username"     VARCHAR(50)  NOT NULL UNIQUE,
-    "PasswordHash" VARCHAR(255) NOT NULL,
-    "FullName"     VARCHAR(100) NOT NULL,
-    "Role"         VARCHAR(50)  NOT NULL,
-    "Status"       VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE'
+CREATE TABLE Staff_Profile (
+    StaffID INT IDENTITY(1,1) PRIMARY KEY,
+    Username VARCHAR(50) NOT NULL UNIQUE,
+    PasswordHash VARCHAR(255) NOT NULL,
+    FullName NVARCHAR(100) NOT NULL,
+    Role VARCHAR(50) NOT NULL,
+    Status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'
 );
+GO
 
 -- 2. Tạo bảng Hồ sơ Bác sĩ
-CREATE TABLE IF NOT EXISTS "Doctor_Profile" (
-    "DoctorID"           SERIAL PRIMARY KEY,
-    "Username"           VARCHAR(50)  NOT NULL UNIQUE,
-    "PasswordHash"       VARCHAR(255) NOT NULL,
-    "FullName"           VARCHAR(100) NOT NULL,
-    "Specialty"          VARCHAR(100) DEFAULT 'Tim mạch',
-    "AlertThreshold_BPM" INT          DEFAULT 100,
-    "AlertThreshold_BP"  VARCHAR(20)  DEFAULT '140/90',
-    "LicenseNumber"      VARCHAR(50)  NULL,
-    "Status"             VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE'
+CREATE TABLE Doctor_Profile (
+    DoctorID INT IDENTITY(1,1) PRIMARY KEY,
+    Username VARCHAR(50) NOT NULL UNIQUE,
+    PasswordHash VARCHAR(255) NOT NULL,
+    FullName NVARCHAR(100) NOT NULL,
+    Specialty NVARCHAR(100) DEFAULT N'Tim mạch',
+    AlertThreshold_BPM INT DEFAULT 100,
+    AlertThreshold_BP VARCHAR(20) DEFAULT '140/90',
+    LicenseNumber VARCHAR(50) NULL,
+    Status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'
 );
+GO
 
--- 3. Tạo bảng Hồ sơ Bệnh nhân
-CREATE TABLE IF NOT EXISTS "Patient_Profile" (
-    "PatientID"    SERIAL PRIMARY KEY,
-    "Username"     VARCHAR(50)  NOT NULL UNIQUE,
-    "PasswordHash" VARCHAR(255) NOT NULL,
-    "FullName"     VARCHAR(100) NOT NULL,
-    "DOB"          DATE         NOT NULL,
-    "Gender"       VARCHAR(10)  NOT NULL,
-    "Phone"        VARCHAR(15),
-    "Address"      VARCHAR(255),
-    "Status"       VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE'
+-- 3. Tạo bảng Hồ sơ Bệnh nhân (Đã tích hợp cột is_alert)
+CREATE TABLE Patient_Profile (
+    PatientID INT IDENTITY(1,1) PRIMARY KEY,
+    Username VARCHAR(50) NOT NULL UNIQUE,
+    PasswordHash VARCHAR(255) NOT NULL,
+    FullName NVARCHAR(100) NOT NULL,
+    DOB DATE NOT NULL,
+    Gender NVARCHAR(10) NOT NULL,
+    Phone VARCHAR(15),
+    Address NVARCHAR(255),
+    Status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    is_alert INT DEFAULT 0
 );
+GO
 
--- 4. Tạo bảng Lịch hẹn (chặn trùng lịch bác sĩ)
-CREATE TABLE IF NOT EXISTS "Appointment" (
-    "AppointmentID" SERIAL PRIMARY KEY,
-    "PatientID"     INT,
-    "DoctorID"      INT,
-    "ScheduledDate" DATE        NOT NULL,
-    "TimeSlot"      TIME        NOT NULL,
-    "Status"        VARCHAR(20) NOT NULL DEFAULT 'Pending',
-    FOREIGN KEY ("PatientID") REFERENCES "Patient_Profile"("PatientID"),
-    FOREIGN KEY ("DoctorID")  REFERENCES "Doctor_Profile"("DoctorID"),
-    CONSTRAINT "uq_appointment_doctor_slot" UNIQUE ("DoctorID", "ScheduledDate", "TimeSlot")
+-- 4. Tạo bảng Lịch hẹn (Đã có Status và chặn trùng lịch bác sĩ)
+CREATE TABLE Appointment (
+    AppointmentID INT IDENTITY(1,1) PRIMARY KEY,
+    PatientID INT,
+    DoctorID INT,
+    ScheduledDate DATE NOT NULL,
+    TimeSlot TIME NOT NULL,
+    Status NVARCHAR(20) NOT NULL DEFAULT N'Pending',
+    FOREIGN KEY (PatientID) REFERENCES Patient_Profile(PatientID),
+    FOREIGN KEY (DoctorID) REFERENCES Doctor_Profile(DoctorID),
+    CONSTRAINT UNIQUE_Doctor_Slot UNIQUE (DoctorID, ScheduledDate, TimeSlot)
 );
+GO
 
 -- 5. Tạo bảng Hồ sơ Tư vấn & Khám bệnh
-CREATE TABLE IF NOT EXISTS "Consultation_Record" (
-    "RecordID"          SERIAL PRIMARY KEY,
-    "PatientID"         INT,
-    "DoctorID"          INT,
-    "VisitDate"         TIMESTAMP   NOT NULL,
-    "ConsultationNotes" TEXT,
-    "TreatmentPlan"     TEXT,
-    "Status"            VARCHAR(20) DEFAULT 'Completed',
-    FOREIGN KEY ("PatientID") REFERENCES "Patient_Profile"("PatientID"),
-    FOREIGN KEY ("DoctorID")  REFERENCES "Doctor_Profile"("DoctorID")
+CREATE TABLE Consultation_Record (
+    RecordID INT IDENTITY(1,1) PRIMARY KEY,
+    PatientID INT,
+    DoctorID INT,
+    VisitDate DATETIME NOT NULL,
+    ConsultationNotes NVARCHAR(MAX),
+    TreatmentPlan NVARCHAR(MAX),
+    Status NVARCHAR(20) DEFAULT N'Completed',
+    FOREIGN KEY (PatientID) REFERENCES Patient_Profile(PatientID),
+    FOREIGN KEY (DoctorID) REFERENCES Doctor_Profile(DoctorID)
 );
+GO
 
--- 6. Tạo bảng Chỉ số Lâm sàng Tim mạch (1-1 với Hồ sơ khám)
-CREATE TABLE IF NOT EXISTS "Heart_Clinical_Metrics" (
-    "MetricID"           SERIAL PRIMARY KEY,
-    "RecordID"           INT UNIQUE,
-    "RecordedBy_StaffID" INT,
-    "ChestPainType"      INT,
-    "RestingBP"          INT,
-    "Cholesterol"        INT,
-    "FastingBloodSugar"  BOOLEAN,
-    "RestingECG"         INT,
-    "MaxHeartRate"        INT,
-    "ExerciseAngina"     BOOLEAN,
-    "RecordedAt"         TIMESTAMP NOT NULL,
-    FOREIGN KEY ("RecordID")           REFERENCES "Consultation_Record"("RecordID"),
-    FOREIGN KEY ("RecordedBy_StaffID") REFERENCES "Staff_Profile"("StaffID")
+-- 6. Tạo bảng Chỉ số Lâm sàng Tim mạch (Quan hệ 1-1 với Hồ sơ khám)
+CREATE TABLE Heart_Clinical_Metrics (
+    MetricID INT IDENTITY(1,1) PRIMARY KEY,
+    RecordID INT UNIQUE, 
+    RecordedBy_StaffID INT,
+    ChestPainType INT,
+    RestingBP INT,
+    Cholesterol INT,
+    FastingBloodSugar BIT, -- Trong MS SQL dùng BIT thay cho BOOLEAN
+    RestingECG INT,
+    MaxHeartRate INT,
+    ExerciseAngina BIT,
+    RecordedAt DATETIME NOT NULL,
+    Temperature DECIMAL(4,1) NULL,
+    SpO2 INT NULL,
+    BloodTest NVARCHAR(MAX) NULL,
+    UrineTest NVARCHAR(MAX) NULL,
+    Xray NVARCHAR(MAX) NULL,
+    MRI NVARCHAR(MAX) NULL,
+    CT NVARCHAR(MAX) NULL,
+    Ultrasound NVARCHAR(MAX) NULL,
+    FOREIGN KEY (RecordID) REFERENCES Consultation_Record(RecordID),
+    FOREIGN KEY (RecordedBy_StaffID) REFERENCES Staff_Profile(StaffID)
 );
+GO
 
--- 7. Tạo bảng Kết quả Dự đoán Rủi ro AI (1-1 với Hồ sơ khám)
-CREATE TABLE IF NOT EXISTS "AI_Risk_Prediction" (
-    "PredictionID"    SERIAL PRIMARY KEY,
-    "RecordID"        INT UNIQUE,
-    "RiskScore"       DECIMAL(5,2),
-    "RiskLevel"       VARCHAR(20),
-    "RiskExplanation" TEXT,
-    "HealthAdvice"    TEXT,
-    "DietaryAdvice"   TEXT,
-    "IsAlertSent"     BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY ("RecordID") REFERENCES "Consultation_Record"("RecordID")
+-- 7. Tạo bảng Kết quả Dự đoán Rủi ro AI (Quan hệ 1-1 với Hồ sơ khám)
+CREATE TABLE AI_Risk_Prediction (
+    PredictionID INT IDENTITY(1,1) PRIMARY KEY,
+    RecordID INT UNIQUE,
+    RiskScore DECIMAL(5,2),
+    RiskLevel NVARCHAR(20),
+    RiskExplanation NVARCHAR(MAX),
+    HealthAdvice NVARCHAR(MAX),
+    DietaryAdvice NVARCHAR(MAX),
+    IsAlertSent BIT DEFAULT 0,
+    FOREIGN KEY (RecordID) REFERENCES Consultation_Record(RecordID)
 );
+GO
 
 -- 8. Tạo bảng Bệnh nhân Tự theo dõi
-CREATE TABLE IF NOT EXISTS "Patient_Self_Monitoring" (
-    "LogID"            SERIAL PRIMARY KEY,
-    "PatientID"        INT,
-    "LogDate"          TIMESTAMP NOT NULL,
-    "CurrentHeartRate" INT,
-    "Symptoms"         TEXT,
-    "TriggeredAlert"   BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY ("PatientID") REFERENCES "Patient_Profile"("PatientID")
+CREATE TABLE Patient_Self_Monitoring (
+    LogID INT IDENTITY(1,1) PRIMARY KEY,
+    PatientID INT,
+    LogDate DATETIME NOT NULL,
+    CurrentHeartRate INT,
+    Symptoms NVARCHAR(MAX),
+    TriggeredAlert BIT DEFAULT 0,
+    FOREIGN KEY (PatientID) REFERENCES Patient_Profile(PatientID)
 );
+GO
 
 -- 9. Tạo bảng Danh mục Mã bệnh ICD
-CREATE TABLE IF NOT EXISTS "ICD_Catalog" (
-    "ICDCode"     VARCHAR(20) PRIMARY KEY,
-    "DiseaseName" VARCHAR(255) NOT NULL
+CREATE TABLE ICD_Catalog (
+    ICDCode VARCHAR(20) PRIMARY KEY,
+    DiseaseName NVARCHAR(255) NOT NULL
 );
+GO
 
 -- 10. Tạo bảng trung gian Chi tiết bệnh lý tư vấn
-CREATE TABLE IF NOT EXISTS "Record_ICD" (
-    "RecordID" INT,
-    "ICDCode"  VARCHAR(20),
-    "Notes"    TEXT,
-    PRIMARY KEY ("RecordID", "ICDCode"),
-    FOREIGN KEY ("RecordID") REFERENCES "Consultation_Record"("RecordID"),
-    FOREIGN KEY ("ICDCode")  REFERENCES "ICD_Catalog"("ICDCode")
+CREATE TABLE Record_ICD (
+    RecordID INT,
+    ICDCode VARCHAR(20),
+    Notes NVARCHAR(MAX),
+    PRIMARY KEY (RecordID, ICDCode),
+    FOREIGN KEY (RecordID) REFERENCES Consultation_Record(RecordID),
+    FOREIGN KEY (ICDCode) REFERENCES ICD_Catalog(ICDCode)
 );
+GO
 
--- 11. Tạo bảng System Log
-CREATE TABLE IF NOT EXISTS "System_Log" (
-    "LogID"     SERIAL PRIMARY KEY,
-    "Username"  VARCHAR(255) NOT NULL,
-    "Action"    VARCHAR(255) NOT NULL,
-    "Details"   TEXT,
-    "Timestamp" TIMESTAMP    NOT NULL DEFAULT NOW()
+-- 11. Tạo bảng System Log (Nhật ký hệ thống)
+CREATE TABLE System_Log (
+    LogID INT IDENTITY(1,1) PRIMARY KEY,
+    Username VARCHAR(255) NOT NULL,
+    Action VARCHAR(255) NOT NULL,
+    Details NVARCHAR(MAX),
+    Timestamp DATETIME NOT NULL DEFAULT GETDATE()
 );
+GO

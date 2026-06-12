@@ -27,6 +27,11 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/login", "/login/profile", "/register", "/register/**", "/css/**", "/js/**").permitAll()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
+                .requestMatchers("/doctor/ai-predict/**").hasAnyRole("DOCTOR", "ADMIN")
+                .requestMatchers("/doctor/alerts/**").hasAnyRole("DOCTOR", "STAFF", "ADMIN")
+                .requestMatchers("/doctor/patients/*/vitals/**").hasAnyRole("STAFF", "DOCTOR", "ADMIN")
+                .requestMatchers("/doctor/patients/new", "/doctor/patients/save").hasAnyRole("RECEPTIONIST", "DOCTOR", "ADMIN")
+                .requestMatchers("/doctor/appointments/**").hasAnyRole("RECEPTIONIST", "DOCTOR", "STAFF", "ADMIN")
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form
