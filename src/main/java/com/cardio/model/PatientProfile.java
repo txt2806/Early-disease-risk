@@ -37,4 +37,7 @@ public class PatientProfile {
 
     @Column(name = "Status")
     private String status = "ACTIVE";
+
+    @Column(name = "is_alert")
+    private Integer isAlert = 0;
 }

@@ -2,14 +2,8 @@ com\cardio\dto\AIRequest.class
 com\cardio\CardioApplication.class
 com\cardio\model\PatientProfile.class
 com\cardio\model\HeartClinicalMetrics.class
-<<<<<<< Updated upstream
-com\cardio\repository\PatientRepository.class
-com\cardio\controller\RegisterController.class
-com\cardio\dto\AIResponse.class
-=======
 com\cardio\repository\AppointmentRepository.class
 com\cardio\controller\PatientController.class
->>>>>>> Stashed changes
 com\cardio\repository\ConsultationRepository.class
 com\cardio\repository\SystemLogRepository.class
 com\cardio\model\DoctorProfile.class
@@ -25,7 +19,6 @@ com\cardio\model\ConsultationRecord.class
 com\cardio\controller\AdminController.class
 com\cardio\controller\LoginController.class
 com\cardio\repository\PatientRepository.class
-com\cardio\util\AuthUtil.class
 com\cardio\controller\RegisterController.class
 com\cardio\dto\AIResponse.class
 com\cardio\model\StaffProfile.class

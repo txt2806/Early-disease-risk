@@ -345,11 +345,11 @@ input[readonly] { background: #111827; color: #8a96b0; cursor: not-allowed; }
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 8px;">
                 <div>
                   <div style="color: #8a96b0; font-size: 11px;">NGÀY KHÁM</div>
-                  <div style="color: #e8edf5; font-size: 13px; font-weight: 600;" th:text="${#temporals.format(pred.record.visitDate, 'dd/MM/yyyy HH:mm')}">31/05/2026 01:00</div>
+                  <div style="color: #e8edf5; font-size: 13px; font-weight: 600;" th:text="${pred.record != null ? #temporals.format(pred.record.visitDate, 'dd/MM/yyyy HH:mm') : ''}">31/05/2026 01:00</div>
                 </div>
                 <div style="text-align: right;">
                   <div style="color: #8a96b0; font-size: 11px;">BÁC SĨ KHÁM</div>
-                  <div style="color: #e8edf5; font-size: 13px; font-weight: 600;" th:text="${pred.record.doctor.fullName}">BS. Nguyễn Văn An</div>
+                  <div style="color: #e8edf5; font-size: 13px; font-weight: 600;" th:text="${pred.record != null && pred.record.doctor != null ? pred.record.doctor.fullName : 'Hệ thống'}">BS. Nguyễn Văn An</div>
                 </div>
               </div>
 
@@ -385,11 +385,11 @@ input[readonly] { background: #111827; color: #8a96b0; cursor: not-allowed; }
               <div style="display: flex; gap: 12px;">
                 <div style="flex: 1; background: rgba(0,0,0,0.1); border-radius: 8px; padding: 8px 10px;">
                   <label style="color: #a3b3cc; font-size: 9px; font-weight: 700;">GHI CHÚ BÁC SĨ</label>
-                  <p style="color: #e8edf5; font-size: 12px; margin-top: 3px;" th:text="${pred.record.consultationNotes}">Không có ghi chú</p>
+                  <p style="color: #e8edf5; font-size: 12px; margin-top: 3px;" th:text="${pred.record != null ? pred.record.consultationNotes : 'Không có ghi chú'}">Không có ghi chú</p>
                 </div>
                 <div style="flex: 1; background: rgba(0,0,0,0.1); border-radius: 8px; padding: 8px 10px;">
                   <label style="color: #a3b3cc; font-size: 9px; font-weight: 700;">PHÁC ĐỒ ĐIỀU TRỊ</label>
-                  <p style="color: #e8edf5; font-size: 12px; margin-top: 3px;" th:text="${pred.record.treatmentPlan}">Không có phác đồ</p>
+                  <p style="color: #e8edf5; font-size: 12px; margin-top: 3px;" th:text="${pred.record != null ? pred.record.treatmentPlan : 'Không có phác đồ'}">Không có phác đồ</p>
                 </div>
               </div>
             </div>

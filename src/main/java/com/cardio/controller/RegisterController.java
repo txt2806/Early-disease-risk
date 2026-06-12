@@ -226,25 +226,51 @@ public class RegisterController {
             model.addAttribute("gender", patient.getGender());
             model.addAttribute("address", patient.getAddress());
 
-            // Lấy danh sách chẩn đoán AI của bệnh nhân này
-            java.util.List<AIRiskPrediction> predictions = aiRiskRepository.findByPatient(patient);
-            model.addAttribute("predictions", predictions);
+            try {
+                // Lấy danh sách chẩn đoán AI của bệnh nhân này
+                java.util.List<AIRiskPrediction> predictions = aiRiskRepository.findByPatient(patient);
+                model.addAttribute("predictions", predictions != null ? predictions : new java.util.ArrayList<>());
+            } catch (Exception e) {
+                System.out.println("Warning: Could not load AI predictions: " + e.getMessage());
+                model.addAttribute("predictions", new java.util.ArrayList<>());
+            }
 
-            // Lấy danh sách chỉ số lâm sàng (bác sĩ đo)
-            java.util.List<java.util.Map<String, Object>> clinicalMetrics = jdbcTemplate.queryForList(
-                    "SELECT m.* FROM Heart_Clinical_Metrics m JOIN Consultation_Record r ON m.RecordID = r.RecordID WHERE r.PatientID = ? ORDER BY r.VisitDate DESC",
-                    patient.getPatientId());
-            model.addAttribute("clinicalMetrics", clinicalMetrics);
+            try {
+                // Lấy danh sách chỉ số lâm sàng (bác sĩ đo)
+                if (patient.getPatientId() != null) {
+                    java.util.List<java.util.Map<String, Object>> clinicalMetrics = jdbcTemplate.queryForList(
+                            "SELECT m.* FROM Heart_Clinical_Metrics m JOIN Consultation_Record r ON m.RecordID = r.RecordID WHERE r.PatientID = ? ORDER BY r.VisitDate DESC",
+                            patient.getPatientId());
+                    model.addAttribute("clinicalMetrics", clinicalMetrics);
+                } else {
+                    model.addAttribute("clinicalMetrics", new java.util.ArrayList<>());
+                }
+            } catch (Exception e) {
+                System.out.println("Warning: Could not load clinical metrics: " + e.getMessage());
+                model.addAttribute("clinicalMetrics", new java.util.ArrayList<>());
+            }
 
-            // Lấy danh sách tự theo dõi (bệnh nhân tự ghi nhận)
-            java.util.List<java.util.Map<String, Object>> monitoringLogs = jdbcTemplate.queryForList(
-                    "SELECT LogID, LogDate, CurrentHeartRate, Symptoms, TriggeredAlert FROM Patient_Self_Monitoring WHERE PatientID = ? ORDER BY LogDate DESC",
-                    patient.getPatientId());
-            model.addAttribute("monitoringLogs", monitoringLogs);
+            try {
+                // Lấy danh sách tự theo dõi (bệnh nhân tự ghi nhận)
+                if (patient.getPatientId() != null) {
+                    java.util.List<java.util.Map<String, Object>> monitoringLogs = jdbcTemplate.queryForList(
+                            "SELECT LogID, LogDate, CurrentHeartRate, Symptoms, TriggeredAlert FROM Patient_Self_Monitoring WHERE PatientID = ? ORDER BY LogDate DESC",
+                            patient.getPatientId());
+                    model.addAttribute("monitoringLogs", monitoringLogs);
+                } else {
+                    model.addAttribute("monitoringLogs", new java.util.ArrayList<>());
+                }
+            } catch (Exception e) {
+                System.out.println("Warning: Could not load monitoring logs: " + e.getMessage());
+                model.addAttribute("monitoringLogs", new java.util.ArrayList<>());
+            }
         } else {
             model.addAttribute("isCompleted", false);
             model.addAttribute("email", email);
             model.addAttribute("fullName", "Bệnh nhân mới");
+            model.addAttribute("predictions", new java.util.ArrayList<>());
+            model.addAttribute("clinicalMetrics", new java.util.ArrayList<>());
+            model.addAttribute("monitoringLogs", new java.util.ArrayList<>());
         }
         model.addAttribute("firebaseToken", "mock-token");
         return "auth/complete-profile";
@@ -354,21 +380,14 @@ public class RegisterController {
                 jdbcTemplate.update(
                         "INSERT INTO Patient_Self_Monitoring (PatientID, LogDate, CurrentHeartRate, Symptoms, TriggeredAlert) VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?)",
                         patient.getPatientId(), heartRate, symptoms, triggeredAlert);
-<<<<<<< Updated upstream
-=======
-
                 // Save to system audit log
                 try {
-                    SystemLog log = new SystemLog();
-                    log.setUsername(email);
-                    log.setAction("PATIENT_SELF_MONITORING");
-                    log.setDetails("Bệnh nhân tự ghi chỉ số sức khỏe: Nhịp tim " + heartRate + " bpm, Triệu chứng: " + (symptoms != null && !symptoms.trim().isEmpty() ? symptoms : "Không có") + " (Cảnh báo: " + (triggeredAlert ? "Có" : "Không") + ")");
-                    log.setTimestamp(java.time.LocalDateTime.now());
-                    systemLogRepository.save(log);
+                    jdbcTemplate.update(
+                        "INSERT INTO System_Log (Username, Action, Details, Timestamp) VALUES (?, 'PATIENT_SELF_MONITORING', ?, CURRENT_TIMESTAMP)",
+                        email, "Bệnh nhân tự ghi chỉ số sức khỏe: Nhịp tim " + heartRate + " bpm, Triệu chứng: " + (symptoms != null && !symptoms.trim().isEmpty() ? symptoms : "Không có") + " (Cảnh báo: " + (triggeredAlert ? "Có" : "Không") + ")");
                 } catch (Exception ex) {
                     System.err.println("Error saving self-monitoring system audit log: " + ex.getMessage());
                 }
->>>>>>> Stashed changes
             }
         } catch (Exception e) {
             System.err.println("Error adding self-monitoring log: " + e.getMessage());

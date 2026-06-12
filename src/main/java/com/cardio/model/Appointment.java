@@ -29,7 +29,7 @@ public class Appointment {
     @Column(name = "TimeSlot", nullable = false)
     private LocalTime timeSlot;
 
-    @Column(name = "Status")
+    @Column(name = "Status", nullable = false)
     private String status = "Pending"; // Pending, Confirmed, CheckedIn, InProgress, Completed, Cancelled
 
     @Column(name = "RoomNumber")

@@ -7,4 +7,5 @@ import java.util.Optional;
 // ── REPOSITORY (tầng truy cập DB) ────────────────────
 public interface DoctorRepository extends JpaRepository<DoctorProfile, Integer> {
     Optional<DoctorProfile> findByUsername(String username);
+    Optional<DoctorProfile> findByUsernameIgnoreCase(String username);
 }

@@ -15,4 +15,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     List<Appointment> findAllOrderByDateAndTime();
 
     long countByDoctorAndScheduledDateAndStatusNot(DoctorProfile doctor, java.time.LocalDate scheduledDate, String status);
+
+    List<Appointment> findAllByOrderByScheduledDateDescTimeSlotAsc();
 }

@@ -33,14 +33,20 @@
        th:classappend="${page == 'patients'} ? ' active'" class="nav-item">
       <i class="ti ti-users"></i> Bệnh nhân
     </a>
-    <a th:href="@{/doctor/alerts}"
-       th:classappend="${page == 'alerts'} ? ' active'" class="nav-item">
-      <i class="ti ti-bell-ringing"></i> Cảnh báo
-      <span class="nav-badge" th:text="${highAlertCount}" th:if="${highAlertCount > 0}">0</span>
+    
+    <a th:href="@{/doctor/appointments}"
+       th:classappend="${page == 'appointments'} ? ' active'" class="nav-item">
+      <i class="ti ti-calendar-event"></i> Lịch hẹn
     </a>
 
-    <div class="nav-label">Công cụ</div>
-    <a th:href="@{/doctor/ai-predict}"
+    <a th:href="@{/doctor/alerts}" sec:authorize="hasAnyRole('DOCTOR', 'STAFF', 'ADMIN')"
+       th:classappend="${page == 'alerts'} ? ' active'" class="nav-item">
+      <i class="ti ti-bell-ringing"></i> Cảnh báo
+      <span class="nav-badge" th:text="${highAlertCount}" th:if="${highAlertCount != null && highAlertCount > 0}">0</span>
+    </a>
+
+    <div class="nav-label" sec:authorize="hasAnyRole('DOCTOR', 'ADMIN')">Công cụ</div>
+    <a th:href="@{/doctor/ai-predict}" sec:authorize="hasAnyRole('DOCTOR', 'ADMIN')"
        th:classappend="${page == 'ai-predict'} ? ' active'" class="nav-item">
       <i class="ti ti-brain"></i> Dự đoán AI
     </a>
@@ -48,10 +54,10 @@
 
   <div class="sidebar-footer">
     <div class="doctor-info">
-      <div class="doctor-avatar" th:text="${doctor.fullName.charAt(0)}">B</div>
+      <div class="doctor-avatar" th:text="${doctor != null && doctor.fullName != null && !doctor.fullName.isEmpty() ? doctor.fullName.charAt(0) : 'U'}">B</div>
       <div>
-        <div class="doctor-name" th:text="${doctor.fullName}">Bác sĩ</div>
-        <div class="doctor-role" th:text="${doctor.specialty}">Tim mạch</div>
+        <div class="doctor-name" th:text="${doctor != null ? doctor.fullName : ''}">Bác sĩ</div>
+        <div class="doctor-role" th:text="${doctor != null ? doctor.specialty : ''}">Tim mạch</div>
       </div>
     </div>
     <a th:href="@{/logout}" class="nav-item" style="margin-top:8px;color:#e05a5a;">
@@ -163,7 +169,7 @@
   </form>
   <a th:href="@{/doctor/alerts}" class="topbar-btn">
     <i class="ti ti-bell"></i>
-    <div class="notif-dot" th:if="${highAlertCount > 0}"></div>
+    <div class="notif-dot" th:if="${highAlertCount != null && highAlertCount > 0}"></div>
   </a>
 </header>
 

@@ -1,5 +1,9 @@
 package com.cardio.config;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.UserRecord;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -12,16 +16,18 @@ import org.springframework.stereotype.Component;
 public class DatabaseInitializer implements CommandLineRunner {
 
     private final JdbcTemplate jdbcTemplate;
+    private final PasswordEncoder passwordEncoder;
+    @Value("${spring.datasource.url:}")
+    private String datasourceUrl;
 
     @Override
     public void run(String... args) throws Exception {
         try {
-            createMissingTables();
-<<<<<<< Updated upstream
-            log.info("Database initialization check completed successfully.");
-        } catch (Exception e) {
-            log.error("Error during database initialization check: ", e);
-=======
+            if (datasourceUrl != null && datasourceUrl.startsWith("jdbc:h2")) {
+                createMissingTables();
+            } else {
+                log.info("Skipping manual table creation because the active datasource is not H2; relying on JPA schema update.");
+            }
             // Check if database is already seeded (e.g., admin exists in Staff_Profile)
             Integer adminCount = 0;
             try {
@@ -42,7 +48,7 @@ public class DatabaseInitializer implements CommandLineRunner {
             log.info("Purging old database records to prepare clean seeding...");
             purgeOldRecords();
 
-            log.info("Seeding clean accounts into SQL Server...");
+            log.info("Seeding clean accounts into PostgreSQL/Supabase...");
             seedCleanAccounts();
 
             log.info("Database seeding and Firebase sync completed successfully.");
@@ -230,7 +236,6 @@ public class DatabaseInitializer implements CommandLineRunner {
                     + ")");
         } catch (Exception e) {
             log.warn("Firebase Auth sync warning for " + email + ": " + e.getMessage());
->>>>>>> Stashed changes
         }
     }
 
