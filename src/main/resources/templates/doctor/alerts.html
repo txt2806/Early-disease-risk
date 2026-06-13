@@ -3,10 +3,11 @@
 <head th:replace="~{fragments :: head('Cảnh báo')}"></head>
 <body>
 <div th:replace="~{fragments :: sidebar('alerts')}"></div>
-
 <main class="main">
   <header th:replace="~{fragments :: topbar('Cảnh báo sớm')}"></header>
   <div class="content">
+
+    <div class="alert-success" th:if="${success}" th:text="${success}"></div>
 
     <!-- Summary badges -->
     <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
@@ -27,25 +28,42 @@
          th:classappend="${a.riskLevel}">
       <div class="alert-severity"
            th:classappend="'sev-' + ${a.riskLevel}"
-           style="width:42px;height:42px;font-size:20px;border-radius:10px;display:flex;align-items:center;justify-content:center;"
+           style="width:42px;height:42px;font-size:20px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"
            th:text="${a.riskLevel == 'HIGH'} ? '🔴' : (${a.riskLevel == 'MEDIUM'} ? '🟡' : '🟢')">🔴</div>
 
-      <div class="alert-full-body">
+      <div class="alert-full-body" style="flex:1;">
         <div class="alert-full-name">
           <span th:text="${a.record.patient.fullName}">Bệnh nhân</span>
           <span style="color:#8a96b0;font-size:12px;font-weight:400;"
                 th:text="' (#BN' + ${a.record.patient.patientId} + ')'"> (#BN001)</span>
         </div>
-        <div class="alert-full-desc" th:text="${a.riskExplanation}">Mô tả cảnh báo</div>
+        <div class="alert-full-desc" th:text="${a.riskExplanation}">Mô tả</div>
         <div class="alert-full-meta"
              th:text="${#temporals.format(a.record.visitDate, 'dd/MM/yyyy HH:mm')}">Thời gian</div>
       </div>
 
-      <div>
+      <div style="flex-shrink:0;text-align:right;">
         <div class="risk-badge" th:classappend="'risk-' + ${a.riskLevel}"
              th:text="${a.riskLevel + ' · ' + a.riskScore + '%'}">HIGH</div>
-        <div style="font-size:11px;color:#8a96b0;margin-top:4px;text-align:center;"
-             th:text="${a.isAlertSent ? 'Đã xử lý' : 'Chưa xử lý'}">Chưa xử lý</div>
+        <div style="font-size:11px;margin-top:4px;"
+             th:style="${a.isAlertSent} ? 'color:#34d399' : 'color:#f59e0b'"
+             th:text="${a.isAlertSent} ? '✅ Đã xử lý' : '⏳ Chưa xử lý'">Trạng thái</div>
+      </div>
+
+      <!-- Nút xử lý (chỉ hiện khi chưa xử lý) -->
+      <div th:if="${!a.isAlertSent}" style="flex-shrink:0;display:flex;flex-direction:column;gap:6px;">
+        <form th:action="@{/doctor/alerts/{id}/resolve(id=${a.predictionId})}" method="post">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+          <input type="hidden" name="action" value="resolved">
+          <button type="submit" class="action-btn primary" style="font-size:11px;width:100%;">
+            ✅ Đã xử lý
+          </button>
+        </form>
+        <button onclick="showIgnoreModal(this)"
+                th:data-id="${a.predictionId}"
+                class="action-btn" style="font-size:11px;">
+          🚫 Bỏ qua
+        </button>
       </div>
     </div>
 
@@ -57,6 +75,39 @@
 
   </div>
 </main>
+
+<!-- Modal bỏ qua cảnh báo -->
+<div id="ignore-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:#111827;border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:24px;width:400px;">
+    <div style="font-size:18px;font-weight:700;margin-bottom:16px;color:#e8edf5;">Bỏ qua cảnh báo</div>
+    <form id="ignore-form" method="post">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+      <input type="hidden" name="action" value="ignored">
+      <div class="form-group" style="margin-bottom:16px;">
+        <label class="form-label">Lý do bỏ qua (bắt buộc)</label>
+        <textarea class="form-input" name="reason" rows="3"
+                  placeholder="VD: Bệnh nhân đã được theo dõi trực tiếp..." required
+                  style="resize:vertical;"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button type="button" onclick="closeIgnoreModal()" class="btn btn-ghost">Hủy</button>
+        <button type="submit" class="btn btn-primary">Xác nhận bỏ qua</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script th:src="@{/js/main.js}"></script>
+<script>
+function showIgnoreModal(btn) {
+  const id = btn.getAttribute('data-id');
+  document.getElementById('ignore-form').action = '/doctor/alerts/' + id + '/resolve';
+  const modal = document.getElementById('ignore-modal');
+  modal.style.display = 'flex';
+}
+function closeIgnoreModal() {
+  document.getElementById('ignore-modal').style.display = 'none';
+}
+</script>
 </body>
 </html>

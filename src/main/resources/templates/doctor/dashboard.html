@@ -3,15 +3,10 @@
 <head th:replace="~{fragments :: head('Dashboard')}"></head>
 <body>
 <div th:replace="~{fragments :: sidebar('dashboard')}"></div>
-
 <main class="main">
   <header th:replace="~{fragments :: topbar('Dashboard')}"></header>
   <div class="content">
-
-    <!-- Flash message -->
     <div class="alert-success" th:if="${success}" th:text="${success}"></div>
-
-    <!-- Stats -->
     <div class="stats-grid">
       <div class="stat-card red">
         <div class="stat-icon"><i class="ti ti-users"></i></div>
@@ -41,22 +36,15 @@
         <div class="stat-label">Độ chính xác AI</div>
       </div>
     </div>
-
     <div class="two-col">
-      <!-- Bệnh nhân gần đây -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title"><i class="ti ti-users"></i> Bệnh nhân gần đây</div>
+          <div class="card-title"><i class="ti ti-users"></i> Bệnh nhân (ưu tiên theo nguy cơ)</div>
           <a th:href="@{/doctor/patients}" class="card-action">Xem tất cả →</a>
         </div>
         <table class="patient-table">
           <thead>
-            <tr>
-              <th>Bệnh nhân</th>
-              <th>Tuổi</th>
-              <th>Giới tính</th>
-              <th></th>
-            </tr>
+            <tr><th>Bệnh nhân</th><th>Nguy cơ</th><th>Ngày sinh</th><th>Giới tính</th><th></th></tr>
           </thead>
           <tbody>
             <tr th:each="p : ${patients}" th:if="${pStat.index < 5}">
@@ -65,27 +53,30 @@
                   <div class="patient-avatar" th:text="${p.fullName != null && !p.fullName.isEmpty() ? p.fullName.charAt(0) : 'U'}">A</div>
                   <div>
                     <div class="patient-fullname" th:text="${p.fullName != null ? p.fullName : ''}">Tên</div>
-                    <div class="patient-id" th:text="'BN' + ${p.patientId}">BN001</div>
+                    <div class="patient-id" th:text="'#BN' + ${p.patientId}">BN001</div>
                   </div>
                 </div>
               </td>
               <td th:text="${p.dob != null ? #temporals.format(p.dob, 'dd/MM/yyyy') : ''}">01/01/1990</td>
               <td th:text="${p.gender}">Nam</td>
               <td>
-                <a th:href="@{/doctor/patients/{id}(id=${p.patientId})}" class="action-btn primary">
-                  Xem
-                </a>
+                <span th:if="${patientRiskMap[p.patientId] != null}"
+                      class="risk-badge"
+                      th:classappend="'risk-' + ${patientRiskMap[p.patientId]}"
+                      th:text="${patientRiskMap[p.patientId]}">HIGH</span>
+                <span th:if="${patientRiskMap[p.patientId] == null}"
+                      style="color:#4a5568;font-size:12px;">Chưa có</span>
               </td>
+              <td th:text="${#temporals.format(p.dob, 'dd/MM/yyyy')}" style="font-size:12px;color:#8a96b0;">--</td>
+              <td th:text="${p.gender}" style="color:#8a96b0;font-size:13px;">Nam</td>
+              <td><a th:href="@{/doctor/patients/{id}(id=${p.patientId})}" class="action-btn primary">Xem</a></td>
             </tr>
             <tr th:if="${#lists.isEmpty(patients)}">
-              <td colspan="4" style="text-align:center;color:#8a96b0;padding:20px;">
-                Chưa có bệnh nhân nào
-              </td>
+              <td colspan="5" style="text-align:center;color:#8a96b0;padding:20px;">Chưa có bệnh nhân nào</td>
             </tr>
           </tbody>
         </table>
       </div>
-
       <!-- Cảnh báo gần đây (Bác sĩ, Điều dưỡng) -->
       <div class="card" sec:authorize="hasAnyRole('DOCTOR', 'STAFF', 'ADMIN')">
         <div class="card-header">
@@ -104,8 +95,7 @@
                    th:text="${a.record != null && a.record.visitDate != null ? #temporals.format(a.record.visitDate, 'dd/MM/yyyy HH:mm') : ''}">Thời gian</div>
             </div>
           </div>
-          <div th:if="${#lists.isEmpty(alerts)}"
-               style="text-align:center;padding:20px;color:#8a96b0;font-size:13px;">
+          <div th:if="${#lists.isEmpty(alerts)}" style="text-align:center;padding:20px;color:#8a96b0;font-size:13px;">
             Không có cảnh báo mới
           </div>
         </div>
@@ -139,7 +129,6 @@
         </div>
       </div>
     </div>
-
   </div>
 </main>
 <script th:src="@{/js/main.js}"></script>

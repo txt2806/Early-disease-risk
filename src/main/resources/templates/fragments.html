@@ -38,6 +38,10 @@
        th:classappend="${page == 'appointments'} ? ' active'" class="nav-item">
       <i class="ti ti-calendar-event"></i> Lịch hẹn
     </a>
+    <a th:href="@{/doctor/thresholds}"
+       th:classappend="${page == 'thresholds'} ? ' active'" class="nav-item">
+      <i class="ti ti-adjustments-horizontal"></i> Ngưỡng cảnh báo
+    </a>
 
     <a th:href="@{/doctor/alerts}" sec:authorize="hasAnyRole('DOCTOR', 'STAFF', 'ADMIN')"
        th:classappend="${page == 'alerts'} ? ' active'" class="nav-item">
