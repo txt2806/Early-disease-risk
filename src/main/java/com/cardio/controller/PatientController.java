@@ -45,7 +45,7 @@ public class PatientController {
         
         // Fetch latest heart rate and alerts from self monitoring
         List<Map<String, Object>> selfLogs = jdbcTemplate.queryForList(
-                "SELECT CurrentHeartRate, TriggeredAlert, LogDate FROM Patient_Self_Monitoring WHERE PatientID = ? ORDER BY LogDate DESC LIMIT 5",
+                "SELECT CurrentHeartRate, TriggeredAlert, LogDate, Symptoms FROM Patient_Self_Monitoring WHERE PatientID = ? ORDER BY LogDate DESC LIMIT 5",
                 patient.getPatientId()
         );
 

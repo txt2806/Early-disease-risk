@@ -177,7 +177,7 @@ public class RegisterController {
                         principal, null, principal.getAuthorities());
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
-                return "redirect:/register/complete-profile?email=" + email;
+                return "redirect:/dashboard-redirect";
             } else {
                 model.addAttribute("email", email);
                 model.addAttribute("fullName", fullName);
@@ -325,7 +325,7 @@ public class RegisterController {
                     principal, null, principal.getAuthorities());
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            return "redirect:/register/complete-profile?email=" + email; // Cho vào thẳng trang profile
+            return "redirect:/dashboard-redirect";
 
         } catch (Exception e) {
             model.addAttribute("error", "Lỗi hoàn tất hồ sơ: " + e.getMessage());

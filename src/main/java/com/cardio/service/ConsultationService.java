@@ -2,7 +2,6 @@ package com.cardio.service;
 
 import com.cardio.model.*;
 import com.cardio.repository.*;
-import com.cardio.repository.DoctorRepository;
 import com.cardio.repository.IcdCatalogRepository;
 import com.cardio.repository.RecordIcdRepository;
 import com.cardio.model.IcdCatalog;
@@ -68,7 +67,7 @@ public class ConsultationService {
         try {
             boolean fastSugar = "1".equals(aiRequest.getFbs()) || "true".equalsIgnoreCase(aiRequest.getFbs());
             boolean exAng = "1".equals(aiRequest.getExang()) || "true".equalsIgnoreCase(aiRequest.getExang());
-            
+
             Integer cpValue = null;
             if (aiRequest.getCp() != null) {
                 switch (aiRequest.getCp()) {
@@ -97,14 +96,14 @@ public class ConsultationService {
             metrics.setMaxHeartRate(aiRequest.getThalch() != null ? aiRequest.getThalch().intValue() : null);
             metrics.setExerciseAngina(exAng);
             metrics.setRecordedAt(LocalDateTime.now());
-            
+
             metrics.setOldpeak(aiRequest.getOldpeak());
             metrics.setSlope(aiRequest.getSlope());
             metrics.setCa(aiRequest.getCa() != null ? aiRequest.getCa().intValue() : null);
             metrics.setThal(aiRequest.getThal());
             metrics.setAge(aiRequest.getAge() != null ? aiRequest.getAge().intValue() : null);
             metrics.setSex(aiRequest.getSex());
-            
+
             heartClinicalMetricsRepository.save(metrics);
         } catch (Exception e) {
             log.warn("Failed to save Heart_Clinical_Metrics: " + e.getMessage());
@@ -147,7 +146,7 @@ public class ConsultationService {
         try {
             boolean fastSugar = "1".equals(aiRequest.getFbs()) || "true".equalsIgnoreCase(aiRequest.getFbs());
             boolean exAng = "1".equals(aiRequest.getExang()) || "true".equalsIgnoreCase(aiRequest.getExang());
-            
+
             Integer cpValue = null;
             if (aiRequest.getCp() != null) {
                 switch (aiRequest.getCp()) {
@@ -176,14 +175,14 @@ public class ConsultationService {
             metrics.setMaxHeartRate(aiRequest.getThalch() != null ? aiRequest.getThalch().intValue() : null);
             metrics.setExerciseAngina(exAng);
             metrics.setRecordedAt(LocalDateTime.now());
-            
+
             metrics.setOldpeak(aiRequest.getOldpeak());
             metrics.setSlope(aiRequest.getSlope());
             metrics.setCa(aiRequest.getCa() != null ? aiRequest.getCa().intValue() : null);
             metrics.setThal(aiRequest.getThal());
             metrics.setAge(aiRequest.getAge() != null ? aiRequest.getAge().intValue() : null);
             metrics.setSex(aiRequest.getSex());
-            
+
             heartClinicalMetricsRepository.save(metrics);
         } catch (Exception e) {
             log.warn("Failed to save Heart_Clinical_Metrics: " + e.getMessage());
@@ -228,11 +227,11 @@ public class ConsultationService {
     // ── UC02: Cập nhật hồ sơ khám (BR03 - audit log ở controller) ─
     @Transactional
     public ConsultationRecord updateRecord(Integer recordId,
-                                           String newNotes,
-                                           String newTreatmentPlan) {
+            String newNotes,
+            String newTreatmentPlan) {
         // BR04: Không xóa dữ liệu cũ - chỉ UPDATE, không DELETE
         ConsultationRecord record = consultationRepository.findById(recordId)
-            .orElseThrow(() -> new RuntimeException("Record not found: " + recordId));
+                .orElseThrow(() -> new RuntimeException("Record not found: " + recordId));
         record.setConsultationNotes(newNotes);
         record.setTreatmentPlan(newTreatmentPlan);
         return consultationRepository.save(record);
@@ -242,9 +241,9 @@ public class ConsultationService {
     @Transactional
     public RecordIcd addDiagnosis(Integer recordId, String icdCode, String notes) {
         ConsultationRecord record = consultationRepository.findById(recordId)
-            .orElseThrow(() -> new RuntimeException("Record not found: " + recordId));
+                .orElseThrow(() -> new RuntimeException("Record not found: " + recordId));
         IcdCatalog icd = icdCatalogRepository.findById(icdCode)
-            .orElseThrow(() -> new RuntimeException("ICD code not found: " + icdCode));
+                .orElseThrow(() -> new RuntimeException("ICD code not found: " + icdCode));
 
         // BR07: Nếu đã có ICD này thì không thêm trùng
         RecordIcdKey key = new RecordIcdKey();
