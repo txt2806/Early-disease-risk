@@ -38,6 +38,7 @@ public class DoctorController {
     private final StaffRepository staffRepository;
     private final PatientService patientService;
     private final ConsultationService consultationService;
+    private final AIService aiService;
     private final AppointmentRepository appointmentRepository;
     private final ConsultationRepository consultationRepository;
     private final HeartClinicalMetricsRepository heartClinicalMetricsRepository;
@@ -441,6 +442,7 @@ public class DoctorController {
     public String saveRecordAndPrediction(@ModelAttribute AIRequest aiRequest,
             @RequestParam Integer patientId,
             @RequestParam String doctorNotes,
+            @RequestParam(required = false) String treatmentPlan,
             @RequestParam java.math.BigDecimal riskScore,
             @RequestParam String riskLevel,
             @RequestParam String riskExplanation,
