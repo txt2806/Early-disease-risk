@@ -2,7 +2,7 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments :: head('Hồ sơ bệnh nhân')}"></head>
 <body>
-<div th:replace="~{fragments :: sidebar('patients')}"></div>
+<div th:replace="~{fragments :: sidebar('appointments')}"></div>
 <main class="main">
   <header th:replace="~{fragments :: topbar('Hồ sơ bệnh nhân')}"></header>
   <div class="content">
@@ -33,7 +33,12 @@
         <a th:href="@{/doctor/ai-predict(patientId=${patient.patientId})}" sec:authorize="hasAnyRole('DOCTOR', 'ADMIN')" class="btn btn-ai">
           <i class="ti ti-brain"></i> Dự đoán AI
         </a>
-        <a th:href="@{/doctor/patients}" class="btn btn-ghost">← Quay lại</a>
+        <form th:action="@{/doctor/patients/{id}/complete-appointment(id=${patient.patientId})}" method="post" style="display:inline-block;" th:if="${hasActiveAppointment}">
+          <button type="submit" class="btn" style="background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #1e293b; border: none; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 700;">
+            <i class="ti ti-circle-check"></i> Hoàn thành ca khám
+          </button>
+        </form>
+        <a th:href="@{/doctor/appointments}" class="btn btn-ghost">← Lịch làm việc</a>
       </div>
     </div>
 

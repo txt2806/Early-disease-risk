@@ -40,7 +40,7 @@
       <div class="card">
         <div class="card-header">
           <div class="card-title"><i class="ti ti-users"></i> Bệnh nhân (ưu tiên theo nguy cơ)</div>
-          <a th:href="@{/doctor/patients}" class="card-action">Xem tất cả →</a>
+          <a th:href="${doctor.doctorId != null ? '/doctor/appointments' : '/doctor/patients'}" class="card-action">Xem tất cả →</a>
         </div>
         <table class="patient-table">
           <thead>

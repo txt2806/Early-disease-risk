@@ -29,14 +29,18 @@
     </a>
 
     <div class="nav-label">Quản lý</div>
-    <a th:href="@{/doctor/patients}"
+    <a th:href="@{/doctor/patients}" sec:authorize="!hasRole('DOCTOR')"
        th:classappend="${page == 'patients'} ? ' active'" class="nav-item">
       <i class="ti ti-users"></i> Bệnh nhân
+    </a>
+    <a th:href="@{/doctor/assigned-patients}" sec:authorize="hasRole('DOCTOR')"
+       th:classappend="${page == 'assigned-patients'} ? ' active'" class="nav-item">
+      <i class="ti ti-users-group"></i> Bệnh nhân phụ trách
     </a>
     
     <a th:href="@{/doctor/appointments}"
        th:classappend="${page == 'appointments'} ? ' active'" class="nav-item">
-      <i class="ti ti-calendar-event"></i> Lịch hẹn
+      <i class="ti ti-calendar-event"></i> Lịch làm việc
     </a>
     <a th:href="@{/doctor/thresholds}"
        th:classappend="${page == 'thresholds'} ? ' active'" class="nav-item">
@@ -167,7 +171,7 @@
 <!-- TOPBAR fragment -->
 <header th:fragment="topbar(title)" class="topbar">
   <div class="topbar-title" th:text="${title}">Dashboard</div>
-  <form th:action="@{/doctor/patients}" method="get" class="topbar-search">
+  <form th:action="@{/doctor/patients}" method="get" class="topbar-search" sec:authorize="!hasRole('DOCTOR')">
     <i class="ti ti-search"></i>
     <input type="text" name="search" placeholder="Tìm bệnh nhân...">
   </form>

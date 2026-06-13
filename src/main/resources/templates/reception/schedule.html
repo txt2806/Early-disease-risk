@@ -164,27 +164,9 @@
           <tr>
             <th class="time-col" style="vertical-align: middle;">Khung giờ</th>
             <th th:each="doc : ${doctors}" style="min-width: 180px; padding: 12px 8px;">
-              <div class="doc-header-info" 
-                   th:with="count=${workloads.get(doc.doctorId)},
-                            percent=${count * 100 / 8}">
+              <div class="doc-header-info">
                 <div class="doc-header-name" th:text="${doc.fullName}">Bác sĩ</div>
                 <div class="doc-header-specialty" th:text="${doc.specialty != null ? doc.specialty : 'Tim mạch'}">Chuyên khoa</div>
-                
-                <div class="doc-workload-container">
-                  <div class="doc-workload-label">
-                    <span>Tải lượng:</span>
-                    <span th:text="${count} + '/8h'">0/8h</span>
-                  </div>
-                  <div class="doc-workload-bar-bg">
-                    <div class="doc-workload-bar-fill" 
-                         th:style="'width: ' + ${percent > 100 ? 100 : percent} + '%'"
-                         th:classappend="${count >= 8} ? 'fill-full' : (${count >= 6} ? 'fill-warning' : 'fill-normal')"></div>
-                  </div>
-                </div>
-                
-                <div th:if="${count >= 8}" class="work-badge-full">
-                  🛑 Hết chỗ
-                </div>
               </div>
             </th>
           </tr>
