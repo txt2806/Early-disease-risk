@@ -1,321 +1,464 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
+
 <head th:replace="~{fragments :: head('Bảng lịch điều phối khám')}"></head>
 <style>
-.schedule-grid-container {
-  overflow-x: auto;
-  background: #111827;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  margin-top: 20px;
-}
-.schedule-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 800px;
-}
-.schedule-table th, .schedule-table td {
-  border: 1px solid rgba(255,255,255,0.06);
-  padding: 12px;
-  vertical-align: top;
-}
-.schedule-table th {
-  background: #1e293b;
-  color: #e8edf5;
-  font-weight: 700;
-  text-align: center;
-}
-.time-col {
-  width: 120px;
-  background: #0f172a;
-  color: #8a96b0;
-  font-weight: 700;
-  font-family: monospace;
-  text-align: center;
-  vertical-align: middle !important;
-}
-.appointment-card {
-  background: #1e293b;
-  border-left: 4px solid #3b82f6;
-  border-radius: 6px;
-  padding: 8px;
-  margin-bottom: 6px;
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
-}
-.appointment-card.status-Pending { border-left-color: #fbbf24; }
-.appointment-card.status-Confirmed { border-left-color: #10b981; }
-.appointment-card.status-CheckedIn { border-left-color: #8b5cf6; }
-.appointment-card.status-InProgress { border-left-color: #ec4899; }
-.appointment-card.status-Completed { border-left-color: #64748b; }
-.appointment-card.status-Cancelled { border-left-color: #ef4444; opacity: 0.6; }
+  .schedule-grid-container {
+    overflow-x: auto;
+    background: #111827;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    margin-top: 20px;
+  }
 
-.card-pat-name { font-weight: 700; color: #e8edf5; font-size: 13px; }
-.card-room { font-size: 11px; color: #10b981; font-weight: 700; margin-top: 2px; }
-.card-status { font-size: 10px; color: #8a96b0; text-transform: uppercase; margin-top: 2px; font-weight: 600; }
+  .schedule-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 800px;
+  }
 
-/* Workload styles in table headers */
-.doc-header-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-.doc-header-name {
-  font-size: 14px;
-  font-weight: 700;
-  color: #e8edf5;
-}
-.doc-header-specialty {
-  font-size: 11px;
-  color: #8a96b0;
-}
-.doc-workload-container {
-  margin-top: 8px;
-  width: 100%;
-  max-width: 140px;
-  text-align: left;
-}
-.doc-workload-label {
-  display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  color: #8a96b0;
-  margin-bottom: 4px;
-}
-.doc-workload-bar-bg {
-  width: 100%;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-  overflow: hidden;
-}
-.doc-workload-bar-fill {
-  height: 100%;
-  border-radius: 3px;
-  transition: width 0.3s ease;
-}
-.fill-normal { background: #10b981; }
-.fill-warning { background: #fbbf24; }
-.fill-full { background: #ef4444; }
+  .schedule-table th,
+  .schedule-table td {
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 12px;
+    vertical-align: top;
+  }
 
-.work-badge-full {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 10px;
-  font-weight: bold;
-  display: inline-block;
-  margin-top: 6px;
-}
+  .schedule-table th {
+    background: #1e293b;
+    color: #e8edf5;
+    font-weight: 700;
+    text-align: center;
+  }
 
-.quick-edit-btn {
-  background: none;
-  border: none;
-  color: #60a5fa;
-  cursor: pointer;
-  font-size: 11px;
-  padding: 0;
-  margin-top: 6px;
-  font-weight: 600;
-  display: block;
-}
-.quick-edit-btn:hover { text-decoration: underline; }
+  .time-col {
+    width: 120px;
+    background: #0f172a;
+    color: #8a96b0;
+    font-weight: 700;
+    font-family: monospace;
+    text-align: center;
+    vertical-align: middle !important;
+  }
+
+  .appointment-card {
+    background: #1e293b;
+    border-left: 4px solid #3b82f6;
+    border-radius: 6px;
+    padding: 8px;
+    margin-bottom: 6px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+  }
+
+  .appointment-card.status-Pending {
+    border-left-color: #fbbf24;
+  }
+
+  .appointment-card.status-Confirmed {
+    border-left-color: #10b981;
+  }
+
+  .appointment-card.status-CheckedIn {
+    border-left-color: #8b5cf6;
+  }
+
+  .appointment-card.status-InProgress {
+    border-left-color: #ec4899;
+  }
+
+  .appointment-card.status-Completed {
+    border-left-color: #64748b;
+  }
+
+  .appointment-card.status-Cancelled {
+    border-left-color: #ef4444;
+    opacity: 0.6;
+  }
+
+  .card-pat-name {
+    font-weight: 700;
+    color: #e8edf5;
+    font-size: 13px;
+  }
+
+  .card-room {
+    font-size: 11px;
+    color: #10b981;
+    font-weight: 700;
+    margin-top: 2px;
+  }
+
+  .card-status {
+    font-size: 10px;
+    color: #8a96b0;
+    text-transform: uppercase;
+    margin-top: 2px;
+    font-weight: 600;
+  }
+
+  /* Workload styles in table headers */
+  .doc-header-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .doc-header-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #e8edf5;
+  }
+
+  .doc-header-specialty {
+    font-size: 11px;
+    color: #8a96b0;
+  }
+
+  .doc-workload-container {
+    margin-top: 8px;
+    width: 100%;
+    max-width: 140px;
+    text-align: left;
+  }
+
+  .doc-workload-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #8a96b0;
+    margin-bottom: 4px;
+  }
+
+  .doc-workload-bar-bg {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .doc-workload-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+  }
+
+  .fill-normal {
+    background: #10b981;
+  }
+
+  .fill-warning {
+    background: #fbbf24;
+  }
+
+  .fill-full {
+    background: #ef4444;
+  }
+
+  .work-badge-full {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: bold;
+    display: inline-block;
+    margin-top: 6px;
+  }
+
+  .quick-edit-btn {
+    background: none;
+    border: none;
+    color: #60a5fa;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 0;
+    margin-top: 6px;
+    font-weight: 600;
+    display: block;
+  }
+
+  .quick-edit-btn:hover {
+    text-decoration: underline;
+  }
 </style>
+
 <body>
-<div th:replace="~{fragments :: receptionSidebar('schedule')}"></div>
+  <div th:replace="~{fragments :: receptionSidebar('schedule')}"></div>
 
-<main class="main">
-  <header th:replace="~{fragments :: simpleTopbar('Bảng lịch điều phối khám')}"></header>
-  <div class="content">
+  <main class="main">
+    <header th:replace="~{fragments :: simpleTopbar('Bảng lịch điều phối khám')}"></header>
+    <div class="content">
 
-    <!-- Alerts -->
-    <div class="alert-success" th:if="${success}" th:text="${success}" style="padding: 12px; margin-bottom: 20px; border-radius: 8px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);"></div>
-    <div class="alert-danger" th:if="${error}" th:text="${error}" style="padding: 12px; margin-bottom: 20px; border-radius: 8px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);"></div>
+      <!-- Alerts -->
+      <div class="alert-success" th:if="${success}" th:text="${success}"
+        style="padding: 12px; margin-bottom: 20px; border-radius: 8px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">
+      </div>
+      <div class="alert-danger" th:if="${error}" th:text="${error}"
+        style="padding: 12px; margin-bottom: 20px; border-radius: 8px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">
+      </div>
 
-    <!-- Filter toolbar -->
-    <div class="card" style="padding: 16px;">
-      <form th:action="@{/reception/schedule}" method="get" style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
-        <div style="display:flex; gap:10px; align-items:center;">
-          <label style="color:#8a96b0; font-size:13px; font-weight:600;">Chọn Ngày phối lịch:</label>
-          <input type="date" name="dateStr" th:value="${selectedDate}" 
-                 style="background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 12px; color: #e8edf5; outline:none; cursor:pointer;">
-          <button type="submit" style="background:#3b82f6; color:white; border:none; border-radius:6px; padding:8px 16px; font-size:13px; font-weight:600; cursor:pointer; transition:opacity 0.2s;"
-                  onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">📅 Xem lịch</button>
+      <!-- Filter toolbar -->
+      <div class="card" style="padding: 16px;">
+        <form th:action="@{/reception/schedule}" method="get"
+          style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+          <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+            <div style="display:flex; gap:10px; align-items:center;">
+              <label style="color:#8a96b0; font-size:13px; font-weight:600;">Chọn Ngày phối lịch:</label>
+              <input type="date" name="dateStr" th:value="${selectedDate}"
+                style="background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 12px; color: #e8edf5; outline:none; cursor:pointer;">
+            </div>
+
+            <div style="display:flex; gap:10px; align-items:center;">
+              <label style="color:#8a96b0; font-size:13px; font-weight:600;">Tra theo tên Bác sĩ:</label>
+              <select name="doctorId" onchange="this.form.submit()"
+                style="background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 12px; color: #e8edf5; outline:none; cursor:pointer; font-size:13px;">
+                <option value="">-- Tất cả bác sĩ --</option>
+                <option th:each="d : ${doctors}" th:value="${d.doctorId}" th:text="${d.fullName}"
+                  th:selected="${d.doctorId == selectedDoctorId}"></option>
+              </select>
+            </div>
+
+            <button type="submit"
+              style="background:#3b82f6; color:white; border:none; border-radius:6px; padding:8px 16px; font-size:13px; font-weight:600; cursor:pointer; transition:opacity 0.2s;"
+              onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">📅 Xem lịch</button>
+          </div>
+
+          <div style="flex:1;"></div>
+
+          <div style="color: #8a96b0; font-size: 12px; display:flex; gap:12px;">
+            <span>📌 Chú thích màu:</span>
+            <span style="color:#fbbf24;">● Chờ duyệt</span>
+            <span style="color:#10b981;">● Đã duyệt</span>
+            <span style="color:#8b5cf6;">● Bệnh nhân đến</span>
+            <span style="color:#ec4899;">● Đang khám</span>
+          </div>
+        </form>
+      </div>
+
+      <!-- Doctors List & Queues (Time-based table for the selected doctor) -->
+      <div th:if="${selectedDoctorId != null}" class="card" style="margin-top: 20px; background: #111827; border: 1px solid rgba(255, 255, 255, 0.08); padding: 20px;">
+        <div th:each="doc : ${doctors}" th:if="${doc.doctorId == selectedDoctorId}" style="margin-bottom: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 12px;">
+          <h3 style="font-size: 16px; font-weight: 700; color: #e8edf5; display: flex; align-items: center; gap: 8px;">
+            📅 Bảng lịch khám - BS. <span th:text="${doc.fullName}"></span> (<span th:text="${doc.specialty != null ? doc.specialty : 'Tim mạch'}"></span>)
+          </h3>
+          <div style="font-size: 13px; color: #10b981; font-weight: 600; margin-top: 4px;" th:text="${'Phòng: ' + (doc.roomNumber != null ? doc.roomNumber : 'Chưa xếp')}">Phòng</div>
         </div>
-        
-        <div style="flex:1;"></div>
-        
-        <div style="color: #8a96b0; font-size: 12px; display:flex; gap:12px;">
-          <span>📌 Chú thích màu:</span>
-          <span style="color:#fbbf24;">● Chờ duyệt</span>
-          <span style="color:#10b981;">● Đã duyệt</span>
-          <span style="color:#8b5cf6;">● Bệnh nhân đến</span>
-          <span style="color:#ec4899;">● Đang khám</span>
+
+        <table class="schedule-table">
+          <thead>
+            <tr>
+              <th style="width: 80px; text-align: center;">STT</th>
+              <th style="width: 120px; text-align: center;">Giờ vào</th>
+              <th style="width: 120px; text-align: center;">Giờ ra</th>
+              <th>Bệnh nhân</th>
+              <th>Triệu chứng (Khai báo)</th>
+              <th style="width: 120px; text-align: center;">Phòng</th>
+              <th style="width: 150px; text-align: center;">Trạng thái</th>
+              <th style="width: 120px; text-align: center;">Hành động</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr th:each="a : ${appointments}" th:if="${a.doctor != null && a.doctor.doctorId == selectedDoctorId}" style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+              <td style="vertical-align: middle; text-align: center;">
+                <span th:if="${a.queueNumber != null}" class="risk-badge risk-LOW" 
+                      style="background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); font-size:11px; padding: 2px 6px; font-weight:700;" 
+                      th:text="${a.queueNumber}">1</span>
+                <span th:if="${a.queueNumber == null}">--</span>
+              </td>
+              <td style="vertical-align: middle; text-align: center;">
+                <span th:text="${a.timeSlot != null ? #temporals.format(a.timeSlot, 'HH:mm') : '--'}" style="font-weight: 600; color: #e8edf5;">--</span>
+              </td>
+              <td style="vertical-align: middle; text-align: center;">
+                <span th:text="${a.endTime != null ? #temporals.format(a.endTime, 'HH:mm') : '--'}" style="font-weight: 600; color: #8a96b0;">--</span>
+              </td>
+              <td>
+                <div style="font-weight: 700; color: #e8edf5;" th:text="${a.patient.fullName}">Patient Name</div>
+                <div style="font-size: 11px; color: #8a96b0;" th:text="${a.patient.phone != null ? a.patient.phone : 'Không có SĐT'}">0912345678</div>
+              </td>
+              <td style="vertical-align: middle;">
+                <span th:text="${a.preliminaryStatus != null && !a.preliminaryStatus.isEmpty() ? a.preliminaryStatus : 'Chưa khai báo'}" style="font-size: 13px; color: #cbd5e1;">--</span>
+              </td>
+              <td style="vertical-align: middle; text-align: center;">
+                <span th:if="${a.roomNumber != null && !a.roomNumber.isEmpty()}" th:text="${a.roomNumber}"
+                  style="font-weight:700; color:#10b981; font-size:12px; background: rgba(16,185,129,0.1); padding: 4px 8px; border-radius:6px;">Phòng 101</span>
+                <span th:if="${a.roomNumber == null || a.roomNumber.isEmpty()}" style="color:#ef4444; font-size:12px; font-weight:600;">⚠️ Chưa xếp</span>
+              </td>
+              <td style="vertical-align: middle; text-align: center;">
+                <span class="risk-badge" 
+                      th:classappend="${a.status == 'Pending'} ? 'risk-MEDIUM' : (${a.status == 'Confirmed' || a.status == 'CheckedIn'} ? 'risk-LOW' : (${a.status == 'Completed'} ? 'risk-LOW' : 'risk-HIGH'))"
+                      th:text="${a.status == 'Pending' ? 'Chờ duyệt' : (a.status == 'Confirmed' ? 'Đã duyệt' : (a.status == 'CheckedIn' ? 'Đã đến' : (a.status == 'InProgress' ? 'Đang khám' : (a.status == 'Completed' ? 'Hoàn thành' : 'Đã hủy'))))}">Pending</span>
+              </td>
+              <td style="vertical-align: middle; text-align: center;">
+                <button class="btn" th:data-id="${a.appointmentId}"
+                  th:data-patient-name="${a.patient.fullName}" th:data-doctor-id="${a.doctor != null ? a.doctor.doctorId : ''}"
+                  th:data-room-number="${a.roomNumber != null ? a.roomNumber : ''}" th:data-date="${a.scheduledDate}"
+                  th:data-time="${a.timeSlot != null ? #temporals.format(a.timeSlot, 'HH:mm') : ''}" 
+                  th:data-end-time="${a.endTime != null ? #temporals.format(a.endTime, 'HH:mm') : ''}" 
+                  th:data-status="${a.status}" onclick="openAssignModal(this)"
+                  style="text-align: center; background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); padding: 6px 12px; border-radius: 6px; font-weight: 600; display: inline-block; margin: 0; font-size: 11px; cursor: pointer; text-decoration: none; outline: none;">
+                  ⚙️ Điều phối
+                </button>
+              </td>
+            </tr>
+            <!-- If no appointments for this doctor -->
+            <tr th:if="${appointments.stream().filter(a -> a.doctor != null && a.doctor.doctorId == selectedDoctorId).count() == 0}">
+              <td colspan="8" style="text-align: center; color: #8a96b0; padding: 40px 20px;">
+                📭 Bác sĩ này không có lịch hẹn khám nào trong ngày đã chọn.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Placeholder if no doctor is selected -->
+      <div th:if="${selectedDoctorId == null}" class="card" style="margin-top: 20px; background: #111827; border: 1px solid rgba(255,255,255,0.08); padding: 50px 20px; text-align: center; color: #8a96b0;">
+        <i class="ti ti-user-search" style="font-size: 48px; color: #3b82f6; display: block; margin-bottom: 12px;"></i>
+        Vui lòng chọn một Bác sĩ từ thanh tra cứu ở trên để hiển thị bảng lịch khám chi tiết theo giờ giấc.
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal Xếp lịch, phòng, bác sĩ (Reused form dashboard with redirectSource=schedule) -->
+  <div id="assignModal" class="modal"
+    style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,15,30,0.85);backdrop-filter:blur(4px);align-items:center;justify-content:center;z-index:1000;">
+    <div class="modal-content"
+      style="background:#111827;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;max-width:500px;width:90%;box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);color:#e8edf5;">
+      <div
+        style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px;margin-bottom:16px;">
+        <h3 style="font-size:16px;font-weight:700;color:#e8edf5;"><i class="ti ti-calendar-configs"
+            style="color:#f59e0b;"></i> Cập nhật phân phối ca khám</h3>
+        <span onclick="closeAssignModal()"
+          style="font-size:24px;cursor:pointer;color:#8a96b0;line-height:1;">&times;</span>
+      </div>
+
+      <form th:action="@{/reception/appointments/assign}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+        <input type="hidden" name="appointmentId" id="modalAppointmentId">
+        <input type="hidden" name="redirectSource" value="schedule">
+        <input type="hidden" name="redirectDate" id="modalRedirectDate">
+        <input type="hidden" name="scheduledDate" id="modalDate">
+
+        <div style="margin-bottom: 14px;">
+          <label style="color:#8a96b0; font-size:11px; text-transform:uppercase;">Bệnh nhân</label>
+          <div id="modalPatientName" style="font-size:15px; font-weight:700; color:#cbd5e1; margin-top:4px;">--</div>
+        </div>
+
+        <!-- Phân bác sĩ -->
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label>Bác sĩ điều phối</label>
+          <select name="doctorId" id="modalDoctorId" required
+            style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 14px; outline: none;">
+            <option th:each="doc : ${doctors}" th:value="${doc.doctorId}" th:data-room="${doc.roomNumber}"
+              th:text="${doc.fullName + ' - Tim mạch'}"></option>
+          </select>
+        </div>
+
+        <!-- Xếp phòng khám -->
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label>Xếp vào phòng khám (Tự động hiển thị theo Bác sĩ)</label>
+          <input type="text" name="roomNumber" id="modalRoomNumber" placeholder="Ví dụ: Phòng 101, Phòng 102..." 
+                 style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 14px; outline: none;">
+        </div>
+
+        <!-- Giờ đến & Giờ khám xong -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom: 14px;">
+          <!-- Giờ đến (Check-In) -->
+          <div class="form-group">
+            <label>Giờ đến (vào)</label>
+            <input type="time" name="timeSlot" id="modalTimeSlot"
+              style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 14px; outline: none;">
+          </div>
+
+          <!-- Giờ khám xong (Giờ về) -->
+          <div class="form-group">
+            <label>Giờ khám xong</label>
+            <input type="time" name="endTime" id="modalEndTime"
+              style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 14px; outline: none;">
+          </div>
+        </div>
+
+        <!-- Trạng thái khám -->
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label>Trạng thái</label>
+          <select name="status" id="modalStatus" required
+            style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 14px; outline: none;">
+            <option value="Pending">Chờ duyệt (Pending)</option>
+            <option value="Confirmed">Đã duyệt & xếp lịch (Confirmed)</option>
+            <option value="CheckedIn">Bệnh nhân đã đến (CheckedIn)</option>
+            <option value="InProgress">Đang khám (InProgress)</option>
+            <option value="Completed">Đã khám xong (Completed)</option>
+            <option value="Cancelled">Đã hủy lịch (Cancelled)</option>
+          </select>
+        </div>
+
+        <div
+          style="display:flex; justify-content:flex-end; gap:10px; border-top:1px solid rgba(255,255,255,0.08); padding-top:16px;">
+          <button type="button" onclick="closeAssignModal()" class="btn btn-ghost"
+            style="padding: 8px 16px; margin:0;">Hủy</button>
+          <button type="submit" class="btn"
+            style="background:#3b82f6; color:white; padding: 8px 20px; border:none; border-radius:8px; margin:0;">Lưu
+            cập nhật</button>
         </div>
       </form>
     </div>
-
-    <!-- Timeline Grid Board -->
-    <div class="schedule-grid-container">
-      <table class="schedule-table">
-        <thead>
-          <tr>
-            <th class="time-col" style="vertical-align: middle;">Khung giờ</th>
-            <th th:each="doc : ${doctors}" style="min-width: 180px; padding: 12px 8px;">
-              <div class="doc-header-info">
-                <div class="doc-header-name" th:text="${doc.fullName}">Bác sĩ</div>
-                <div class="doc-header-specialty" th:text="${doc.specialty != null ? doc.specialty : 'Tim mạch'}">Chuyên khoa</div>
-              </div>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <!-- Time slots -->
-          <tr th:each="slot : ${#strings.arraySplit('08:00:00,09:00:00,10:00:00,11:00:00,13:30:00,14:30:00,15:30:00,16:30:00', ',')}">
-            <td class="time-col" th:text="${#strings.substring(slot, 0, 5)}">08:00</td>
-            
-            <!-- Doctors columns -->
-            <td th:each="doc : ${doctors}">
-              <!-- Render appointments in this cell -->
-              <div th:each="a : ${appointments}" 
-                   th:if="${a.doctor != null && a.doctor.doctorId == doc.doctorId && #temporals.format(a.timeSlot, 'HH:mm') == #strings.substring(slot, 0, 5)}"
-                   class="appointment-card" th:classappend="'status-' + ${a.status}">
-                
-                <div class="card-pat-name" th:text="${a.patient.fullName}">Patient Name</div>
-                <div class="card-room" th:text="${a.roomNumber != null && !a.roomNumber.isEmpty() ? '🚪 ' + a.roomNumber : '🚪 Chưa xếp phòng'}">Room</div>
-                
-                <div class="card-status">
-                  <span th:text="${a.status == 'Pending' ? 'Chờ duyệt' : (a.status == 'Confirmed' ? 'Đã duyệt' : (a.status == 'CheckedIn' ? 'Đã đến' : (a.status == 'InProgress' ? 'Đang khám' : (a.status == 'Completed' ? 'Hoàn thành' : 'Đã hủy'))))}">Pending</span>
-                </div>
-                
-                <button class="quick-edit-btn" 
-                        th:data-id="${a.appointmentId}"
-                        th:data-patient-name="${a.patient.fullName}"
-                        th:data-doctor-id="${a.doctor.doctorId}"
-                        th:data-room-number="${a.roomNumber != null ? a.roomNumber : ''}"
-                        th:data-date="${a.scheduledDate}"
-                        th:data-time="${a.timeSlot}"
-                        th:data-status="${a.status}"
-                        onclick="openAssignModal(this)">
-                  ⚙️ Phối phòng & Trạng thái
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
   </div>
-</main>
 
-<!-- Modal Xếp lịch, phòng, bác sĩ (Reused form dashboard with redirectSource=schedule) -->
-<div id="assignModal" class="modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,15,30,0.85);backdrop-filter:blur(4px);align-items:center;justify-content:center;z-index:1000;">
-  <div class="modal-content" style="background:#111827;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;max-width:500px;width:90%;box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);color:#e8edf5;">
-    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px;margin-bottom:16px;">
-      <h3 style="font-size:16px;font-weight:700;color:#e8edf5;"><i class="ti ti-calendar-configs" style="color:#f59e0b;"></i> Cập nhật phân phối ca khám</h3>
-      <span onclick="closeAssignModal()" style="font-size:24px;cursor:pointer;color:#8a96b0;line-height:1;">&times;</span>
-    </div>
+  <script>
+    function openAssignModal(btn) {
+      const id = btn.getAttribute("data-id");
+      const name = btn.getAttribute("data-patient-name");
+      const doctorId = btn.getAttribute("data-doctor-id");
+      const room = btn.getAttribute("data-room-number");
+      const date = btn.getAttribute("data-date");
+      const time = btn.getAttribute("data-time");
+      const endTime = btn.getAttribute("data-end-time");
+      const status = btn.getAttribute("data-status");
 
-    <form th:action="@{/reception/appointments/assign}" method="post">
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-      <input type="hidden" name="appointmentId" id="modalAppointmentId">
-      <input type="hidden" name="redirectSource" value="schedule">
-      <input type="hidden" name="redirectDate" id="modalRedirectDate">
-      <input type="hidden" name="scheduledDate" id="modalDate">
+      document.getElementById("modalAppointmentId").value = id || "";
+      document.getElementById("modalPatientName").textContent = name || "";
+      document.getElementById("modalDoctorId").value = doctorId || "";
+      document.getElementById("modalRoomNumber").value = room || "";
+      document.getElementById("modalDate").value = date || "";
+      
+      const dateStrInput = document.querySelector('input[name="dateStr"]');
+      document.getElementById("modalRedirectDate").value = dateStrInput ? dateStrInput.value : "";
 
-      <div style="margin-bottom: 14px;">
-        <label style="color:#8a96b0; font-size:11px; text-transform:uppercase;">Bệnh nhân</label>
-        <div id="modalPatientName" style="font-size:15px; font-weight:700; color:#cbd5e1; margin-top:4px;">--</div>
-      </div>
+      document.getElementById("modalTimeSlot").value = time || "";
+      document.getElementById("modalEndTime").value = endTime || "";
+      document.getElementById("modalStatus").value = status || "Pending";
 
-      <!-- Phân bác sĩ -->
-      <div class="form-group" style="margin-bottom: 14px;">
-        <label>Bác sĩ điều phối</label>
-        <select name="doctorId" id="modalDoctorId" required
-                style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 14px; outline: none;">
-          <option th:each="doc : ${doctors}" th:value="${doc.doctorId}" th:text="${doc.fullName + ' - Tim mạch'}"></option>
-        </select>
-      </div>
+      document.getElementById("assignModal").style.display = "flex";
+    }
 
-      <!-- Xếp phòng khám -->
-      <div class="form-group" style="margin-bottom: 14px;">
-        <label>Xếp vào phòng khám</label>
-        <input type="text" name="roomNumber" id="modalRoomNumber" placeholder="Ví dụ: Phòng 101, Phòng 102..." 
-               style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 14px; outline: none;">
-      </div>
+    document.addEventListener("DOMContentLoaded", function () {
+      const docSelect = document.getElementById("modalDoctorId");
+      if (docSelect) {
+        docSelect.addEventListener("change", function () {
+          const selectedOption = this.options[this.selectedIndex];
+          const room = selectedOption.getAttribute("data-room") || "";
+          document.getElementById("modalRoomNumber").value = room;
+        });
+      }
+    });
 
-      <!-- Đổi giờ khám -->
-      <div class="form-group" style="margin-bottom: 14px;">
-        <label>Khung giờ khám</label>
-        <select name="timeSlot" id="modalTime" required 
-                style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 14px; outline: none;">
-          <option value="08:00:00">08:00 - 09:00</option>
-          <option value="09:00:00">09:00 - 10:00</option>
-          <option value="10:00:00">10:00 - 11:00</option>
-          <option value="11:00:00">11:00 - 12:00</option>
-          <option value="13:30:00">13:30 - 14:30</option>
-          <option value="14:30:00">14:30 - 15:30</option>
-          <option value="15:30:00">15:30 - 16:30</option>
-          <option value="16:30:00">16:30 - 17:30</option>
-        </select>
-      </div>
+    function closeAssignModal() {
+      document.getElementById("assignModal").style.display = "none";
+    }
 
-      <!-- Trạng thái khám -->
-      <div class="form-group" style="margin-bottom: 20px;">
-        <label>Trạng thái</label>
-        <select name="status" id="modalStatus" required 
-                style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 14px; outline: none;">
-          <option value="Pending">Chờ duyệt (Pending)</option>
-          <option value="Confirmed">Đã duyệt & xếp lịch (Confirmed)</option>
-          <option value="CheckedIn">Bệnh nhân đã đến (CheckedIn)</option>
-          <option value="InProgress">Đang khám (InProgress)</option>
-          <option value="Completed">Đã khám xong (Completed)</option>
-          <option value="Cancelled">Đã hủy lịch (Cancelled)</option>
-        </select>
-      </div>
 
-      <div style="display:flex; justify-content:flex-end; gap:10px; border-top:1px solid rgba(255,255,255,0.08); padding-top:16px;">
-        <button type="button" onclick="closeAssignModal()" class="btn btn-ghost" style="padding: 8px 16px; margin:0;">Hủy</button>
-        <button type="submit" class="btn" style="background:#3b82f6; color:white; padding: 8px 20px; border:none; border-radius:8px; margin:0;">Lưu cập nhật</button>
-      </div>
-    </form>
-  </div>
-</div>
 
-<script>
-function openAssignModal(btn) {
-  const id = btn.getAttribute("data-id");
-  const name = btn.getAttribute("data-patient-name");
-  const doctorId = btn.getAttribute("data-doctor-id");
-  const room = btn.getAttribute("data-room-number");
-  const date = btn.getAttribute("data-date");
-  const time = btn.getAttribute("data-time");
-  const status = btn.getAttribute("data-status");
-
-  document.getElementById("modalAppointmentId").value = id;
-  document.getElementById("modalPatientName").textContent = name;
-  document.getElementById("modalDoctorId").value = doctorId;
-  document.getElementById("modalRoomNumber").value = room;
-  document.getElementById("modalDate").value = date;
-  document.getElementById("modalRedirectDate").value = document.querySelector('input[name="dateStr"]').value;
-  
-  let normalizedTime = time;
-  if (time && time.length === 5) {
-    normalizedTime = time + ":00";
-  }
-  document.getElementById("modalTime").value = normalizedTime;
-  document.getElementById("modalStatus").value = status;
-
-  document.getElementById("assignModal").style.display = "flex";
-}
-
-function closeAssignModal() {
-  document.getElementById("assignModal").style.display = "none";
-}
-</script>
-<script th:src="@{/js/main.js}"></script>
+    // Close when clicking outside content
+    window.onclick = function (event) {
+      const modal = document.getElementById("assignModal");
+      if (event.target === modal) {
+        modal.style.display = "none";
+      }
+    }
+  </script>
+  <script th:src="@{/js/main.js}"></script>
 </body>
+
 </html>

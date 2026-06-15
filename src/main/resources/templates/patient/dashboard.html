@@ -50,8 +50,8 @@
             <tr>
               <th>Bác sĩ</th>
               <th>Ngày khám</th>
-              <th>Giờ hẹn</th>
-              <th>Phòng khám</th>
+              <th>Giờ vào / ra</th>
+              <th>Phòng & STT</th>
               <th>Trạng thái</th>
             </tr>
           </thead>
@@ -67,9 +67,13 @@
                 </div>
               </td>
               <td th:text="${#temporals.format(a.scheduledDate, 'dd/MM/yyyy')}">--</td>
-              <td th:text="${a.timeSlot}">--</td>
               <td>
-                <strong style="color: #e8edf5;" th:text="${a.roomNumber != null && !a.roomNumber.isEmpty() ? a.roomNumber : 'Chờ xếp phòng'}">--</strong>
+                <div th:text="${a.timeSlot != null ? 'Vào: ' + a.timeSlot : 'Chờ Check-in'}">--</div>
+                <div th:if="${a.endTime != null}" th:text="'Ra: ' + ${a.endTime}" style="font-size:11px;color:#8a96b0;">--</div>
+              </td>
+              <td>
+                <strong style="color: #e8edf5; display: block;" th:text="${a.roomNumber != null && !a.roomNumber.isEmpty() ? a.roomNumber : 'Chờ xếp phòng'}">--</strong>
+                <span th:if="${a.queueNumber != null}" style="font-size:11px;color:#60a5fa;font-weight:600;" th:text="'STT: #' + ${a.queueNumber}">STT: --</span>
               </td>
               <td>
                 <span class="risk-badge" 

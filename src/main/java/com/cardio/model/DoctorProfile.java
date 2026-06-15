@@ -37,6 +37,9 @@ public class DoctorProfile implements SystemUser {
     @Column(name = "LicenseNumber")
     private String licenseNumber;
 
+    @Column(name = "RoomNumber")
+    private String roomNumber;
+
     // SystemUser interface - role is always DOCTOR
     @Override
     public String getRole() {

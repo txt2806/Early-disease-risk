@@ -89,17 +89,17 @@ public class DatabaseInitializer implements CommandLineRunner {
 
         // 2. Seed at least 4 Doctor accounts in Doctor_Profile
         String[][] doctors = {
-                { "doctor1@cardio.com", "BS. Nguyễn Văn An", "Tim mạch", "CCHN-11111" },
-                { "doctor2@cardio.com", "BS. Trần Văn Bình", "Tim mạch", "CCHN-22222" },
-                { "doctor3@cardio.com", "BS. Lê Thị Chi", "Tim mạch", "CCHN-33333" },
-                { "doctor4@cardio.com", "BS. Phạm Minh Đức", "Tim mạch", "CCHN-44444" }
+                { "doctor1@cardio.com", "BS. Nguyễn Văn An", "Tim mạch", "CCHN-11111", "Phòng 101" },
+                { "doctor2@cardio.com", "BS. Trần Văn Bình", "Tim mạch", "CCHN-22222", "Phòng 102" },
+                { "doctor3@cardio.com", "BS. Lê Thị Chi", "Tim mạch", "CCHN-33333", "Phòng 103" },
+                { "doctor4@cardio.com", "BS. Phạm Minh Đức", "Tim mạch", "CCHN-44444", "Phòng 104" }
         };
         for (String[] doc : doctors) {
             jdbcTemplate.update(
-                    "INSERT INTO Doctor_Profile (Username, PasswordHash, FullName, Specialty, AlertThreshold_BPM, AlertThreshold_BP, LicenseNumber, Status) "
+                    "INSERT INTO Doctor_Profile (Username, PasswordHash, FullName, Specialty, AlertThreshold_BPM, AlertThreshold_BP, LicenseNumber, RoomNumber, Status) "
                             +
-                            "VALUES (?, ?, ?, ?, 100, '140/90', ?, 'ACTIVE')",
-                    doc[0], passHash, doc[1], doc[2], doc[3]);
+                            "VALUES (?, ?, ?, ?, 100, '140/90', ?, ?, 'ACTIVE')",
+                    doc[0], passHash, doc[1], doc[2], doc[3], doc[4]);
             syncUserWithFirebase(doc[0], "123", doc[1]);
         }
 
@@ -259,7 +259,9 @@ public class DatabaseInitializer implements CommandLineRunner {
                     "PatientID INT, " +
                     "DoctorID INT, " +
                     "ScheduledDate DATE NOT NULL, " +
-                    "TimeSlot TIME NOT NULL, " +
+                    "TimeSlot TIME, " +
+                    "EndTime TIME, " +
+                    "RequestTime TIMESTAMP, " +
                     "Status VARCHAR(20) DEFAULT 'Pending', " +
                     "RoomNumber VARCHAR(50), " +
                     "PreliminaryStatus TEXT)");

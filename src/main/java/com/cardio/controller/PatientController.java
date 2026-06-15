@@ -41,6 +41,9 @@ public class PatientController {
     public String dashboard(@AuthenticationPrincipal UserDetails userDetails, Model model) {
         PatientProfile patient = getCurrentPatient(userDetails);
         List<Appointment> appointments = appointmentRepository.findByPatientOrderByScheduledDateDescTimeSlotDesc(patient);
+        List<Appointment> allReference = appointmentRepository.findAll();
+        Appointment.populateQueueNumbers(appointments, allReference);
+
         List<AIRiskPrediction> predictions = aiRiskRepository.findByPatient(patient);
         
         // Fetch latest heart rate and alerts from self monitoring
@@ -163,7 +166,6 @@ public class PatientController {
     public String saveAppointment(@AuthenticationPrincipal UserDetails userDetails,
                                   @RequestParam("doctorId") Integer doctorId,
                                   @RequestParam("scheduledDate") String scheduledDateStr,
-                                  @RequestParam("timeSlot") String timeSlotStr,
                                   @RequestParam("preliminaryStatus") String preliminaryStatus,
                                   RedirectAttributes ra) {
         PatientProfile patient = getCurrentPatient(userDetails);
@@ -173,17 +175,32 @@ public class PatientController {
                     .orElseThrow(() -> new RuntimeException("Doctor not found"));
 
             LocalDate scheduledDate = LocalDate.parse(scheduledDateStr);
-            long bookedCount = appointmentRepository.countByDoctorAndScheduledDateAndStatusNot(doctor, scheduledDate, "Cancelled");
-            if (bookedCount >= 8) {
-                ra.addFlashAttribute("error", "Bác sĩ " + doctor.getFullName() + " đã làm việc đủ 8 tiếng (8 ca khám) trong ngày này. Vui lòng chọn bác sĩ khác hoặc ngày khác.");
+            
+            // Auto-overflow logic: find next consecutive day where doctor has < 8 appointments
+            LocalDate targetDate = scheduledDate;
+            boolean wasShifted = false;
+            while (appointmentRepository.countByDoctorAndScheduledDateAndStatusNot(doctor, targetDate, "Cancelled") >= 8) {
+                targetDate = targetDate.plusDays(1);
+                wasShifted = true;
+            }
+
+            // Check if patient already has an active appointment with the same doctor on this final date
+            final LocalDate finalDate = targetDate;
+            boolean alreadyBooked = appointmentRepository.findAll().stream()
+                .anyMatch(a -> a.getPatient().getPatientId().equals(patient.getPatientId())
+                        && a.getDoctor() != null && a.getDoctor().getDoctorId().equals(doctor.getDoctorId())
+                        && a.getScheduledDate().equals(finalDate)
+                        && !"Cancelled".equalsIgnoreCase(a.getStatus()));
+            if (alreadyBooked) {
+                ra.addFlashAttribute("error", "Bạn đã đăng ký lịch hẹn khám với bác sĩ " + doctor.getFullName() + " vào ngày này rồi.");
                 return "redirect:/patient/book-appointment";
             }
 
             Appointment appointment = new Appointment();
             appointment.setPatient(patient);
             appointment.setDoctor(doctor);
-            appointment.setScheduledDate(scheduledDate);
-            appointment.setTimeSlot(LocalTime.parse(timeSlotStr));
+            appointment.setScheduledDate(targetDate);
+            appointment.setTimeSlot(null); // No time slot until physical check-in
             appointment.setPreliminaryStatus(preliminaryStatus);
             appointment.setStatus("Pending");
 
@@ -193,14 +210,23 @@ public class PatientController {
             SystemLog sysLog = new SystemLog();
             sysLog.setUsername(patient.getUsername());
             sysLog.setAction("PATIENT_BOOK_APPOINTMENT");
-            sysLog.setDetails("Bệnh nhân đặt lịch hẹn khám với bác sĩ: " + doctor.getFullName() + " vào ngày " + scheduledDateStr + " lúc " + timeSlotStr);
+            sysLog.setDetails("Bệnh nhân đặt lịch hẹn khám với bác sĩ: " + doctor.getFullName() + " vào ngày " + targetDate.toString());
             sysLog.setTimestamp(LocalDateTime.now());
             systemLogRepository.save(sysLog);
 
-            ra.addFlashAttribute("success", "Đặt lịch hẹn khám thành công! Vui lòng chờ phòng khám tiếp nhận.");
+            if (wasShifted) {
+                ra.addFlashAttribute("success", "Do bác sĩ đã đầy lịch khám vào ngày đã chọn (tối đa 8 ca/ngày), lịch hẹn của bạn đã được tự động chuyển sang ngày " + targetDate.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ". Vui lòng chờ tiếp nhận.");
+            } else {
+                ra.addFlashAttribute("success", "Đặt lịch hẹn khám thành công! Vui lòng chờ phòng khám tiếp nhận.");
+            }
         } catch (Exception e) {
             log.error("Error booking appointment: ", e);
-            ra.addFlashAttribute("error", "Lỗi đặt lịch hẹn: " + e.getMessage());
+            String message = e.getMessage();
+            if (message != null && (message.contains("unique_doctor_slot") || message.contains("unique_patient_slot") || message.contains("ConstraintViolation") || message.contains("duplicate key"))) {
+                ra.addFlashAttribute("error", "Lỗi đặt lịch hẹn: đã có lịch hẹn được đặt trước đó");
+            } else {
+                ra.addFlashAttribute("error", "Lỗi đặt lịch hẹn: " + e.getMessage());
+            }
         }
         return "redirect:/patient/dashboard";
     }

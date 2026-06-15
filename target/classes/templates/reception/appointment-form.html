@@ -107,42 +107,26 @@
         <!-- Chọn bác sĩ -->
         <div class="form-group" style="margin-bottom: 16px;">
           <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Bác sĩ phụ trách</label>
-          <select name="doctorId" required 
+          <select name="doctorId" id="doctorIdSelect" required 
                   style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none; cursor:pointer;">
             <option value="" disabled selected>-- Chọn Bác sĩ Tim mạch --</option>
-            <option th:each="doc : ${doctors}" th:value="${doc.doctorId}" th:text="${doc.fullName + ' - Chuyên khoa: ' + doc.specialty}"></option>
+            <option th:each="doc : ${doctors}" th:value="${doc.doctorId}" th:data-room="${doc.roomNumber}" th:text="${doc.fullName + ' - Chuyên khoa: ' + doc.specialty}"></option>
           </select>
         </div>
 
         <!-- Xếp phòng khám -->
         <div class="form-group" style="margin-bottom: 16px;">
-          <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Xếp phòng khám</label>
-          <input type="text" name="roomNumber" placeholder="Ví dụ: Phòng 101, Phòng 102..." required 
+          <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Xếp phòng khám (Tự động hiển thị theo Bác sĩ)</label>
+          <input type="text" name="roomNumber" id="roomNumberInput" placeholder="Ví dụ: Phòng 101, Phòng 102..." 
                  style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none;">
         </div>
 
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+        <div style="margin-bottom:16px;">
           <!-- Chọn ngày -->
           <div class="form-group">
             <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Ngày khám</label>
             <input type="date" name="scheduledDate" id="scheduledDate" required 
                    style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none;">
-          </div>
-
-          <!-- Chọn giờ -->
-          <div class="form-group">
-            <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Giờ khám</label>
-            <select name="timeSlot" required 
-                    style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none; cursor:pointer;">
-              <option value="08:00:00">08:00 - 09:00</option>
-              <option value="09:00:00">09:00 - 10:00</option>
-              <option value="10:00:00">10:00 - 11:00</option>
-              <option value="11:00:00">11:00 - 12:00</option>
-              <option value="13:30:00">13:30 - 14:30</option>
-              <option value="14:30:00">14:30 - 15:30</option>
-              <option value="15:30:00">15:30 - 16:30</option>
-              <option value="16:30:00">16:30 - 17:30</option>
-            </select>
           </div>
         </div>
 
@@ -245,6 +229,17 @@ document.addEventListener('DOMContentLoaded', function() {
   const patientOpts = document.querySelectorAll('.patient-opt');
   const noPatientFound = document.getElementById('noPatientFound');
   const patientIdInput = document.getElementById('patientId');
+  
+  // Doctor/Room auto-completion
+  const doctorIdSelect = document.getElementById('doctorIdSelect');
+  const roomNumberInput = document.getElementById('roomNumberInput');
+  if (doctorIdSelect && roomNumberInput) {
+    doctorIdSelect.addEventListener('change', function() {
+      const selectedOption = this.options[this.selectedIndex];
+      const room = selectedOption.getAttribute('data-room') || '';
+      roomNumberInput.value = room;
+    });
+  }
 
   // Set initial default state
   switchPatientType('existing');

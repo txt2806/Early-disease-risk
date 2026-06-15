@@ -121,6 +121,7 @@ public class AdminController {
             existing.setAlertThresholdBpm(user.getAlertThresholdBpm());
             existing.setAlertThresholdBp(user.getAlertThresholdBp());
             existing.setLicenseNumber(user.getLicenseNumber());
+            existing.setRoomNumber(user.getRoomNumber());
             
             if (newPassword != null && !newPassword.trim().isEmpty()) {
                 existing.setPasswordHash(passwordEncoder.encode(newPassword.trim()));

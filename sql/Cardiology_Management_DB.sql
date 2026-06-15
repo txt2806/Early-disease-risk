@@ -34,6 +34,7 @@ CREATE TABLE Doctor_Profile (
     AlertThreshold_BPM INT DEFAULT 100,
     AlertThreshold_BP VARCHAR(20) DEFAULT '140/90',
     LicenseNumber VARCHAR(50) NULL,
+    RoomNumber VARCHAR(50) NULL,
     Status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'
 );
 GO
@@ -59,12 +60,27 @@ CREATE TABLE Appointment (
     PatientID INT,
     DoctorID INT,
     ScheduledDate DATE NOT NULL,
-    TimeSlot TIME NOT NULL,
+    TimeSlot TIME NULL,
+    EndTime TIME NULL,
+    RequestTime DATETIME NULL,
     Status NVARCHAR(20) NOT NULL DEFAULT N'Pending',
+    RoomNumber VARCHAR(50),
+    PreliminaryStatus NVARCHAR(255),
     FOREIGN KEY (PatientID) REFERENCES Patient_Profile(PatientID),
-    FOREIGN KEY (DoctorID) REFERENCES Doctor_Profile(DoctorID),
-    CONSTRAINT UNIQUE_Doctor_Slot UNIQUE (DoctorID, ScheduledDate, TimeSlot)
+    FOREIGN KEY (DoctorID) REFERENCES Doctor_Profile(DoctorID)
 );
+GO
+
+-- Chặn trùng lịch bác sĩ (Chỉ áp dụng cho các lịch khám chưa bị Hủy)
+CREATE UNIQUE INDEX UNIQUE_Doctor_Slot_Active 
+ON Appointment (DoctorID, ScheduledDate, TimeSlot) 
+WHERE Status <> 'Cancelled';
+GO
+
+-- Chặn trùng lịch bệnh nhân (Chỉ áp dụng cho các lịch khám chưa bị Hủy)
+CREATE UNIQUE INDEX UNIQUE_Patient_Slot_Active 
+ON Appointment (PatientID, ScheduledDate, TimeSlot) 
+WHERE Status <> 'Cancelled';
 GO
 
 -- 5. Tạo bảng Hồ sơ Tư vấn & Khám bệnh

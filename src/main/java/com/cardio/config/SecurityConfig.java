@@ -35,6 +35,7 @@ public class SecurityConfig {
                 .requestMatchers("/doctor/alerts/**").hasAnyRole("DOCTOR", "STAFF", "ADMIN")
                 .requestMatchers("/doctor/patients/*/vitals/**").hasAnyRole("STAFF", "DOCTOR", "ADMIN")
                 .requestMatchers("/doctor/patients/new", "/doctor/patients/save").hasAnyRole("RECEPTIONIST", "DOCTOR", "ADMIN")
+                .requestMatchers("/doctor/appointments/*/details").hasAnyRole("DOCTOR", "STAFF", "ADMIN")
                 .requestMatchers("/doctor/appointments/**").hasAnyRole("RECEPTIONIST", "DOCTOR", "STAFF", "ADMIN")
                 .requestMatchers("/doctor/**").hasAnyRole("DOCTOR", "ADMIN")
                 .anyRequest().authenticated()

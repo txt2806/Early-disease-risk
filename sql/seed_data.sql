@@ -38,11 +38,11 @@ INSERT INTO Staff_Profile (Username, PasswordHash, FullName, Role, Status) VALUE
 ('recep3@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'Lễ tân Bùi Văn Long', 'RECEPTIONIST', 'ACTIVE');
 
 -- 3. Nạp dữ liệu vào bảng Doctor_Profile (Danh sách bác sĩ)
-INSERT INTO Doctor_Profile (Username, PasswordHash, FullName, Specialty, AlertThreshold_BPM, AlertThreshold_BP, LicenseNumber, Status) VALUES
-('doctor1@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'BS. Nguyễn Văn An', N'Tim mạch', 100, '140/90', 'CCHN-11111', 'ACTIVE'),
-('doctor2@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'BS. Trần Văn Bình', N'Tim mạch', 100, '140/90', 'CCHN-22222', 'ACTIVE'),
-('doctor3@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'BS. Lê Thị Chi', N'Tim mạch', 100, '140/90', 'CCHN-33333', 'ACTIVE'),
-('doctor4@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'BS. Phạm Minh Đức', N'Tim mạch', 100, '140/90', 'CCHN-44444', 'ACTIVE');
+INSERT INTO Doctor_Profile (Username, PasswordHash, FullName, Specialty, AlertThreshold_BPM, AlertThreshold_BP, LicenseNumber, RoomNumber, Status) VALUES
+('doctor1@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'BS. Nguyễn Văn An', N'Tim mạch', 100, '140/90', 'CCHN-11111', 'Phòng 101', 'ACTIVE'),
+('doctor2@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'BS. Trần Văn Bình', N'Tim mạch', 100, '140/90', 'CCHN-22222', 'Phòng 102', 'ACTIVE'),
+('doctor3@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'BS. Lê Thị Chi', N'Tim mạch', 100, '140/90', 'CCHN-33333', 'Phòng 103', 'ACTIVE'),
+('doctor4@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'BS. Phạm Minh Đức', N'Tim mạch', 100, '140/90', 'CCHN-44444', 'Phòng 104', 'ACTIVE');
 
 -- 4. Nạp dữ liệu vào bảng Patient_Profile (Hồ sơ bệnh nhân - có thêm cột is_alert mặc định = 0)
 INSERT INTO Patient_Profile (Username, PasswordHash, FullName, DOB, Gender, Phone, Address, Status, is_alert) VALUES

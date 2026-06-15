@@ -497,7 +497,11 @@ input:focus, select:focus { border-color: #3b82f6; }
                     th:text="${user.role == 'DOCTOR' ? 'Bác sĩ' : (user.role == 'STAFF' ? 'Nhân viên y tế' : 'Lễ tân')}">Bác sĩ</span>
             </td>
             <td>
-              <span th:if="${user.role == 'DOCTOR'}" th:text="${user.licenseNumber != null ? user.licenseNumber + ' (Tim mạch)' : 'Chưa cập nhật (Tim mạch)'}">CCHN-12345 (Tim mạch)</span>
+              <div th:if="${user.role == 'DOCTOR'}">
+                <span th:text="${user.licenseNumber != null ? user.licenseNumber + ' (Tim mạch)' : 'Chưa cập nhật (Tim mạch)'}">CCHN-12345 (Tim mạch)</span>
+                <br/>
+                <span style="font-size:12px; color:#10b981; font-weight:600;" th:text="${user.roomNumber != null ? '🚪 ' + user.roomNumber : '🚪 Chưa xếp phòng'}">Phòng 101</span>
+              </div>
               <span th:if="${user.role != 'DOCTOR'}" style="color:#8a96b0;">--</span>
             </td>
             <td>
@@ -507,12 +511,13 @@ input:focus, select:focus { border-color: #3b82f6; }
             </td>
             <td>
               <div class="tbl-actions">
-                <button class="tbl-btn tbl-btn-edit" 
+                 <button class="tbl-btn tbl-btn-edit" 
                         th:data-id="${user.doctorId}"
                         th:data-username="${user.username}"
                         th:data-fullname="${user.fullName}"
                         th:data-role="${user.role}"
                         th:data-license="${user.licenseNumber}"
+                        th:data-room="${user.role == 'DOCTOR' ? user.roomNumber : ''}"
                         th:data-bpm="${user.alertThresholdBpm}"
                         th:data-bp="${user.alertThresholdBp}"
                         onclick="openEditModal(this)">Sửa</button>
@@ -644,7 +649,7 @@ input:focus, select:focus { border-color: #3b82f6; }
       <!-- Role dropdown selector -->
       <div class="form-group">
         <label>Vai trò *</label>
-        <select name="role" id="createRole" onchange="toggleLicenseField(this.value, 'createLicenseGroup')" required>
+        <select name="role" id="createRole" onchange="handleRoleChange(this.value, true)" required>
           <option value="DOCTOR">Bác sĩ</option>
           <option value="STAFF">Nhân viên y tế</option>
           <option value="RECEPTIONIST">Lễ tân</option>
@@ -656,6 +661,12 @@ input:focus, select:focus { border-color: #3b82f6; }
         <label>Số chứng chỉ hành nghề (Tùy chọn)</label>
         <input type="text" name="licenseNumber" id="createLicense" placeholder="CCHN-12345">
         <p style="color:#10b981; font-size:11px; margin-top:4px;">* Hệ thống tự động gán chuyên khoa mặc định: Tim mạch</p>
+      </div>
+
+      <!-- Room number for DOCTOR (Required) -->
+      <div class="form-group" id="createRoomGroup">
+        <label>Phòng làm việc cố định *</label>
+        <input type="text" name="roomNumber" id="createRoomNumber" placeholder="Ví dụ: Phòng 101">
       </div>
 
       <div class="modal-footer">
@@ -698,6 +709,12 @@ input:focus, select:focus { border-color: #3b82f6; }
       <div class="form-group" id="editLicenseGroup" style="display:none;">
         <label>Số chứng chỉ hành nghề (Tùy chọn)</label>
         <input type="text" name="licenseNumber" id="editLicense">
+      </div>
+
+      <!-- Room number edit for DOCTOR (Required) -->
+      <div class="form-group" id="editRoomGroup" style="display:none;">
+        <label>Phòng làm việc cố định *</label>
+        <input type="text" name="roomNumber" id="editRoomNumber" placeholder="Ví dụ: Phòng 101">
       </div>
 
       <div class="modal-footer">
@@ -888,15 +905,32 @@ function filterTable() {
   paginateList(currentTab);
 }
 
-// Show/hide license number based on selected role
-function toggleLicenseField(role, elementId) {
-  const group = document.getElementById(elementId);
-  const input = group.querySelector("input");
+// Dynamic toggle of license & room number fields based on role
+function handleRoleChange(role, isCreate) {
+  const suffix = isCreate ? 'create' : 'edit';
+  const licGroup = document.getElementById(suffix + 'LicenseGroup');
+  const roomGroup = document.getElementById(suffix + 'RoomGroup');
+  const licInput = document.getElementById(suffix + 'License');
+  const roomInput = document.getElementById(suffix + 'RoomNumber');
+  
   if (role === 'DOCTOR') {
-    group.style.display = "block";
+    if (licGroup) licGroup.style.display = "block";
+    if (roomGroup) {
+      roomGroup.style.display = "block";
+      if (roomInput) roomInput.setAttribute('required', 'required');
+    }
   } else {
-    group.style.display = "none";
-    input.value = "";
+    if (licGroup) {
+      licGroup.style.display = "none";
+      if (licInput) licInput.value = "";
+    }
+    if (roomGroup) {
+      roomGroup.style.display = "none";
+      if (roomInput) {
+        roomInput.removeAttribute('required');
+        roomInput.value = "";
+      }
+    }
   }
 }
 
@@ -916,7 +950,8 @@ function closePatientResetModal() {
 // Modals
 function openCreateModal() {
   document.getElementById("createModal").style.display = "flex";
-  toggleLicenseField('DOCTOR', 'createLicenseGroup'); // Default role is doctor
+  document.getElementById("createRole").value = "DOCTOR";
+  handleRoleChange('DOCTOR', true);
 }
 function closeCreateModal() {
   document.getElementById("createModal").style.display = "none";
@@ -928,6 +963,7 @@ function openEditModal(btn) {
   const fullname = btn.getAttribute("data-fullname");
   const role = btn.getAttribute("data-role");
   const license = btn.getAttribute("data-license");
+  const room = btn.getAttribute("data-room");
   
   document.getElementById("editDoctorId").value = id;
   document.getElementById("editUsername").value = username;
@@ -936,13 +972,21 @@ function openEditModal(btn) {
   
   const licenseGroup = document.getElementById("editLicenseGroup");
   const licenseInput = document.getElementById("editLicense");
+  const roomGroup = document.getElementById("editRoomGroup");
+  const roomInput = document.getElementById("editRoomNumber");
   
   if (role === 'DOCTOR') {
     licenseGroup.style.display = "block";
     licenseInput.value = license ? license : "";
+    roomGroup.style.display = "block";
+    roomInput.value = room ? room : "";
+    roomInput.setAttribute('required', 'required');
   } else {
     licenseGroup.style.display = "none";
     licenseInput.value = "";
+    roomGroup.style.display = "none";
+    roomInput.value = "";
+    roomInput.removeAttribute('required');
   }
   
   document.getElementById("editModal").style.display = "flex";
