@@ -81,10 +81,18 @@ public class DatabaseInitializer implements CommandLineRunner {
 
         // 2. Seed at least 4 Doctor accounts in Doctor_Profile
         String[][] doctors = {
+<<<<<<< Updated upstream
             {"doctor1@cardio.com", "BS. Nguyễn Văn An", "Tim mạch", "CCHN-11111"},
             {"doctor2@cardio.com", "BS. Trần Văn Bình", "Tim mạch", "CCHN-22222"},
             {"doctor3@cardio.com", "BS. Lê Thị Chi", "Tim mạch", "CCHN-33333"},
             {"doctor4@cardio.com", "BS. Phạm Minh Đức", "Tim mạch", "CCHN-44444"}
+=======
+                { "doctor1@cardio.com", "BS. Nguyễn Văn An", "Đa khoa", "CCHN-11111", "Phòng 101" },
+                { "doctor2@cardio.com", "BS. Trần Văn Bình", "Đa khoa", "CCHN-22222", "Phòng 102" },
+                { "doctor3@cardio.com", "BS. Lê Thị Chi", "Tim mạch", "CCHN-33333", "Phòng 103" },
+                { "doctor4@cardio.com", "BS. Phạm Minh Đức", "Đa khoa", "CCHN-44444", "Phòng 104" },
+                { "doctor5@cardio.com", "BS. Nguyễn Thị Dung", "Đa khoa", "CCHN-55555", "Phòng 105" }
+>>>>>>> Stashed changes
         };
         for (String[] doc : doctors) {
             jdbcTemplate.update("INSERT INTO Doctor_Profile (Username, PasswordHash, FullName, Specialty, AlertThreshold_BPM, AlertThreshold_BP, LicenseNumber, Status) " +
@@ -232,8 +240,30 @@ public class DatabaseInitializer implements CommandLineRunner {
                     "PatientID INT, " +
                     "DoctorID INT, " +
                     "ScheduledDate DATE NOT NULL, " +
+<<<<<<< Updated upstream
                     "TimeSlot TIME NOT NULL, " +
                     "Status VARCHAR(20) DEFAULT 'Pending')");
+=======
+                    "TimeSlot TIME, " +
+                    "StartTime TIME, " +
+                    "EndTime TIME, " +
+                    "RequestTime TIMESTAMP, " +
+                    "Status VARCHAR(20) DEFAULT 'Pending', " +
+                    "RoomNumber VARCHAR(50), " +
+                    "PreliminaryStatus TEXT, " +
+                    "QueueNumber INT)");
+
+            // Safe ALTER TABLE commands in case the table exists without the new columns
+            try {
+                jdbcTemplate.execute("ALTER TABLE Appointment ADD COLUMN IF NOT EXISTS RoomNumber VARCHAR(50)");
+                jdbcTemplate.execute("ALTER TABLE Appointment ADD COLUMN IF NOT EXISTS PreliminaryStatus TEXT");
+                jdbcTemplate.execute("ALTER TABLE Appointment ADD COLUMN IF NOT EXISTS StartTime TIME");
+                jdbcTemplate.execute("ALTER TABLE Appointment ADD COLUMN IF NOT EXISTS QueueNumber INT");
+            } catch (Exception alterEx) {
+                log.warn("Failed to alter Appointment table: {}", alterEx.getMessage());
+            }
+
+>>>>>>> Stashed changes
             log.info("Table Appointment is checked/created.");
         } catch (Exception e) {
             log.warn("Failed to create Appointment: {}", e.getMessage());

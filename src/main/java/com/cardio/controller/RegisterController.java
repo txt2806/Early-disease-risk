@@ -37,6 +37,8 @@ public class RegisterController {
     private final AIRiskRepository aiRiskRepository;
     private final SystemLogRepository systemLogRepository;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    private org.springframework.security.web.context.SecurityContextRepository securityContextRepository =
+            new org.springframework.security.web.context.HttpSessionSecurityContextRepository();
 
     @GetMapping("/register")
     public String showRegisterPage() {
@@ -156,8 +158,13 @@ public class RegisterController {
             @RequestParam(value = "email", required = false) String clientEmail,
             @RequestParam(value = "fullName", required = false) String clientFullName,
             Model model,
+<<<<<<< Updated upstream
             HttpServletRequest request,
             HttpServletResponse response) {
+=======
+            jakarta.servlet.http.HttpServletRequest request,
+            jakarta.servlet.http.HttpServletResponse response) {
+>>>>>>> Stashed changes
         try {
             String email = (clientEmail != null && !clientEmail.trim().isEmpty()) ? clientEmail.trim()
                     : "patient@example.com";
@@ -197,6 +204,7 @@ public class RegisterController {
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         principal, null, principal.getAuthorities());
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+                securityContextRepository.saveContext(SecurityContextHolder.getContext(), request, response);
 
                 // Persist security context in HTTP session for Spring Security 6
                 new HttpSessionSecurityContextRepository().saveContext(SecurityContextHolder.getContext(), request, response);
@@ -288,8 +296,13 @@ public class RegisterController {
             @RequestParam("address") String address,
             @RequestParam("firebaseToken") String firebaseToken,
             Model model,
+<<<<<<< Updated upstream
             HttpServletRequest request,
             HttpServletResponse response) {
+=======
+            jakarta.servlet.http.HttpServletRequest request,
+            jakarta.servlet.http.HttpServletResponse response) {
+>>>>>>> Stashed changes
 
         try {
             String firebaseEmail = email; // Fallback default
@@ -339,6 +352,7 @@ public class RegisterController {
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                     principal, null, principal.getAuthorities());
             SecurityContextHolder.getContext().setAuthentication(authentication);
+            securityContextRepository.saveContext(SecurityContextHolder.getContext(), request, response);
 
             // Persist security context in HTTP session for Spring Security 6
             new HttpSessionSecurityContextRepository().saveContext(SecurityContextHolder.getContext(), request, response);
