@@ -2,11 +2,15 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments :: head('Thêm bệnh nhân')}"></head>
 <body>
-<div th:replace="~{fragments :: sidebar('patients')}"></div>
+<div th:replace="~{fragments :: receptionSidebar('patients')}"></div>
 
 <main class="main">
-  <header th:replace="~{fragments :: topbar('Thêm bệnh nhân mới')}"></header>
+  <header th:replace="~{fragments :: simpleTopbar('Thêm bệnh nhân mới')}"></header>
   <div class="content">
+
+    <!-- Alerts -->
+    <div class="alert-success" th:if="${success}" th:text="${success}" style="padding: 12px; margin-bottom: 20px; border-radius: 8px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);"></div>
+    <div class="alert-danger" th:if="${error}" th:text="${error}" style="padding: 12px; margin-bottom: 20px; border-radius: 8px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);"></div>
 
     <div style="max-width:680px;">
       <div class="card">
@@ -14,7 +18,7 @@
           <div class="card-title"><i class="ti ti-user-plus"></i> Thông tin bệnh nhân</div>
         </div>
         <div style="padding:24px;">
-          <form th:action="@{/doctor/patients/save}" method="post" th:object="${patient}">
+          <form th:action="@{/reception/patients/save}" method="post" th:object="${patient}">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
 
             <div class="form-section">
@@ -51,7 +55,7 @@
             </div>
 
             <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
-              <a th:href="@{/doctor/patients}" class="btn btn-ghost">Hủy</a>
+              <a th:href="@{/reception/patients}" class="btn btn-ghost">Hủy</a>
               <button type="submit" class="btn btn-primary">
                 <i class="ti ti-check"></i> Lưu bệnh nhân
               </button>
