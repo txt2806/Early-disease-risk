@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments :: head('Dự đoán AI')}"></head>
+
+<body>
+  <div th:replace="~{fragments :: sidebar('ai-predict')}"></div>
+
+  <main class="main">
+    <header th:replace="~{fragments :: topbar('Dự đoán nguy cơ AI')}"></header>
+    <div class="content">
+
+      <div style="display:grid;grid-template-columns:1fr 360px;gap:20px;">
+
+        <!-- ── FORM NHẬP ── -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><i class="ti ti-stethoscope"></i> Chỉ số lâm sàng</div>
+          </div>
+          <div style="padding:20px;">
+            <form th:action="@{/doctor/ai-predict/analyze}" method="post" th:object="${aiRequest}">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+
+              <div class="form-group full" style="margin-bottom:16px;">
+                <label class="form-label">Bệnh nhân *</label>
+                <select class="form-input" name="patientId" required th:disabled="${prediction != null}">
+                  <option value="">-- Chọn bệnh nhân --</option>
+                  <option th:each="p : ${patients}" th:value="${p.patientId}"
+                    th:text="${p.fullName + ' (#BN' + p.patientId + ')'}"
+                    th:selected="${selectedPatient != null and selectedPatient.patientId == p.patientId}">
+                  </option>
+                </select>
+              </div>
+
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Tuổi</label>
+                  <input class="form-input" type="number" th:field="*{age}" placeholder="58" required
+                    th:disabled="${prediction != null}">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Giới tính</label>
+                  <select class="form-input" th:field="*{sex}" th:disabled="${prediction != null}">
+                    <option value="Male">Nam</option>
+                    <option value="Female">Nữ</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Loại đau ngực</label>
+                  <select class="form-input" th:field="*{cp}" th:disabled="${prediction != null}">
+                    <option value="asymptomatic">Không triệu chứng</option>
+                    <option value="typical angina">Đau thắt ngực điển hình</option>
+                    <option value="atypical angina">Đau thắt ngực không điển hình</option>
+                    <option value="non-anginal">Không phải đau thắt ngực</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Huyết áp lúc nghỉ (mmHg)</label>
+                  <input class="form-input" type="number" th:field="*{trestbps}" placeholder="130"
+                    th:disabled="${prediction != null}">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Cholesterol (mg/dl)</label>
+                  <input class="form-input" type="number" th:field="*{chol}" placeholder="200"
+                    th:disabled="${prediction != null}">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Đường huyết > 120?</label>
+                  <select class="form-input" th:field="*{fbs}" th:disabled="${prediction != null}">
+                    <!-- value PHẢI khớp đúng nhãn LabelEncoder đã train trong heart_model_tuned.pkl ('0.0'/'1.0'),
+                         KHÔNG dùng TRUE/FALSE vì sẽ bị preprocess() âm thầm fallback sai giá trị -->
+                    <option value="1.0">Có</option>
+                    <option value="0.0">Không</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Kết quả ECG</label>
+                  <select class="form-input" th:field="*{restecg}" th:disabled="${prediction != null}">
+                    <option value="normal">Bình thường</option>
+                    <option value="lv hypertrophy">Phì đại thất trái</option>
+                    <option value="st-t abnormality">Bất thường ST-T</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Nhịp tim tối đa (bpm)</label>
+                  <input class="form-input" type="number" th:field="*{thalch}" placeholder="150"
+                    th:disabled="${prediction != null}">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Đau ngực khi gắng sức?</label>
+                  <select class="form-input" th:field="*{exang}" th:disabled="${prediction != null}">
+                    <!-- value PHẢI khớp đúng nhãn LabelEncoder đã train ('0.0'/'1.0') -->
+                    <option value="0.0">Không</option>
+                    <option value="1.0">Có</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">ST Depression (oldpeak)</label>
+                  <input class="form-input" type="number" step="0.1" th:field="*{oldpeak}" placeholder="1.0"
+                    th:disabled="${prediction != null}">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Độ dốc ST</label>
+                  <select class="form-input" th:field="*{slope}" th:disabled="${prediction != null}">
+                    <option value="flat">Phẳng</option>
+                    <option value="upsloping">Dốc lên</option>
+                    <option value="downsloping">Dốc xuống</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Số mạch vành tắc (0-3)</label>
+                  <input class="form-input" type="number" min="0" max="3" th:field="*{ca}" placeholder="0"
+                    th:disabled="${prediction != null}">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Thalassemia</label>
+                  <select class="form-input" th:field="*{thal}" th:disabled="${prediction != null}">
+                    <option value="normal">Bình thường</option>
+                    <option value="fixed defect">Khiếm khuyết cố định</option>
+                    <option value="reversable defect">Khiếm khuyết hồi phục</option>
+                  </select>
+                </div>
+              </div>
+
+              <button th:if="${prediction == null}" type="submit" class="btn btn-ai"
+                style="width:100%;justify-content:center;padding:12px;margin-top:20px;">
+                <i class="ti ti-brain"></i> Phân tích nguy cơ AI
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- ── KẾT QUẢ ── -->
+        <div>
+
+          <!-- Kết quả chính -->
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-header">
+              <div class="card-title"><i class="ti ti-chart-bar"></i> Kết quả AI</div>
+            </div>
+            <div style="padding:20px;">
+
+              <!-- Có kết quả -->
+              <div th:if="${prediction != null}">
+                <!-- Mức nguy cơ + xác suất -->
+                <div style="text-align:center;margin-bottom:16px;">
+                  <div
+                    style="font-size:11px;color:#8a96b0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+                    Mức độ nguy cơ</div>
+                  <div style="font-size:42px;font-weight:800;line-height:1;" th:text="${prediction.riskLevel}"
+                    th:style="${prediction.riskLevel == 'HIGH'} ? 'color:#ff7b7b' : (${prediction.riskLevel == 'MEDIUM'} ? 'color:#fbbf24' : (${prediction.riskLevel == 'LOW'} ? 'color:#34d399' : 'color:#94a3b8'))">
+                    HIGH</div>
+                  <!-- Chỉ hiển thị % khi có kết quả AI THẬT (LOW/MEDIUM/HIGH).
+                       UNKNOWN/INVALID_DATA không phải đánh giá y tế, hiện % = 0.0%
+                       gây hiểu nhầm là "an toàn" nên ẩn đi, thay bằng cảnh báo rõ. -->
+                  <div th:if="${prediction.riskLevel == 'HIGH' or prediction.riskLevel == 'MEDIUM' or prediction.riskLevel == 'LOW'}"
+                    style="font-size:24px;font-weight:600;margin-top:4px;font-family:monospace;"
+                    th:text="${#numbers.formatDecimal(prediction.riskScore,1,1)} + '%'">0%</div>
+                </div>
+
+                <!-- Cảnh báo NỔI BẬT khi AI không trả được kết quả thật -->
+                <div th:if="${prediction.riskLevel == 'UNKNOWN'}"
+                  style="margin-bottom:14px;padding:12px 14px;background:rgba(148,163,184,0.12);
+                  border:1px solid rgba(148,163,184,0.4);border-radius:10px;">
+                  <div style="font-size:13px;color:#cbd5e1;font-weight:700;margin-bottom:4px;">
+                    ⚠️ KHÔNG PHẢI KẾT QUẢ Y TẾ
+                  </div>
+                  <div style="font-size:12px;color:#94a3b8;line-height:1.5;">
+                    Hệ thống AI hiện không phản hồi (mất kết nối server). Kết quả "0%" KHÔNG
+                    có nghĩa là an toàn — vui lòng kiểm tra server FastAPI và thử lại, hoặc
+                    đánh giá lâm sàng độc lập cho bệnh nhân này.
+                  </div>
+                </div>
+                <div th:if="${prediction.riskLevel == 'INVALID_DATA'}"
+                  style="margin-bottom:14px;padding:12px 14px;background:rgba(251,191,36,0.10);
+                  border:1px solid rgba(251,191,36,0.4);border-radius:10px;">
+                  <div style="font-size:13px;color:#fbbf24;font-weight:700;margin-bottom:4px;">
+                    ⚠️ DỮ LIỆU NHẬP KHÔNG HỢP LỆ
+                  </div>
+                  <div style="font-size:12px;color:#94a3b8;line-height:1.5;">
+                    AI server đang hoạt động bình thường nhưng từ chối tính toán vì có
+                    trường dữ liệu không hợp lệ. Vui lòng kiểm tra lại các lựa chọn ở form
+                    bên trái (đặc biệt các trường dropdown) rồi thử lại.
+                  </div>
+                </div>
+
+                <!-- [D.15] Cảnh báo độ tin cậy thấp — bệnh nhân dưới 35 tuổi.
+                     Khác hẳn 2 cảnh báo UNKNOWN/INVALID_DATA ở trên: ở đây AI
+                     VẪN trả kết quả hợp lệ, chỉ là model thiếu dữ liệu huấn
+                     luyện cho nhóm tuổi này nên độ tin cậy thấp hơn bình thường. -->
+                <div th:if="${aiResponse != null and aiResponse.age_confidence_warning != null}"
+                  style="margin-bottom:14px;padding:12px 14px;background:rgba(96,165,250,0.10);
+                  border:1px solid rgba(96,165,250,0.35);border-radius:10px;">
+                  <div style="font-size:13px;color:#60a5fa;font-weight:700;margin-bottom:4px;">
+                    🔵 ĐỘ TIN CẬY THẤP
+                  </div>
+                  <div style="font-size:12px;color:#94a3b8;line-height:1.5;"
+                    th:text="${aiResponse.age_confidence_warning.message}">
+                    Bệnh nhân dưới 35 tuổi — model thiếu dữ liệu huấn luyện cho nhóm tuổi này.
+                  </div>
+                </div>
+
+                <!-- [D.17] Cảnh báo giá trị nằm ngoài khoảng sinh lý hợp lý —
+                     có thể là lỗi nhập liệu, hoặc ca lâm sàng hiếm gặp thật.
+                     Không chặn cứng, chỉ cảnh báo để bác sĩ tự xác nhận. -->
+                <div th:if="${aiResponse != null and aiResponse.physiological_warnings != null and !aiResponse.physiological_warnings.isEmpty()}"
+                  style="margin-bottom:14px;padding:12px 14px;background:rgba(251,191,36,0.08);
+                  border:1px solid rgba(251,191,36,0.3);border-radius:10px;">
+                  <div style="font-size:13px;color:#fbbf24;font-weight:700;margin-bottom:6px;">
+                    ⚠️ CHỈ SỐ NẰM NGOÀI KHOẢNG SINH LÝ HỢP LÝ
+                  </div>
+                  <div th:each="w : ${aiResponse.physiological_warnings}"
+                    style="font-size:12px;color:#94a3b8;line-height:1.5;margin-bottom:4px;"
+                    th:text="${w.message}">
+                    Chỉ số ngoài khoảng hợp lý
+                  </div>
+                </div>
+
+                <div th:if="${prediction.riskLevel == 'HIGH' or prediction.riskLevel == 'MEDIUM' or prediction.riskLevel == 'LOW'}"
+                  class="prob-bar">
+                  <div class="prob-fill" th:style="'width:' + ${prediction.riskScore} + '%'"></div>
+                </div>
+                <div
+                  style="font-size:12px;color:#8a96b0;text-align:center;margin-top:10px;padding:10px;background:#0f1628;border-radius:8px;"
+                  th:text="${prediction.riskExplanation}">Kết quả</div>
+
+                <!-- ── SHAP EXPLANATION ── -->
+                <!-- Thay phần SHAP hiện tại -->
+                <div th:if="${aiResponse != null and aiResponse.explanation != null and (prediction.riskLevel == 'HIGH' or prediction.riskLevel == 'MEDIUM' or prediction.riskLevel == 'LOW')}" style="margin-top:14px; padding:14px;
+            background:rgba(59,130,246,0.08);
+            border:1px solid rgba(59,130,246,0.2); border-radius:10px;">
+
+                  <div style="font-size:11px; color:#60a5fa; text-transform:uppercase;
+              letter-spacing:1px; margin-bottom:10px; font-weight:600;">
+                    🔬 Giải thích AI (SHAP) — Cơ sở lâm sàng
+                  </div>
+
+                  <!-- Top factors với thanh impact VÀ giải thích lâm sàng -->
+                  <div th:each="f : ${aiResponse.top_factors}" style="margin-bottom:12px;">
+                    <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;">
+                      <span th:text="${f.feature}" style="color:#e8edf5; font-weight:600;"></span>
+                      <span th:text="${f.direction}"
+                        th:style="${f.direction.contains('tăng')} ? 'color:#ff7b7b;font-weight:700' : 'color:#34d399;font-weight:700'">
+                      </span>
+                    </div>
+
+                    <!-- Thanh SHAP -->
+                    <div style="height:5px; background:#1e293b; border-radius:3px; overflow:hidden; margin-bottom:5px;">
+                      <div th:style="'width:' + ${f.impact * 400} + '%; max-width:100%; height:100%; border-radius:3px; background:' 
+                     + (${f.direction.contains('tăng')} ? '#ef4444' : '#10b981')"></div>
+                    </div>
+
+                    <!-- Giải thích lâm sàng (NEW) -->
+                    <div th:if="${f.clinical != null and !f.clinical.isEmpty()}" style="font-size:12px; color:#94a3b8; font-style:italic; padding:6px 8px;
+                background:rgba(255,255,255,0.03); border-radius:4px; border-left:2px solid #3b82f6;">
+                      <span th:text="${f.clinical}"></span>
+                    </div>
+                  </div>
+
+                  <!-- Tóm tắt phương pháp -->
+                  <div style="font-size:11px; color:#64748b; margin-top:10px; padding-top:10px;
+              border-top:1px solid rgba(255,255,255,0.06);">
+                    ⚙️ <span th:text="${aiResponse.explanation}"></span>
+                  </div>
+                </div>
+
+                <!-- ── TREND CHART ── -->
+                <div th:if="${aiResponse != null and aiResponse.trend != null and aiResponse.trend != 'UNKNOWN'}"
+                  style="margin-top:14px;">
+                  <div
+                    style="font-size:11px;color:#8a96b0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600;">
+                    📈 Xu hướng nguy cơ
+                  </div>
+                  <!-- Trend badge -->
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                    <span
+                      th:text="${aiResponse.trend == 'INCREASING'} ? '⬆️' : (${aiResponse.trend == 'DECREASING'} ? '⬇️' : '➡️')"
+                      style="font-size:18px;">➡️</span>
+                    <span style="font-size:13px;"
+                      th:style="${aiResponse.trend == 'INCREASING'} ? 'color:#ff7b7b' : (${aiResponse.trend == 'DECREASING'} ? 'color:#34d399' : 'color:#fbbf24')"
+                      th:text="${aiResponse.trend_message}">Xu hướng</span>
+                  </div>
+                  <!-- Mini chart dạng SVG inline -->
+                  <canvas id="trendChart" height="80" th:attr="data-history=${aiResponse.history}"
+                    style="width:100%;background:#0f1628;border-radius:8px;"></canvas>
+                </div>
+
+                <!-- Nếu đã lưu -->
+                <div th:if="${isSaved}"
+                  style="margin-top:16px;padding:12px;background:rgba(52,211,153,0.15);border:1px solid rgba(52,211,153,0.3);border-radius:8px;text-align:center;">
+                  <span style="font-size:20px;display:block;margin-bottom:4px;">✅</span>
+                  <span style="font-size:13px;color:#34d399;font-weight:600;">Lưu hồ sơ thành công!</span>
+                  <div style="font-size:12px;color:#e8edf5;margin-top:4px;">
+                    Đã lưu cho: <strong th:text="${selectedPatient.fullName}">Bệnh nhân</strong>
+                  </div>
+                  <a th:href="@{/doctor/ai-predict}" class="btn"
+                    style="display:inline-flex;margin-top:10px;padding:6px 12px;font-size:12px;background:#3b82f6;color:white;border-radius:6px;text-decoration:none;">
+                    Nhập ca mới
+                  </a>
+                </div>
+
+                <!-- Nếu chưa lưu VÀ có kết quả AI THẬT: form ghi chú + lưu -->
+                <div th:if="${!isSaved and (prediction.riskLevel == 'HIGH' or prediction.riskLevel == 'MEDIUM' or prediction.riskLevel == 'LOW')}"
+                  style="margin-top:16px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px;">
+                  <form th:action="@{/doctor/ai-predict/save}" method="post">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <input type="hidden" name="patientId" th:value="${selectedPatient.patientId}">
+                    <input type="hidden" name="age" th:value="${aiRequest.age}">
+                    <input type="hidden" name="sex" th:value="${aiRequest.sex}">
+                    <input type="hidden" name="cp" th:value="${aiRequest.cp}">
+                    <input type="hidden" name="trestbps" th:value="${aiRequest.trestbps}">
+                    <input type="hidden" name="chol" th:value="${aiRequest.chol}">
+                    <input type="hidden" name="fbs" th:value="${aiRequest.fbs}">
+                    <input type="hidden" name="restecg" th:value="${aiRequest.restecg}">
+                    <input type="hidden" name="thalch" th:value="${aiRequest.thalch}">
+                    <input type="hidden" name="exang" th:value="${aiRequest.exang}">
+                    <input type="hidden" name="oldpeak" th:value="${aiRequest.oldpeak}">
+                    <input type="hidden" name="slope" th:value="${aiRequest.slope}">
+                    <input type="hidden" name="ca" th:value="${aiRequest.ca}">
+                    <input type="hidden" name="thal" th:value="${aiRequest.thal}">
+                    <input type="hidden" name="riskScore" th:value="${prediction.riskScore}">
+                    <input type="hidden" name="riskLevel" th:value="${prediction.riskLevel}">
+                    <input type="hidden" name="riskExplanation" th:value="${prediction.riskExplanation}">
+                    <!-- [A.4] Giải thích SHAP + xu hướng dạng JSON, để lưu lại
+                         cùng hồ sơ khám — xem được khi bác sĩ mở lại sau này -->
+                    <input type="hidden" name="topFactorsJson" th:if="${topFactorsJsonForForm != null}"
+                      th:value="${topFactorsJsonForForm}">
+                    <input type="hidden" name="trendInfoJson" th:if="${trendInfoJsonForForm != null}"
+                      th:value="${trendInfoJsonForForm}">
+
+                    <div class="form-group">
+                      <label class="form-label" style="color:#60a5fa;">Ghi chú chẩn đoán bác sĩ *</label>
+                      <textarea class="form-input" name="doctorNotes" rows="3" required
+                        placeholder="Nhập chẩn đoán lâm sàng..." style="resize:vertical;"></textarea>
+                    </div>
+                    <div class="form-group" style="margin-top:10px;">
+                      <label class="form-label" style="color:#60a5fa;">Phác đồ điều trị</label>
+                      <textarea class="form-input" name="treatmentPlan" rows="2"
+                        placeholder="Nhập hướng dẫn điều trị..." style="resize:vertical;"></textarea>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:12px;">
+                      <a th:href="@{/doctor/ai-predict}" class="btn btn-ghost"
+                        style="flex:1;justify-content:center;">Hủy</a>
+                      <button type="submit" class="btn btn-ai" style="flex:2;justify-content:center;">
+                        <i class="ti ti-device-floppy"></i> Lưu vào hồ sơ
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                <!-- AI lỗi (UNKNOWN/INVALID_DATA): KHÔNG cho lưu, chỉ cho thử lại.
+                     Lưu một bản ghi "0%" làm kết quả chẩn đoán thật là sai dữ liệu y tế
+                     vĩnh viễn, nên cố tình không hiển thị form lưu trong trường hợp này. -->
+                <div th:if="${!isSaved and (prediction.riskLevel == 'UNKNOWN' or prediction.riskLevel == 'INVALID_DATA')}"
+                  style="margin-top:16px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px;text-align:center;">
+                  <a th:href="@{/doctor/ai-predict}" class="btn"
+                    style="display:inline-flex;padding:8px 16px;font-size:13px;background:#3b82f6;color:white;border-radius:6px;text-decoration:none;">
+                    Thử lại
+                  </a>
+                </div>
+              </div>
+
+              <!-- Chưa có kết quả -->
+              <div th:if="${prediction == null}" style="text-align:center;padding:30px 0;color:#8a96b0;">
+                <i class="ti ti-brain" style="font-size:40px;display:block;margin-bottom:12px;opacity:0.3;"></i>
+                <div style="font-size:13px;">Nhập chỉ số và bấm<br>Phân tích nguy cơ AI</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Thông tin model -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><i class="ti ti-info-circle"></i> Thông tin model</div>
+            </div>
+            <div style="padding:16px;display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;justify-content:space-between;font-size:13px;">
+                <span style="color:#8a96b0;">Thuật toán</span>
+                <span style="font-family:monospace;font-size:12px;">Random Forest (Tuned)</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;">
+                <span style="color:#8a96b0;">Dataset</span>
+                <span style="font-family:monospace;font-size:12px;">UCI 920 BN</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;">
+                <span style="color:#8a96b0;">Accuracy</span>
+                <span style="color:#34d399;font-weight:600;">84.78%</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;">
+                <span style="color:#8a96b0;">AUC Score</span>
+                <span style="color:#34d399;font-weight:600;">0.9255</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;">
+                <span style="color:#8a96b0;">SHAP</span>
+                <span style="color:#60a5fa;font-size:12px;">✅ Enabled</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;">
+                <span style="color:#8a96b0;">Trend Analysis</span>
+                <span style="color:#60a5fa;font-size:12px;">✅ Enabled</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script th:src="@{/js/main.js}"></script>
+  <script>
+    // ── Vẽ biểu đồ xu hướng bằng Canvas ─────────────────
+    document.addEventListener('DOMContentLoaded', function () {
+      const canvas = document.getElementById('trendChart');
+      if (!canvas) return;
+
+      const raw = canvas.getAttribute('data-history');
+      if (!raw) return;
+
+      let history;
+      try {
+        history = JSON.parse(raw.replace(/\s/g, ''));
+      } catch (e) { return; }
+
+      if (!history || history.length < 2) return;
+
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.offsetWidth || 300;
+      canvas.height = 80;
+
+      const W = canvas.width;
+      const H = canvas.height;
+      const pad = 12;
+
+      ctx.clearRect(0, 0, W, H);
+
+      // Background
+      ctx.fillStyle = '#0f1628';
+      ctx.roundRect(0, 0, W, H, 8);
+      ctx.fill();
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+      ctx.lineWidth = 1;
+      [0.25, 0.5, 0.75].forEach(pct => {
+        const y = pad + (H - pad * 2) * (1 - pct);
+        ctx.beginPath();
+        ctx.moveTo(pad, y);
+        ctx.lineTo(W - pad, y);
+        ctx.stroke();
+      });
+
+      // Line gradient
+      const gradient = ctx.createLinearGradient(0, 0, W, 0);
+      gradient.addColorStop(0, '#3b82f6');
+      gradient.addColorStop(1, history[history.length - 1] > 0.6 ? '#ef4444'
+        : history[history.length - 1] > 0.4 ? '#f59e0b' : '#10b981');
+
+      const xStep = (W - pad * 2) / (history.length - 1);
+
+      // Fill area under line
+      ctx.beginPath();
+      history.forEach((val, i) => {
+        const x = pad + i * xStep;
+        const y = pad + (H - pad * 2) * (1 - val);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.lineTo(pad + (history.length - 1) * xStep, H - pad);
+      ctx.lineTo(pad, H - pad);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(59,130,246,0.08)';
+      ctx.fill();
+
+      // Line
+      ctx.beginPath();
+      ctx.strokeStyle = gradient;
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      history.forEach((val, i) => {
+        const x = pad + i * xStep;
+        const y = pad + (H - pad * 2) * (1 - val);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      // Dots
+      history.forEach((val, i) => {
+        const x = pad + i * xStep;
+        const y = pad + (H - pad * 2) * (1 - val);
+        ctx.beginPath();
+        ctx.arc(x, y, i === history.length - 1 ? 5 : 3, 0, Math.PI * 2);
+        ctx.fillStyle = val > 0.6 ? '#ef4444' : val > 0.4 ? '#f59e0b' : '#10b981';
+        ctx.fill();
+
+        // Label % cho điểm đầu và cuối
+        if (i === 0 || i === history.length - 1) {
+          ctx.fillStyle = '#8a96b0';
+          ctx.font = '10px monospace';
+          ctx.textAlign = i === 0 ? 'left' : 'right';
+          ctx.fillText(Math.round(val * 100) + '%', x, y - 8);
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>

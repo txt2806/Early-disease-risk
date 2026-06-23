@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Bệnh nhân')}"></head>
+<body>
+<div th:replace="~{fragments :: sidebar('patients')}"></div>
+<main class="main">
+  <header th:replace="~{fragments :: topbar('Danh sách bệnh nhân')}"></header>
+  <div class="content">
+    <div class="alert-success" th:if="${success}" th:text="${success}"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <div>
+        <div style="font-size:22px;font-weight:700;color:#e8edf5;margin-bottom:4px;">Bệnh nhân</div>
+        <div style="font-size:13px;color:#8a96b0;" th:text="${patients.size()} + ' bệnh nhân'">0 bệnh nhân</div>
+      </div>
+      <a th:href="@{/doctor/patients/new}" sec:authorize="hasAnyRole('RECEPTIONIST', 'DOCTOR', 'ADMIN')" class="btn btn-primary">
+        <i class="ti ti-plus"></i> Thêm bệnh nhân
+      </a>
+    </div>
+    <form th:action="@{/doctor/patients}" method="get" style="margin-bottom:16px;">
+      <div class="topbar-search" style="width:100%;max-width:360px;">
+        <i class="ti ti-search"></i>
+        <input type="text" name="search" th:value="${search}" placeholder="Tìm theo tên...">
+        <button type="submit" class="btn btn-primary" style="padding:6px 14px;font-size:12px;">Tìm</button>
+      </div>
+    </form>
+    <div class="card">
+      <table class="patient-table">
+        <thead>
+          <tr>
+            <th>Bệnh nhân</th>
+            <th>Ngày sinh</th>
+            <th>Giới tính</th>
+            <th>Điện thoại</th>
+            <th>Địa chỉ</th>
+            <th>Nguy cơ AI</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:each="p : ${patients}">
+            <td>
+              <div class="patient-name-cell">
+                <div class="patient-avatar" th:text="${p.fullName != null && !p.fullName.isEmpty() ? p.fullName.charAt(0) : 'U'}">A</div>
+                <div>
+                  <div class="patient-fullname" th:text="${p.fullName != null ? p.fullName : ''}">Tên</div>
+                  <div class="patient-id" th:text="'#BN' + ${p.patientId}">BN001</div>
+                </div>
+              </div>
+            </td>
+            <td th:text="${#temporals.format(p.dob, 'dd/MM/yyyy')}" style="color:#8a96b0;font-size:13px;">--</td>
+            <td th:text="${p.gender}" style="color:#8a96b0;font-size:13px;">Nam</td>
+            <td th:text="${p.phone}" style="color:#8a96b0;font-size:13px;">--</td>
+            <td th:text="${p.address}" style="color:#8a96b0;font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">--</td>
+            <td>
+              <span th:if="${patientRiskMap != null and patientRiskMap[p.patientId] != null}"
+                    class="risk-badge"
+                    th:classappend="'risk-' + ${patientRiskMap[p.patientId]}"
+                    th:text="${patientRiskMap[p.patientId]}">--</span>
+              <span th:if="${patientRiskMap == null or patientRiskMap[p.patientId] == null}"
+                    style="color:#4a5568;font-size:12px;">Chưa có</span>
+            </td>
+            <td>
+              <div style="display:flex;gap:6px;">
+                <a th:href="@{/doctor/patients/{id}(id=${p.patientId})}" class="action-btn primary">
+                  <i class="ti ti-file-text" style="font-size:12px"></i> Hồ sơ
+                </a>
+                <a th:href="@{/doctor/ai-predict(patientId=${p.patientId})}" sec:authorize="hasAnyRole('DOCTOR', 'ADMIN')" class="action-btn">
+                  <i class="ti ti-brain" style="font-size:12px"></i> AI
+                </a>
+              </div>
+            </td>
+          </tr>
+          <tr th:if="${#lists.isEmpty(patients)}">
+            <td colspan="7" style="text-align:center;color:#8a96b0;padding:30px;">Không tìm thấy bệnh nhân nào</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+<script th:src="@{/js/main.js}"></script>
+</body>
+</html>

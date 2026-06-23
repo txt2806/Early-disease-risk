@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<title>Hoàn thiện Hồ sơ Bệnh nhân — CardioCare</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: #0a0f1e;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.card {
+  background: #111827;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 30px;
+  width: 100%;
+  max-width: 520px;
+}
+.logo {
+  text-align: center;
+  margin-bottom: 20px;
+}
+.logo-icon {
+  width: 52px; height: 52px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px;
+  margin: 0 auto 12px;
+}
+.logo-title {
+  color: #e8edf5;
+  font-size: 22px;
+  font-weight: 700;
+}
+.logo-sub { color: #3b82f6; font-size: 13px; margin-top: 4px; font-weight: 600; }
+.form-row {
+  display: flex;
+  gap: 16px;
+}
+.form-group { margin-bottom: 16px; flex: 1; }
+label { display: block; color: #8a96b0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+input, select {
+  width: 100%;
+  background: #1a2440;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 11px 14px;
+  color: #e8edf5;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+input:focus, select:focus { border-color: #3b82f6; }
+input[readonly] { background: #111827; color: #8a96b0; cursor: not-allowed; }
+.btn {
+  width: 100%;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: opacity 0.2s;
+}
+.btn:hover { opacity: 0.9; }
+.error {
+  background: rgba(224,90,90,0.12);
+  border: 1px solid rgba(224,90,90,0.3);
+  color: #ff7b7b;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+.info-box {
+  background: rgba(59,130,246,0.12);
+  border: 1px solid rgba(59,130,246,0.3);
+  color: #93c5fd;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+
+/* Tabs Styling */
+.tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 2px solid rgba(255,255,255,0.06);
+  margin-bottom: 20px;
+}
+.tab-btn {
+  background: none;
+  border: none;
+  color: #8a96b0;
+  padding: 12px 18px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tab-btn:hover {
+  color: #e8edf5;
+}
+.tab-btn.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+}
+.tab-content {
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+.tab-content.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Badge & Alert styles */
+.badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.badge-danger {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.badge-warning {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+.badge-success {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+.blink {
+  animation: blinker 1.5s linear infinite;
+}
+@keyframes blinker {
+  50% { opacity: 0.4; }
+}
+
+.edit-btn {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.edit-btn:hover {
+  background: #3b82f6;
+  color: white;
+}
+
+.grid-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+.metric-box {
+  background: rgba(0,0,0,0.15);
+  border: 1px solid rgba(255,255,255,0.05);
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+  transition: transform 0.2s;
+}
+.metric-box:hover {
+  transform: translateY(-2px);
+  border-color: rgba(59,130,246,0.2);
+}
+.metric-title {
+  color: #8a96b0;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.metric-value {
+  color: #e8edf5;
+  font-size: 15px;
+  font-weight: 700;
+  margin-top: 6px;
+}
+</style>
+</head>
+<body>
+<div class="card" th:style="${isCompleted} ? 'max-width: 1200px; width: 100%;' : 'max-width: 520px; width: 100%;'">
+  <!-- 1. IF PROFILE COMPLETED -->
+  <div th:if="${isCompleted}">
+    <div style="display: flex; gap: 32px; flex-wrap: wrap;">
+      
+      <!-- CỘT 1: THÔNG TIN CÁ NHÂN (40% width) -->
+      <div style="flex: 1 1 340px;">
+        <div class="logo" style="text-align: left;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <div class="logo-icon" style="background: linear-gradient(135deg, #10b981, #047857); margin: 0; width: 44px; height: 44px; font-size: 20px;">✅</div>
+            <div>
+              <div class="logo-title" style="font-size: 20px;">CardioCare</div>
+              <div class="logo-sub" style="color: #10b981; font-size: 12px; margin: 0; font-weight: 600;">HỒ SƠ BỆNH NHÂN</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CHẾ ĐỘ XEM HỒ SƠ -->
+        <div id="profileView" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 12px; padding: 20px;">
+          <div style="margin-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <label>Họ và Tên</label>
+              <div style="color: #e8edf5; font-size: 16px; font-weight: 600; margin-top: 4px;" th:text="${fullName}">Nguyễn Văn A</div>
+            </div>
+            <button onclick="toggleProfileEdit(true)" class="edit-btn">
+              ✏️ Sửa hồ sơ
+            </button>
+          </div>
+
+          <div style="margin-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 8px;">
+            <label>Email Đăng ký</label>
+            <div style="color: #a3b3cc; font-size: 14px; margin-top: 4px;" th:text="${email}">patient@example.com</div>
+          </div>
+
+          <div style="margin-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 8px;">
+            <label>Số điện thoại</label>
+            <div style="color: #a3b3cc; font-size: 14px; margin-top: 4px;" th:text="${phone}">0912345678</div>
+          </div>
+
+          <div style="display: flex; gap: 16px; margin-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 8px;">
+            <div style="flex: 1;">
+              <label>Ngày sinh</label>
+              <div style="color: #a3b3cc; font-size: 14px; margin-top: 4px;" th:text="${dob}">01-01-2000</div>
+            </div>
+            <div style="flex: 1;">
+              <label>Giới tính</label>
+              <div style="color: #a3b3cc; font-size: 14px; margin-top: 4px;" th:text="${gender}">Nam</div>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 8px; padding-bottom: 4px;">
+            <label>Địa chỉ thường trú</label>
+            <div style="color: #a3b3cc; font-size: 14px; margin-top: 4px;" th:text="${address}">Hà Nội, Việt Nam</div>
+          </div>
+        </div>
+
+        <!-- CHẾ ĐỘ SỬA HỒ SƠ -->
+        <form id="profileEditForm" th:action="@{/patient/update-profile}" method="post" style="display: none; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 12px; padding: 20px;">
+          <input type="hidden" name="email" th:value="${email}">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+
+          <div style="margin-bottom: 14px;">
+            <label>Họ và Tên</label>
+            <input type="text" name="fullName" th:value="${fullName}" required style="margin-top: 4px;">
+          </div>
+
+          <div style="margin-bottom: 14px;">
+            <label>Số điện thoại</label>
+            <input type="text" name="phone" th:value="${phone}" required style="margin-top: 4px;">
+          </div>
+
+          <div style="display: flex; gap: 16px; margin-bottom: 14px;">
+            <div style="flex: 1;">
+              <label>Ngày sinh</label>
+              <input type="date" name="dob" th:value="${dob}" required style="margin-top: 4px;">
+            </div>
+            <div style="flex: 1;">
+              <label>Giới tính</label>
+              <select name="gender" required style="margin-top: 4px;">
+                <option value="Nam" th:selected="${gender == 'Nam'}">Nam</option>
+                <option value="Nữ" th:selected="${gender == 'Nữ'}">Nữ</option>
+                <option value="Khác" th:selected="${gender == 'Khác'}">Khác</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 14px;">
+            <label>Địa chỉ thường trú</label>
+            <input type="text" name="address" th:value="${address}" required style="margin-top: 4px;">
+          </div>
+
+          <div style="display: flex; gap: 12px; margin-top: 20px;">
+            <button type="submit" class="btn" style="flex: 1; margin: 0; background: #10b981;">Lưu</button>
+            <button type="button" onclick="toggleProfileEdit(false)" class="btn" style="flex: 1; margin: 0; background: #6b7280;">Hủy</button>
+          </div>
+        </form>
+
+        <a th:href="@{/logout}" class="btn" style="display: block; text-align: center; text-decoration: none; background: #ef4444; margin-top: 20px;">
+          Đăng xuất tài khoản
+        </a>
+      </div>
+
+      <!-- CỘT 2: KẾT QUẢ CHẨN ĐOÁN & CHỈ SỐ TIM MẠCH (60% width) -->
+      <div style="flex: 2 1 500px; display: flex; flex-direction: column;">
+        
+        <!-- TABS NAV -->
+        <div class="tabs">
+          <button class="tab-btn active" onclick="selectTab('tab-ai')">🩺 Chẩn đoán AI</button>
+          <button class="tab-btn" onclick="selectTab('tab-clinical')">📊 Chỉ số Lâm sàng</button>
+          <button class="tab-btn" onclick="selectTab('tab-self')">❤️ Tự theo dõi Vital</button>
+        </div>
+
+        <!-- TAB 1: KẾT QUẢ CHẨN ĐOÁN AI -->
+        <div id="tab-ai" class="tab-content active">
+          <!-- TH1: KHÔNG CÓ LỊCH SỬ CHẨN ĐOÁN -->
+          <div th:if="${#lists.isEmpty(predictions)}" style="background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius: 12px; padding: 40px 20px; text-align: center; color: #8a96b0; min-height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div style="font-size: 36px; margin-bottom: 12px;">📊</div>
+            <div style="font-size: 14px; font-weight: 600; color: #a3b3cc;">Chưa có dữ liệu chẩn đoán</div>
+            <p style="font-size: 12px; margin-top: 6px; max-width: 320px;">Bạn chưa thực hiện cuộc khám lâm sàng hoặc phân tích nguy cơ tim mạch nào từ bác sĩ.</p>
+          </div>
+
+          <!-- TH2: CÓ LỊCH SỬ CHẨN ĐOÁN -->
+          <div th:unless="${#lists.isEmpty(predictions)}" style="max-height: 550px; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; gap: 16px;">
+            <div th:each="pred : ${predictions}" style="background: #1a2440; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 18px; position: relative;">
+              <!-- Header chẩn đoán -->
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 8px;">
+                <div>
+                  <div style="color: #8a96b0; font-size: 11px;">NGÀY KHÁM</div>
+                  <div style="color: #e8edf5; font-size: 13px; font-weight: 600;" th:text="${pred.record != null ? #temporals.format(pred.record.visitDate, 'dd/MM/yyyy HH:mm') : ''}">31/05/2026 01:00</div>
+                </div>
+                <div style="text-align: right;">
+                  <div style="color: #8a96b0; font-size: 11px;">BÁC SĨ KHÁM</div>
+                  <div style="color: #e8edf5; font-size: 13px; font-weight: 600;" th:text="${pred.record != null && pred.record.doctor != null ? pred.record.doctor.fullName : 'Hệ thống'}">BS. Nguyễn Văn An</div>
+                </div>
+              </div>
+
+              <!-- Kết quả dự đoán AI -->
+              <div style="display: flex; gap: 16px; margin-bottom: 12px; align-items: center;">
+                <div style="flex: 1; background: rgba(0,0,0,0.15); border-radius: 8px; padding: 10px; display: flex; align-items: center; gap: 12px;">
+                  <div style="font-size: 22px;">🤖</div>
+                  <div>
+                    <div style="color: #8a96b0; font-size: 11px;">ĐÁNH GIÁ RỦI RO TIM MẠCH AI</div>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                      <span th:if="${pred.riskLevel == 'HIGH'}" class="badge badge-danger">HIGH (CAO)</span>
+                      <span th:if="${pred.riskLevel == 'MEDIUM'}" class="badge badge-warning">MEDIUM (TB)</span>
+                      <span th:if="${pred.riskLevel == 'LOW'}" class="badge badge-success">LOW (THẤP)</span>
+                      <span style="color: #e8edf5; font-size: 14px; font-weight: 700;" th:text="${pred.riskScore + '%'}">85.5%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Giải thích rủi ro -->
+              <div style="margin-bottom: 12px; background: rgba(255,255,255,0.01); border-radius: 8px; padding: 10px; border-left: 3px solid #3b82f6;">
+                <label style="color: #3b82f6; font-size: 10px; font-weight: 700;">Giải thích từ hệ thống AI</label>
+                <p style="color: #e8edf5; font-size: 12.5px; margin-top: 3px; line-height: 1.4;" th:text="${pred.riskExplanation}">Giải thích chi tiết về nguy cơ...</p>
+              </div>
+
+              <!-- Lời khuyên sức khỏe -->
+              <div th:if="${pred.healthAdvice}" style="margin-bottom: 12px; background: rgba(16,185,129,0.03); border-radius: 8px; padding: 10px; border-left: 3px solid #10b981;">
+                <label style="color: #10b981; font-size: 10px; font-weight: 700;">Lời khuyên Y tế & Dinh dưỡng</label>
+                <p style="color: #e8edf5; font-size: 12.5px; margin-top: 3px; line-height: 1.4;" th:text="${pred.healthAdvice}">Lời khuyên sinh hoạt...</p>
+              </div>
+
+              <!-- Ghi chú & Phác đồ của bác sĩ -->
+              <div style="display: flex; gap: 12px;">
+                <div style="flex: 1; background: rgba(0,0,0,0.1); border-radius: 8px; padding: 8px 10px;">
+                  <label style="color: #a3b3cc; font-size: 9px; font-weight: 700;">GHI CHÚ BÁC SĨ</label>
+                  <p style="color: #e8edf5; font-size: 12px; margin-top: 3px;" th:text="${pred.record != null ? pred.record.consultationNotes : 'Không có ghi chú'}">Không có ghi chú</p>
+                </div>
+                <div style="flex: 1; background: rgba(0,0,0,0.1); border-radius: 8px; padding: 8px 10px;">
+                  <label style="color: #a3b3cc; font-size: 9px; font-weight: 700;">PHÁC ĐỒ ĐIỀU TRỊ</label>
+                  <p style="color: #e8edf5; font-size: 12px; margin-top: 3px;" th:text="${pred.record != null ? pred.record.treatmentPlan : 'Không có phác đồ'}">Không có phác đồ</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: CHỈ SỐ LÂM SÀNG (ĐO BỞI BÁC SĨ) -->
+        <div id="tab-clinical" class="tab-content">
+          <!-- TH1: KHÔNG CÓ CHỈ SỐ LÂM SÀNG -->
+          <div th:if="${#lists.isEmpty(clinicalMetrics)}" style="background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius: 12px; padding: 40px 20px; text-align: center; color: #8a96b0; min-height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div style="font-size: 36px; margin-bottom: 12px;">📈</div>
+            <div style="font-size: 14px; font-weight: 600; color: #a3b3cc;">Chưa có chỉ số lâm sàng</div>
+            <p style="font-size: 12px; margin-top: 6px; max-width: 320px;">Không tìm thấy kết quả đo chỉ số lâm sàng tim mạch từ Bác sĩ hoặc Điều dưỡng.</p>
+          </div>
+
+          <!-- TH2: CÓ CHỈ SỐ LÂM SÀNG -->
+          <div th:unless="${#lists.isEmpty(clinicalMetrics)}" style="max-height: 550px; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; gap: 16px;">
+            <div th:each="metric : ${clinicalMetrics}" style="background: #1a2440; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 18px;">
+              <!-- Header -->
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 8px;">
+                <div>
+                  <div style="color: #8a96b0; font-size: 11px;">THỜI GIAN ĐO</div>
+                  <div style="color: #e8edf5; font-size: 13px; font-weight: 600;" th:text="${#strings.substring(metric.RecordedAt, 0, 16)}">31/05/2026 01:00</div>
+                </div>
+                <div style="text-align: right;">
+                  <span class="badge badge-success">🏥 Chỉ số lâm sàng</span>
+                </div>
+              </div>
+
+              <!-- Grid stats -->
+              <div class="grid-metrics">
+                <!-- Huyết áp -->
+                <div class="metric-box">
+                  <div class="metric-title">Huyết áp nghỉ</div>
+                  <div class="metric-value" th:text="${metric.RestingBP + ' mmHg'}">120 mmHg</div>
+                </div>
+                <!-- Cholesterol -->
+                <div class="metric-box">
+                  <div class="metric-title">Cholesterol</div>
+                  <div class="metric-value" th:text="${metric.Cholesterol + ' mg/dl'}">220 mg/dl</div>
+                </div>
+                <!-- Nhịp tim tối đa -->
+                <div class="metric-box">
+                  <div class="metric-title">Max Heart Rate</div>
+                  <div class="metric-value" th:text="${metric.MaxHeartRate + ' bpm'}">150 bpm</div>
+                </div>
+                <!-- Loại đau ngực -->
+                <div class="metric-box">
+                  <div class="metric-title">Loại Đau ngực</div>
+                  <div class="metric-value" style="font-size: 12px;" th:text="${metric.ChestPainType == 0 ? 'Điển hình' : (metric.ChestPainType == 1 ? 'Không điển hình' : (metric.ChestPainType == 2 ? 'Không do mạch vành' : 'Không triệu chứng'))}">Không có</div>
+                </div>
+                <!-- Đường huyết đói -->
+                <div class="metric-box">
+                  <div class="metric-title">Đường huyết</div>
+                  <div class="metric-value" style="font-size: 12px;" th:text="${metric.FastingBloodSugar ? 'Cao (>120mg/dl)' : 'Bình thường'}">Bình thường</div>
+                </div>
+                <!-- Điện tâm đồ ECG -->
+                <div class="metric-box">
+                  <div class="metric-title">ECG Nghỉ</div>
+                  <div class="metric-value" style="font-size: 12px;" th:text="${metric.RestingECG == 0 ? 'Bình thường' : (metric.RestingECG == 1 ? 'Sóng ST-T bất thường' : 'Phì đại thất trái')}">Bình thường</div>
+                </div>
+                <!-- Đau thắt khi vận động -->
+                <div class="metric-box">
+                  <div class="metric-title">Đau thắt VĐ</div>
+                  <div class="metric-value" style="font-size: 12px;" th:text="${metric.ExerciseAngina ? 'Có' : 'Không'}">Không</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: TỰ THEO DÕI TIM MẠCH (VITAL LOGS) -->
+        <div id="tab-self" class="tab-content">
+          <!-- GHI NHẬN CHỈ SỐ MỚI (Card Form) -->
+          <div style="background: #1a2440; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+            <h4 style="color: #e8edf5; font-size: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+              ✍️ Ghi Nhận Chỉ Số Tim Mạch Hàng Ngày
+            </h4>
+            
+            <form th:action="@{/patient/add-monitoring}" method="post">
+              <input type="hidden" name="email" th:value="${email}">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Nhịp tim hiện tại (BPM)</label>
+                  <input type="number" name="heartRate" min="30" max="220" placeholder="Ví dụ: 75" required style="background: #111827;">
+                </div>
+                <div class="form-group" style="flex: 2;">
+                  <label>Triệu chứng đi kèm</label>
+                  <input type="text" name="symptoms" placeholder="Ví dụ: Bình thường / hơi mệt / khó thở..." required style="background: #111827;">
+                </div>
+              </div>
+              
+              <div style="color: #8a96b0; font-size: 11px; margin-bottom: 12px; line-height: 1.4; display: flex; align-items: center; gap: 6px;">
+                <span>⚠️</span>
+                <span>Hệ thống tự động kích hoạt <b style="color: #ef4444;">Cảnh Báo Đỏ</b> nếu nhịp tim dưới 50 BPM hoặc trên 100 BPM, hoặc phát hiện các triệu chứng khẩn cấp.</span>
+              </div>
+              
+              <button type="submit" class="btn" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); width: auto; padding: 10px 24px;">Ghi nhận ngay</button>
+            </form>
+          </div>
+
+          <!-- LỊCH SỬ TỰ THEO DÕI -->
+          <h4 style="color: #e8edf5; font-size: 15px; margin-bottom: 12px;">
+            📋 Nhật Ký Chỉ Số Sinh Tồn Đã Lưu
+          </h4>
+
+          <div th:if="${#lists.isEmpty(monitoringLogs)}" style="background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius: 12px; padding: 30px 20px; text-align: center; color: #8a96b0; min-height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div style="font-size: 30px; margin-bottom: 8px;">❤️</div>
+            <div style="font-size: 13px; font-weight: 600; color: #a3b3cc;">Chưa có nhật ký ghi nhận</div>
+            <p style="font-size: 12px; margin-top: 4px;">Hãy ghi lại nhịp tim hiện tại để bắt đầu theo dõi sức khỏe chủ động.</p>
+          </div>
+
+          <div th:unless="${#lists.isEmpty(monitoringLogs)}" style="max-height: 350px; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; gap: 12px;">
+            <div th:each="log : ${monitoringLogs}" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 14px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span style="color: #e8edf5; font-size: 15px; font-weight: 700;" th:text="${log.CurrentHeartRate + ' BPM'}">80 BPM</span>
+                  <span th:if="${log.TriggeredAlert}" class="badge badge-danger blink">🚨 Cảnh Báo</span>
+                  <span th:unless="${log.TriggeredAlert}" class="badge badge-success">🟢 Bình Thường</span>
+                </div>
+                <div style="color: #8a96b0; font-size: 12px; margin-top: 6px;">
+                  Triệu chứng: <span style="color: #e8edf5;" th:text="${log.Symptoms}">Không có</span>
+                </div>
+              </div>
+              <div style="text-align: right; color: #8a96b0; font-size: 11px;">
+                <div th:text="${#strings.substring(log.LogDate, 0, 16)}">31/05/2026 01:00</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      
+    </div>
+  </div>
+
+  <!-- 2. IF PROFILE NOT COMPLETED -->
+  <div th:unless="${isCompleted}">
+    <div class="logo">
+      <div class="logo-icon">👤</div>
+      <div class="logo-title">CardioCare</div>
+      <div class="logo-sub">Hoàn thiện Hồ sơ Google</div>
+    </div>
+
+    <div class="info-box">
+      Chào mừng bạn đến với CardioCare! Tài khoản Google của bạn đã được xác thực, hãy cập nhật đầy đủ các thông tin bắt buộc dưới đây để đăng ký tài khoản bệnh nhân.
+    </div>
+
+    <div class="error" th:if="${error}" th:text="${error}"></div>
+
+    <form th:action="@{/register/complete-profile}" method="post">
+      <!-- Readonly fields from Google OAuth -->
+      <div class="form-group">
+        <label>Email Đăng nhập (Google)</label>
+        <input type="email" name="email" th:value="${email}" readonly required>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Họ và Tên</label>
+          <input type="text" name="fullName" th:value="${fullName}" placeholder="Nguyễn Văn A" required>
+        </div>
+        <div class="form-group">
+          <label>Số điện thoại liên hệ</label>
+          <input type="tel" name="phone" placeholder="0912345678" required>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Ngày sinh</label>
+          <input type="date" name="dob" required>
+        </div>
+        <div class="form-group">
+          <label>Giới tính</label>
+          <select name="gender" required>
+            <option value="Nam">Nam</option>
+            <option value="Nữ">Nữ</option>
+            <option value="Khác">Khác</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Địa chỉ thường trú</label>
+        <input type="text" name="address" placeholder="Hà Nội, Việt Nam" required>
+      </div>
+
+      <!-- Hidden validation params -->
+      <input type="hidden" name="firebaseToken" th:value="${firebaseToken}">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+      
+      <button class="btn" type="submit">Xác nhận và Hoàn tất</button>
+    </form>
+  </div>
+</div>
+<script>
+function toggleProfileEdit(showEdit) {
+  const viewDiv = document.getElementById('profileView');
+  const editForm = document.getElementById('profileEditForm');
+  if (showEdit) {
+    viewDiv.style.display = 'none';
+    editForm.style.display = 'block';
+  } else {
+    viewDiv.style.display = 'block';
+    editForm.style.display = 'none';
+  }
+}
+
+function selectTab(tabId) {
+  // Remove active class from all buttons
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  // Hide all tab contents
+  document.querySelectorAll('.tab-content').forEach(content => {
+    content.classList.remove('active');
+  });
+  
+  // Add active class to clicked button and display matching content
+  const clickedBtn = document.querySelector(`[onclick="selectTab('${tabId}')"]`);
+  if (clickedBtn) {
+    clickedBtn.classList.add('active');
+  }
+  const contentDiv = document.getElementById(tabId);
+  if (contentDiv) {
+    contentDiv.classList.add('active');
+  }
+}
+</script>
+</body>
+</html>

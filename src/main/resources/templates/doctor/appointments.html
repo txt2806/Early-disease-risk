@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments :: head('Lịch làm việc')}"></head>
+<style>
+.schedule-grid-container {
+  overflow-x: auto;
+  background: #111827;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  margin-top: 20px;
+}
+.schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 800px;
+}
+.schedule-table th, .schedule-table td {
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: 12px;
+  vertical-align: top;
+}
+.schedule-table th {
+  background: #1e293b;
+  color: #e8edf5;
+  font-weight: 700;
+  text-align: center;
+}
+.time-col {
+  width: 120px;
+  background: #0f172a;
+  color: #8a96b0;
+  font-weight: 700;
+  font-family: monospace;
+  text-align: center;
+  vertical-align: middle !important;
+}
+.appointment-card {
+  background: #1e293b;
+  border-left: 4px solid #3b82f6;
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 6px;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
+}
+.appointment-card.status-Pending { border-left-color: #fbbf24; }
+.appointment-card.status-Confirmed { border-left-color: #10b981; }
+.appointment-card.status-CheckedIn { border-left-color: #8b5cf6; }
+.appointment-card.status-InProgress { border-left-color: #ec4899; }
+.appointment-card.status-Completed { border-left-color: #64748b; }
+.appointment-card.status-Cancelled { border-left-color: #ef4444; opacity: 0.6; }
+
+.card-pat-name { font-weight: 700; color: #e8edf5; font-size: 13px; }
+.card-room { font-size: 11px; color: #10b981; font-weight: 700; margin-top: 2px; }
+.card-status { font-size: 10px; color: #8a96b0; text-transform: uppercase; margin-top: 2px; font-weight: 600; }
+
+.doc-header-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.doc-header-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #e8edf5;
+}
+.doc-header-specialty {
+  font-size: 11px;
+  color: #8a96b0;
+}
+.doc-workload-container {
+  margin-top: 8px;
+  width: 100%;
+  max-width: 140px;
+  text-align: left;
+}
+.doc-workload-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #8a96b0;
+  margin-bottom: 4px;
+}
+.doc-workload-bar-bg {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.doc-workload-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.fill-normal { background: #10b981; }
+.fill-warning { background: #fbbf24; }
+.fill-full { background: #ef4444; }
+
+.work-badge-full {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: bold;
+  display: inline-block;
+  margin-top: 6px;
+}
+
+.quick-edit-btn {
+  background: none;
+  border: none;
+  color: #60a5fa;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+  margin-top: 6px;
+  font-weight: 600;
+  display: block;
+}
+.quick-edit-btn:hover { text-decoration: underline; }
+</style>
+<body>
+<div th:replace="~{fragments :: sidebar('appointments')}"></div>
+
+<main class="main">
+  <header th:replace="~{fragments :: topbar('Lịch làm việc')}"></header>
+  <div class="content">
+
+    <!-- Flash message -->
+    <div class="alert-success" th:if="${success}" th:text="${success}"></div>
+    <div class="alert-danger" th:if="${error}" th:text="${error}"></div>
+
+    <!-- Filter toolbar -->
+    <div class="card" style="padding: 16px; margin-bottom: 24px;">
+      <form th:action="@{/doctor/appointments}" method="get" style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+        <div style="display:flex; gap:10px; align-items:center;">
+          <label style="color:#8a96b0; font-size:13px; font-weight:600;">Chọn Ngày làm việc:</label>
+          <input type="date" name="dateStr" th:value="${selectedDate}" 
+                 style="background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 12px; color: #e8edf5; outline:none; cursor:pointer;">
+          <button type="submit" style="background:#3b82f6; color:white; border:none; border-radius:6px; padding:8px 16px; font-size:13px; font-weight:600; cursor:pointer; transition:opacity 0.2s;"
+                  onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">📅 Xem lịch</button>
+        </div>
+        
+        <div style="flex:1;"></div>
+        
+        <!-- Nút Đặt lịch chỉ hiện cho Lễ tân, Bác sĩ, Admin -->
+        <button sec:authorize="hasAnyRole('RECEPTIONIST', 'DOCTOR', 'ADMIN')" 
+                type="button"
+                onclick="openNewAppModal()" 
+                class="btn btn-ai" 
+                style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); border: none; cursor: pointer; display: flex; align-items: center; gap: 6px; height: 38px;">
+          <i class="ti ti-calendar-plus"></i> Đặt lịch hẹn mới
+        </button>
+      </form>
+    </div>
+
+    <!-- Timeline Grid Board -->
+    <div class="schedule-grid-container">
+      <table class="schedule-table">
+        <thead>
+          <tr>
+            <th class="time-col" style="vertical-align: middle;">Khung giờ</th>
+            <th th:each="doc : ${doctors}" style="min-width: 180px; padding: 12px 8px;">
+              <div class="doc-header-info">
+                <div class="doc-header-name" th:text="${doc.fullName}">Bác sĩ</div>
+                <div class="doc-header-specialty" th:text="${doc.specialty != null ? doc.specialty : 'Tim mạch'}">Chuyên khoa</div>
+              </div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Time slots -->
+          <tr th:each="slot : ${#strings.arraySplit('08:00:00,09:00:00,10:00:00,11:00:00,13:30:00,14:30:00,15:30:00,16:30:00', ',')}">
+            <td class="time-col" th:text="${#strings.substring(slot, 0, 5)}">08:00</td>
+            
+            <!-- Doctors columns -->
+            <td th:each="doc : ${doctors}">
+              <!-- Render appointments in this cell -->
+              <div th:each="a : ${appointments}" 
+                   th:if="${a.doctor != null && a.doctor.doctorId == doc.doctorId && #temporals.format(a.timeSlot, 'HH:mm') == #strings.substring(slot, 0, 5)}"
+                   class="appointment-card" th:classappend="'status-' + ${a.status}">
+                
+                <div class="card-pat-name" th:text="${a.patient.fullName}">Patient Name</div>
+                <div class="card-room" th:text="${a.roomNumber != null && !a.roomNumber.isEmpty() ? '🚪 ' + a.roomNumber : '🚪 Chưa xếp phòng'}">Room</div>
+                
+                <div class="card-status">
+                  <span th:text="${a.status == 'Pending' ? 'Chờ duyệt' : (a.status == 'Confirmed' ? 'Đã duyệt' : (a.status == 'CheckedIn' ? 'Đã đến' : (a.status == 'InProgress' ? 'Đang khám' : (a.status == 'Completed' ? 'Hoàn thành' : 'Đã hủy'))))}">Pending</span>
+                </div>
+                
+                <!-- Bác sĩ thao tác -->
+                <div sec:authorize="hasRole('DOCTOR')" style="margin-top: 8px;">
+                  <!-- Bắt đầu khám (cho Pending, Confirmed, CheckedIn) -->
+                  <div style="display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap;">
+                    <!-- Bắt đầu khám (cho Pending, Confirmed, CheckedIn) -->
+                    <form th:if="${a.status != 'InProgress' and a.status != 'Completed' and a.status != 'Cancelled'}" 
+                          th:action="@{/doctor/appointments/{id}/start(id=${a.appointmentId})}" method="post" style="display: inline;">
+                      <button type="submit" class="btn btn-ai" style="padding: 4px 8px; font-size: 11px; background: linear-gradient(135deg, #10b981, #059669); border: none; cursor: pointer; border-radius: 4px; color: white; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; margin: 0;">
+                        ▶ Bắt đầu khám
+                      </button>
+                    </form>
+                    
+                    <!-- Hủy lịch (cho Pending, Confirmed, CheckedIn, InProgress) -->
+                    <form th:if="${a.status != 'Completed' and a.status != 'Cancelled'}" 
+                          th:action="@{/doctor/appointments/update-status}" method="post" style="display: inline;">
+                      <input type="hidden" name="appointmentId" th:value="${a.appointmentId}">
+                      <input type="hidden" name="status" value="Cancelled">
+                      <button type="submit" class="btn" style="padding: 4px 8px; font-size: 11px; background: #ef4444; border: none; cursor: pointer; border-radius: 4px; color: white; font-weight: 600; margin: 0;">
+                        ✕ Hủy lịch
+                      </button>
+                    </form>
+                  </div>
+                  
+                  <!-- Tiếp tục khám (cho InProgress) -->
+                  <a th:if="${a.status == 'InProgress'}" 
+                     th:href="@{/doctor/patients/{id}(id=${a.patient.patientId})}" 
+                     class="btn btn-ai" style="display: inline-block; text-align: center; text-decoration: none; padding: 4px 8px; font-size: 11px; background: linear-gradient(135deg, #ec4899, #db2777); border: none; cursor: pointer; border-radius: 4px; color: white; font-weight: 600; margin-top: 6px;">
+                    💬 Tiếp tục khám
+                  </a>
+                  
+                  <!-- Hoàn thành / Hủy -->
+                  <span th:if="${a.status == 'Completed'}" class="risk-badge risk-LOW" style="font-size: 10px; padding: 2px 6px; margin-top: 4px; display: inline-block;">✓ Đã hoàn thành</span>
+                  <span th:if="${a.status == 'Cancelled'}" class="risk-badge risk-HIGH" style="font-size: 10px; padding: 2px 6px; margin-top: 4px; display: inline-block;">✕ Đã hủy</span>
+                </div>
+
+                <!-- Thao tác cho lễ tân/staff (Điều phối trạng thái) -->
+                <button sec:authorize="!hasRole('DOCTOR')" 
+                        class="quick-edit-btn" 
+                        th:data-id="${a.appointmentId}"
+                        th:data-patient-name="${a.patient.fullName}"
+                        th:data-doctor-id="${a.doctor.doctorId}"
+                        th:data-room-number="${a.roomNumber != null ? a.roomNumber : ''}"
+                        th:data-date="${a.scheduledDate}"
+                        th:data-time="${a.timeSlot}"
+                        th:data-status="${a.status}"
+                        onclick="openAssignModal(this)">
+                  ⚙️ Cấu hình trạng thái
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Cancelled Appointments List -->
+    <div class="card" style="margin-top: 24px; padding: 20px;">
+      <h3 style="font-size: 15px; font-weight: 700; color: #f87171; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+        <i class="ti ti-calendar-cancel"></i> Danh sách ca hẹn đã hủy hôm nay
+      </h3>
+      <div th:if="${#lists.isEmpty(appointments.?[status == 'Cancelled'])}" style="color: #8a96b0; font-size: 13px;">
+        Không có ca hẹn nào bị hủy trong ngày này.
+      </div>
+      <div th:if="${not #lists.isEmpty(appointments.?[status == 'Cancelled'])}" class="table-responsive" style="overflow-x: auto;">
+        <table class="table" style="width: 100%; border-collapse: collapse; margin-top: 8px;">
+          <thead>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.08); text-align: left;">
+              <th style="padding: 8px; color: #8a96b0; font-size: 12px;">Bác sĩ phụ trách</th>
+              <th style="padding: 8px; color: #8a96b0; font-size: 12px;">Bệnh nhân</th>
+              <th style="padding: 8px; color: #8a96b0; font-size: 12px;">Khung giờ</th>
+              <th style="padding: 8px; color: #8a96b0; font-size: 12px;">Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr th:each="a : ${appointments}" th:if="${a.status == 'Cancelled'}" style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+              <td style="padding: 8px; color: #cbd5e1;" th:text="${a.doctor != null ? a.doctor.fullName : 'Chưa phân công'}">Doctor</td>
+              <td style="padding: 8px; color: #cbd5e1; font-weight: 600;" th:text="${a.patient.fullName}">Patient Name</td>
+              <td style="padding: 8px; color: #cbd5e1;" th:text="${#temporals.format(a.timeSlot, 'HH:mm')}">08:00</td>
+              <td style="padding: 8px;"><span class="risk-badge risk-HIGH" style="font-size: 10px; padding: 2px 6px;">Đã hủy</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- Modal Đặt lịch hẹn mới -->
+<div id="newAppModal" class="modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,15,30,0.85);backdrop-filter:blur(4px);align-items:center;justify-content:center;z-index:1000;">
+  <div class="modal-content" style="background:#111827;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;max-width:480px;width:90%;box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);color:#e8edf5;">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px;margin-bottom:16px;">
+      <h3 style="font-size:16px;font-weight:700;color:#e8edf5;"><i class="ti ti-calendar-plus" style="color: #3b82f6;"></i> Đặt lịch hẹn mới</h3>
+      <span onclick="closeNewAppModal()" style="font-size:24px;cursor:pointer;color:#8a96b0;line-height:1;">&times;</span>
+    </div>
+    
+    <form th:action="@{/doctor/appointments/save}" method="post">
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;color:#8a96b0;margin-bottom:6px;">Bệnh nhân</label>
+        <select name="patientId" required style="width:100%;background:#1f2937;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px;color:#e8edf5;font-size:14px;outline:none;">
+          <option value="">-- Chọn bệnh nhân --</option>
+          <option th:each="p : ${patients}" th:value="${p.patientId}" th:text="${p.fullName} + ' (' + ${p.phone} + ')'"></option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;color:#8a96b0;margin-bottom:6px;">Bác sĩ chuyên khoa</label>
+        <select name="doctorId" required style="width:100%;background:#1f2937;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px;color:#e8edf5;font-size:14px;outline:none;">
+          <option value="">-- Chọn bác sĩ --</option>
+          <option th:each="d : ${doctors}" th:value="${d.doctorId}" th:text="${d.fullName} + ' (' + ${d.specialty} + ')'"></option>
+        </select>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+        <div>
+          <label style="display:block;font-size:12px;color:#8a96b0;margin-bottom:6px;">Ngày hẹn</label>
+          <input type="date" name="scheduledDate" required style="width:100%;background:#1f2937;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:9px;color:#e8edf5;font-size:14px;outline:none;">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:#8a96b0;margin-bottom:6px;">Giờ hẹn</label>
+          <input type="time" name="timeSlot" required style="width:100%;background:#1f2937;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:9px;color:#e8edf5;font-size:14px;outline:none;">
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px;">
+        <button type="button" onclick="closeNewAppModal()" class="btn btn-ghost" style="padding:8px 20px;cursor:pointer;">Đóng</button>
+        <button type="submit" class="btn btn-ai" style="padding:8px 20px;background:#3b82f6;color:white;border:none;border-radius:8px;cursor:pointer;">Xác nhận đặt lịch</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Điều phối trạng thái (Lễ tân/Staff) -->
+<div id="assignModal" class="modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,15,30,0.85);backdrop-filter:blur(4px);align-items:center;justify-content:center;z-index:1000;">
+  <div class="modal-content" style="background:#111827;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;max-width:400px;width:90%;box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);color:#e8edf5;">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px;margin-bottom:16px;">
+      <h3 style="font-size:16px;font-weight:700;color:#e8edf5;"><i class="ti ti-alarm" style="color: #fbbf24;"></i> Điều phối lịch làm việc</h3>
+      <span onclick="closeAssignModal()" style="font-size:24px;cursor:pointer;color:#8a96b0;line-height:1;">&times;</span>
+    </div>
+    
+    <form th:action="@{/doctor/appointments/update-status}" method="post">
+      <input type="hidden" name="appointmentId" id="assignAppId">
+
+      <div style="margin-bottom:12px;">
+        <span style="font-size:12px;color:#8a96b0;">Bệnh nhân:</span>
+        <strong id="assignPatientName" style="color:#e8edf5;margin-left:6px;">Bệnh nhân</strong>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;color:#8a96b0;margin-bottom:6px;">Ngày làm việc mới</label>
+        <input type="date" name="scheduledDate" id="assignDateInput" required style="width:100%;background:#1f2937;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px;color:#e8edf5;font-size:14px;outline:none;">
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;color:#8a96b0;margin-bottom:6px;">Khung giờ mới</label>
+        <input type="time" name="timeSlot" id="assignTimeInput" required style="width:100%;background:#1f2937;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px;color:#e8edf5;font-size:14px;outline:none;">
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;color:#8a96b0;margin-bottom:6px;">Xếp phòng</label>
+        <input type="text" name="roomNumber" id="assignRoomInput" style="width:100%;background:#1f2937;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px;color:#e8edf5;font-size:14px;outline:none;">
+      </div>
+
+      <div style="margin-bottom:20px;">
+        <label style="display:block;font-size:12px;color:#8a96b0;margin-bottom:6px;">Trạng thái ca hẹn</label>
+        <select name="status" id="assignStatusSelect" required style="width:100%;background:#1f2937;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px;color:#e8edf5;font-size:14px;outline:none;">
+          <option value="Pending">Chờ duyệt (Pending)</option>
+          <option value="Confirmed">Đã duyệt & xếp lịch (Confirmed)</option>
+          <option value="CheckedIn">Bệnh nhân đã đến (CheckedIn)</option>
+          <option value="InProgress">Đang khám (InProgress)</option>
+          <option value="Completed">Đã hoàn thành (Completed)</option>
+          <option value="Cancelled">Đã hủy lịch (Cancelled)</option>
+        </select>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px;">
+        <button type="button" onclick="closeAssignModal()" class="btn btn-ghost" style="padding:8px 20px;cursor:pointer;">Đóng</button>
+        <button type="submit" class="btn btn-ai" style="padding:8px 20px;background:#3b82f6;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Lưu thay đổi</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openNewAppModal() {
+  document.getElementById("newAppModal").style.display = "flex";
+}
+function closeNewAppModal() {
+  document.getElementById("newAppModal").style.display = "none";
+}
+
+function openAssignModal(btn) {
+  const appId = btn.getAttribute("data-id");
+  const patient = btn.getAttribute("data-patient-name");
+  const date = btn.getAttribute("data-date");
+  const time = btn.getAttribute("data-time");
+  const room = btn.getAttribute("data-room-number");
+  const status = btn.getAttribute("data-status");
+
+  document.getElementById("assignAppId").value = appId;
+  document.getElementById("assignPatientName").textContent = patient;
+  document.getElementById("assignDateInput").value = date;
+  document.getElementById("assignTimeInput").value = time.substring(0, 5);
+  document.getElementById("assignRoomInput").value = room;
+  document.getElementById("assignStatusSelect").value = status;
+
+  document.getElementById("assignModal").style.display = "flex";
+}
+function closeAssignModal() {
+  document.getElementById("assignModal").style.display = "none";
+}
+
+// Close modal on outside click
+window.onclick = function(event) {
+  const newModal = document.getElementById("newAppModal");
+  const assignModal = document.getElementById("assignModal");
+  if (event.target === newModal) {
+    newModal.style.display = "none";
+  }
+  if (event.target === assignModal) {
+    assignModal.style.display = "none";
+  }
+}
+</script>
+<script th:src="@{/js/main.js}"></script>
+</body>
+</html>
