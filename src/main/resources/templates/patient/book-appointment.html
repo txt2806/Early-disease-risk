@@ -18,53 +18,22 @@
       <form th:action="@{/patient/book-appointment/save}" method="post" style="padding-top:10px;">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
 
-        <!-- Phân loại Bệnh nhân Mới -->
-        <div th:if="${isNewPatient}" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); padding: 16px; border-radius: 8px; margin-bottom: 20px; color: #93c5fd; font-size: 13.5px; line-height: 1.5;">
-          <i class="ti ti-info-circle" style="font-size:16px;"></i> <strong>Bệnh nhân mới khám lần đầu:</strong> Theo quy trình của phòng khám, bạn sẽ được hệ thống tự động sắp xếp khám với <strong>Bác sĩ Đa khoa</strong> để kiểm tra tổng quát trước, sau đó bác sĩ sẽ chuyển tuyến cho chuyên khoa nếu cần thiết.
-          <input type="hidden" name="autoGP" value="true">
-          <input type="hidden" name="doctorId" value="-1">
+        <!-- Chọn bác sĩ -->
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Chọn Bác sĩ điều trị</label>
+          <select name="doctorId" required 
+                  style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none; cursor:pointer;">
+            <option value="" disabled selected>-- Chọn Bác sĩ Tim mạch --</option>
+            <option th:each="doc : ${doctors}" th:value="${doc.doctorId}" th:text="${doc.fullName + ' - Chuyên khoa: ' + doc.specialty}"></option>
+          </select>
         </div>
 
-        <!-- Phân loại Bệnh nhân Cũ -->
-        <div th:if="${!isNewPatient}" style="margin-bottom: 20px;">
-          <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:8px; display:block;">Hình thức chọn Bác sĩ</label>
-          <div style="display:flex; gap:16px; margin-bottom:16px;">
-            <label style="display:inline-flex; align-items:center; gap:8px; color:#cbd5e1; font-size:13.5px; cursor:pointer;">
-              <input type="radio" name="bookingType" value="auto" checked onchange="toggleBookingType(this.value)" style="accent-color:#3b82f6;">
-              Tự động phân công (Bác sĩ Đa khoa)
-            </label>
-            <label style="display:inline-flex; align-items:center; gap:8px; color:#cbd5e1; font-size:13.5px; cursor:pointer;">
-              <input type="radio" name="bookingType" value="manual" onchange="toggleBookingType(this.value)" style="accent-color:#3b82f6;">
-              Tự chọn Bác sĩ điều trị
-            </label>
-          </div>
-          <input type="hidden" name="autoGP" id="autoGPField" value="true">
-
-          <!-- Chọn bác sĩ cụ thể -->
-          <div id="doctorSelectContainer" style="display: none; margin-bottom: 20px;">
-            <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Chọn Bác sĩ điều trị</label>
-            <select name="doctorId" id="doctorId" 
-                    style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none; cursor:pointer;">
-              <option value="" disabled selected>-- Chọn Bác sĩ Tim mạch / Đa khoa --</option>
-              <option th:each="doc : ${doctors}" th:value="${doc.doctorId}" th:text="${doc.fullName + ' - Chuyên khoa: ' + doc.specialty}"></option>
-            </select>
-          </div>
-        </div>
-
-        <div style="margin-bottom:20px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <div style="margin-bottom:20px;">
           <!-- Chọn ngày -->
           <div class="form-group">
             <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Chọn Ngày hẹn</label>
             <input type="date" name="scheduledDate" id="scheduledDate" required 
                    style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none;">
-          </div>
-          <!-- Chọn giờ -->
-          <div class="form-group">
-            <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Chọn Giờ khám (Khung giờ rảnh)</label>
-            <select name="timeSlot" id="timeSlot" required disabled
-                    style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none; cursor:pointer;">
-              <option value="" disabled selected>-- Chọn ngày trước --</option>
-            </select>
           </div>
         </div>
 
@@ -88,92 +57,6 @@ if (dateInput) {
   const today = new Date().toISOString().split('T')[0];
   dateInput.min = today;
 }
-
-function toggleBookingType(val) {
-  const selectContainer = document.getElementById('doctorSelectContainer');
-  const autoGPField = document.getElementById('autoGPField');
-  const docIdSelect = document.getElementById('doctorId');
-  
-  if (val === 'manual') {
-    selectContainer.style.display = 'block';
-    autoGPField.value = 'false';
-    docIdSelect.required = true;
-  } else {
-    selectContainer.style.display = 'none';
-    autoGPField.value = 'true';
-    docIdSelect.required = false;
-    docIdSelect.value = '';
-  }
-  fetchAvailableSlots();
-}
-
-function fetchAvailableSlots() {
-  const dateVal = document.getElementById('scheduledDate').value;
-  const timeSlotSelect = document.getElementById('timeSlot');
-  
-  if (!dateVal) {
-    timeSlotSelect.innerHTML = '<option value="" disabled selected>-- Chọn ngày trước --</option>';
-    timeSlotSelect.disabled = true;
-    return;
-  }
-  
-  // Determine if it is GP Auto
-  const isNewPatient = [[${isNewPatient}]];
-  let isGPAuto = false;
-  let doctorId = '';
-  
-  if (isNewPatient) {
-    isGPAuto = true;
-  } else {
-    const bookingType = document.querySelector('input[name="bookingType"]:checked').value;
-    if (bookingType === 'auto') {
-      isGPAuto = true;
-    } else {
-      doctorId = document.getElementById('doctorId').value;
-      if (!doctorId) {
-        timeSlotSelect.innerHTML = '<option value="" disabled selected>-- Chọn Bác sĩ trước --</option>';
-        timeSlotSelect.disabled = true;
-        return;
-      }
-    }
-  }
-  
-  timeSlotSelect.innerHTML = '<option value="" disabled selected>⏳ Đang tải khung giờ rảnh...</option>';
-  timeSlotSelect.disabled = true;
-  
-  let url = '/patient/available-slots?date=' + encodeURIComponent(dateVal);
-  if (isGPAuto) {
-    url += '&isGPAuto=true';
-  } else {
-    url += '&doctorId=' + encodeURIComponent(doctorId);
-  }
-  
-  fetch(url)
-    .then(r => r.json())
-    .then(data => {
-      if (!data || data.length === 0) {
-        timeSlotSelect.innerHTML = '<option value="" disabled selected>❌ Hết khung giờ rảnh trong ngày</option>';
-        timeSlotSelect.disabled = true;
-      } else {
-        timeSlotSelect.innerHTML = '<option value="" disabled selected>-- Chọn giờ khám --</option>' +
-          data.map(slot => '<option value="' + slot + '">' + slot.substring(0, 5) + '</option>').join('');
-        timeSlotSelect.disabled = false;
-      }
-    })
-    .catch(err => {
-      console.error(err);
-      timeSlotSelect.innerHTML = '<option value="" disabled selected>❌ Lỗi tải dữ liệu</option>';
-      timeSlotSelect.disabled = true;
-    });
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-  document.getElementById('scheduledDate').addEventListener('change', fetchAvailableSlots);
-  const docIdSelect = document.getElementById('doctorId');
-  if (docIdSelect) {
-    docIdSelect.addEventListener('change', fetchAvailableSlots);
-  }
-});
 </script>
 <script th:src="@{/js/main.js}"></script>
 </body>

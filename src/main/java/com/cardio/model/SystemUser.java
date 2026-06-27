@@ -10,4 +10,5 @@ public interface SystemUser {
     String getLicenseNumber();
     Integer getAlertThresholdBpm();
     String getAlertThresholdBp();
+    String getRoomNumber();
 }

@@ -41,8 +41,6 @@ public class ReceptionController {
     public String dashboard(@AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(value = "dateStr", required = false) String dateStr,
             @RequestParam(value = "search", required = false) String search,
-            @RequestParam(value = "statusFilter", required = false, defaultValue = "all") String statusFilter,
-            @RequestParam(value = "sortBy", required = false, defaultValue = "default") String sortBy,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size,
             Model model) {
@@ -57,34 +55,10 @@ public class ReceptionController {
             }
         }
         
-        List<Appointment> rawAppointments = appointmentRepository.findByDateAndPatientNameOrPhone(filterDate, search);
-        
-        // Filter by status
-        if (statusFilter != null && !"all".equalsIgnoreCase(statusFilter)) {
-            rawAppointments = rawAppointments.stream()
-                    .filter(a -> statusFilter.equalsIgnoreCase(a.getStatus()))
-                    .collect(Collectors.toList());
-        }
-        
-        List<Appointment> allSortedAppointments;
-        if ("timeSlot".equalsIgnoreCase(sortBy)) {
-            allSortedAppointments = rawAppointments.stream().sorted((a1, a2) -> {
-                int dateCompare = a2.getScheduledDate().compareTo(a1.getScheduledDate());
-                if (dateCompare != 0) {
-                    return dateCompare;
-                }
-                LocalTime t1 = a1.getTimeSlot();
-                LocalTime t2 = a2.getTimeSlot();
-                if (t1 != null && t2 != null) return t1.compareTo(t2);
-                if (t1 != null) return -1;
-                if (t2 != null) return 1;
-                return a1.getAppointmentId().compareTo(a2.getAppointmentId());
-            }).collect(Collectors.toList());
-        } else {
-            allSortedAppointments = sortAppointmentsForQueue(rawAppointments);
-        }
+        List<Appointment> allSortedAppointments = sortAppointmentsForQueue(appointmentRepository.findByDateAndPatientNameOrPhone(filterDate, search));
         
         List<Appointment> allReference = appointmentRepository.findAll();
+        Appointment.populateQueueNumbers(allSortedAppointments, allReference);
 
         int totalItems = allSortedAppointments.size();
         int totalPages = (int) Math.ceil((double) totalItems / size);
@@ -122,8 +96,6 @@ public class ReceptionController {
         model.addAttribute("currentDate", LocalDate.now());
         model.addAttribute("selectedDate", dateStr);
         model.addAttribute("search", search);
-        model.addAttribute("statusFilter", statusFilter);
-        model.addAttribute("sortBy", sortBy);
 
         return "reception/dashboard";
     }
@@ -139,36 +111,12 @@ public class ReceptionController {
             @RequestParam("status") String status,
             @RequestParam(value = "redirectSource", required = false, defaultValue = "dashboard") String redirectSource,
             @RequestParam(value = "redirectDate", required = false) String redirectDate,
-            @RequestParam(value = "redirectDoctorId", required = false) Integer redirectDoctorId,
-            @RequestParam(value = "redirectFilterStatus", required = false) String redirectFilterStatus,
             RedirectAttributes ra) {
         StaffProfile staff = getCurrentStaff(userDetails);
 
         try {
             Appointment appointment = appointmentRepository.findById(appointmentId)
                     .orElseThrow(() -> new RuntimeException("Appointment not found"));
-
-            if ("Completed".equalsIgnoreCase(appointment.getStatus()) || "Cancelled".equalsIgnoreCase(appointment.getStatus())) {
-                ra.addFlashAttribute("error", "Không thể chỉnh sửa lịch hẹn đã hoàn thành hoặc đã hủy!");
-                String finalRedirect = "redirect:/reception/" + redirectSource;
-                java.util.List<String> params = new java.util.ArrayList<>();
-                if (redirectDate != null && !redirectDate.isBlank()) {
-                    params.add("dateStr=" + redirectDate);
-                }
-                if (redirectDoctorId != null) {
-                    params.add("doctorId=" + redirectDoctorId);
-                }
-                if (redirectFilterStatus != null && !redirectFilterStatus.isBlank()) {
-                    params.add("filterStatus=" + redirectFilterStatus);
-                }
-                if (!params.isEmpty()) {
-                    finalRedirect += "?" + String.join("&", params);
-                }
-                return finalRedirect;
-            }
-
-            DoctorProfile oldDoctor = appointment.getDoctor();
-            LocalDate oldDate = appointment.getScheduledDate();
 
             LocalDate date = LocalDate.parse(scheduledDateStr);
             LocalDate targetDate = date;
@@ -212,40 +160,22 @@ public class ReceptionController {
             appointment.setScheduledDate(targetDate);
             appointment.setStatus(status);
 
-            // Handle Booking TimeSlot
+            // Handle Check-in arrival time
             if (timeSlotStr != null && !timeSlotStr.isBlank()) {
                 appointment.setTimeSlot(LocalTime.parse(timeSlotStr));
+            } else if ("CheckedIn".equalsIgnoreCase(status) && appointment.getTimeSlot() == null) {
+                appointment.setTimeSlot(LocalTime.now());
+            } else if (!"CheckedIn".equalsIgnoreCase(status) && !"InProgress".equalsIgnoreCase(status) && !"Completed".equalsIgnoreCase(status)) {
+                appointment.setTimeSlot(null); // Reset arrival time if moved back to Pending/Confirmed/Cancelled
             }
 
-            // Handle Start time (Giờ vào khám)
-            if ("InProgress".equalsIgnoreCase(status) && appointment.getStartTime() == null) {
-                appointment.setStartTime(LocalTime.now());
-            } else if (!"InProgress".equalsIgnoreCase(status) && !"Completed".equalsIgnoreCase(status)) {
-                appointment.setStartTime(null);
-            }
-
-            // Handle Completed end time (Giờ ra khám)
+            // Handle Completed end time
             if (endTimeStr != null && !endTimeStr.isBlank()) {
                 appointment.setEndTime(LocalTime.parse(endTimeStr));
             } else if ("Completed".equalsIgnoreCase(status) && appointment.getEndTime() == null) {
                 appointment.setEndTime(LocalTime.now());
             } else if (!"Completed".equalsIgnoreCase(status)) {
                 appointment.setEndTime(null);
-            }
-
-            boolean doctorChanged = (oldDoctor == null && appointment.getDoctor() != null) ||
-                                    (oldDoctor != null && appointment.getDoctor() == null) ||
-                                    (oldDoctor != null && appointment.getDoctor() != null && !oldDoctor.getDoctorId().equals(appointment.getDoctor().getDoctorId()));
-            boolean dateChanged = (oldDate == null && appointment.getScheduledDate() != null) ||
-                                  (oldDate != null && appointment.getScheduledDate() == null) ||
-                                  (oldDate != null && !oldDate.equals(appointment.getScheduledDate()));
-            if (doctorChanged || dateChanged || appointment.getQueueNumber() == null) {
-                if (appointment.getDoctor() != null && appointment.getScheduledDate() != null) {
-                    Integer maxQueue = appointmentRepository.findMaxQueueNumberByDoctorAndScheduledDate(appointment.getDoctor(), appointment.getScheduledDate());
-                    appointment.setQueueNumber(maxQueue == null ? 1 : maxQueue + 1);
-                } else {
-                    appointment.setQueueNumber(null);
-                }
             }
 
             appointmentRepository.save(appointment);
@@ -280,69 +210,10 @@ public class ReceptionController {
             }
         }
         String finalRedirect = "redirect:/reception/" + redirectSource;
-        java.util.List<String> params = new java.util.ArrayList<>();
         if (redirectDate != null && !redirectDate.isBlank()) {
-            params.add("dateStr=" + redirectDate);
-        }
-        if (redirectDoctorId != null) {
-            params.add("doctorId=" + redirectDoctorId);
-        }
-        if (redirectFilterStatus != null && !redirectFilterStatus.isBlank()) {
-            params.add("filterStatus=" + redirectFilterStatus);
-        }
-        if (!params.isEmpty()) {
-            finalRedirect += "?" + String.join("&", params);
+            finalRedirect += "?dateStr=" + redirectDate;
         }
         return finalRedirect;
-    }
-
-    @PostMapping("/appointments/{id}/checkin")
-    public String checkinAppointment(@PathVariable("id") Integer id,
-                                     @AuthenticationPrincipal UserDetails userDetails,
-                                     RedirectAttributes ra) {
-        StaffProfile staff = getCurrentStaff(userDetails);
-        try {
-            Appointment appointment = appointmentRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Lịch hẹn không tồn tại"));
-
-            if ("Completed".equalsIgnoreCase(appointment.getStatus()) || "Cancelled".equalsIgnoreCase(appointment.getStatus())) {
-                ra.addFlashAttribute("error", "Lịch hẹn đã hoàn thành hoặc đã hủy không thể xác nhận đến khám!");
-                return "redirect:/reception/dashboard";
-            }
-
-            appointment.setStatus("CheckedIn");
-            
-            // Assign doctor's room if room is not set
-            if (appointment.getDoctor() != null && (appointment.getRoomNumber() == null || appointment.getRoomNumber().isBlank())) {
-                appointment.setRoomNumber(appointment.getDoctor().getRoomNumber());
-            }
-
-            // Issue queue number if not already present
-            if (appointment.getDoctor() != null && appointment.getQueueNumber() == null) {
-                Integer maxQueue = appointmentRepository.findMaxQueueNumberByDoctorAndScheduledDate(appointment.getDoctor(), appointment.getScheduledDate());
-                appointment.setQueueNumber(maxQueue == null ? 1 : maxQueue + 1);
-            }
-
-            appointmentRepository.save(appointment);
-
-            // Log action
-            SystemLog sysLog = new SystemLog();
-            sysLog.setUsername(staff.getUsername());
-            sysLog.setAction("RECEPTION_CHECKIN");
-            sysLog.setDetails("Lễ tân " + staff.getFullName() + " xác nhận bệnh nhân đã đến khám: "
-                    + appointment.getPatient().getFullName() + " (Bác sĩ: "
-                    + (appointment.getDoctor() != null ? appointment.getDoctor().getFullName() : "Chưa phân công")
-                    + ", STT: " + (appointment.getQueueNumber() != null ? appointment.getQueueNumber() : "--")
-                    + ", Phòng: " + (appointment.getRoomNumber() != null ? appointment.getRoomNumber() : "--") + ")");
-            sysLog.setTimestamp(LocalDateTime.now());
-            systemLogRepository.save(sysLog);
-
-            ra.addFlashAttribute("success", "Xác nhận bệnh nhân " + appointment.getPatient().getFullName() + " đã đến thành công! STT: " + appointment.getQueueNumber() + " - Phòng: " + appointment.getRoomNumber());
-        } catch (Exception e) {
-            log.error("Error check-in appointment: ", e);
-            ra.addFlashAttribute("error", "Lỗi xác nhận đến khám: " + e.getMessage());
-        }
-        return "redirect:/reception/dashboard";
     }
 
     @GetMapping("/appointments/new")
@@ -457,15 +328,12 @@ public class ReceptionController {
 
             appointment.setScheduledDate(targetDate);
             
-            // Set Booking TimeSlot
-            if (timeSlotStr != null && !timeSlotStr.isBlank()) {
-                appointment.setTimeSlot(LocalTime.parse(timeSlotStr));
-            } else if ("CheckedIn".equalsIgnoreCase(status)) {
+            // Set Check-in arrival time if checked in
+            if ("CheckedIn".equalsIgnoreCase(status)) {
                 appointment.setTimeSlot(LocalTime.now());
             } else {
                 appointment.setTimeSlot(null);
             }
-            appointment.setStartTime(null);
 
             if (appointment.getDoctor() != null && (roomNumber == null || roomNumber.isBlank())) {
                 appointment.setRoomNumber(appointment.getDoctor().getRoomNumber());
@@ -476,10 +344,6 @@ public class ReceptionController {
             appointment.setStatus(status);
             appointment.setRequestTime(LocalDateTime.now());
 
-            if (appointment.getDoctor() != null && appointment.getScheduledDate() != null) {
-                Integer maxQueue = appointmentRepository.findMaxQueueNumberByDoctorAndScheduledDate(appointment.getDoctor(), appointment.getScheduledDate());
-                appointment.setQueueNumber(maxQueue == null ? 1 : maxQueue + 1);
-            }
             appointmentRepository.save(appointment);
 
             // Save system log
@@ -536,70 +400,41 @@ public class ReceptionController {
     public String schedule(@AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(required = false) String dateStr,
             @RequestParam(required = false) Integer doctorId,
-            @RequestParam(required = false) String filterStatus,
             Model model) {
         StaffProfile staff = getCurrentStaff(userDetails);
-        boolean hasSearched = (dateStr != null && !dateStr.isBlank());
-        LocalDate parsedDate;
-        try {
-            parsedDate = hasSearched ? LocalDate.parse(dateStr) : LocalDate.now();
-        } catch (Exception e) {
-            parsedDate = LocalDate.now();
-            hasSearched = false;
-        }
-        final LocalDate date = parsedDate;
+        LocalDate date = (dateStr != null && !dateStr.isBlank()) ? LocalDate.parse(dateStr) : LocalDate.now();
         List<DoctorProfile> doctors = doctorRepository.findAll();
 
-        final List<Appointment> dailyAppointments = appointmentRepository.findByScheduledDateFetchPatientAndDoctor(date);
+        List<Appointment> appointments = appointmentRepository.findAll().stream()
+                .filter(a -> a.getScheduledDate().equals(date) && (doctorId == null || (a.getDoctor() != null && a.getDoctor().getDoctorId().equals(doctorId))))
+                .sorted((a1, a2) -> {
+                    LocalTime t1 = a1.getTimeSlot();
+                    LocalTime t2 = a2.getTimeSlot();
+                    if (t1 != null && t2 != null) {
+                        return t1.compareTo(t2);
+                    }
+                    if (t1 != null) return -1;
+                    if (t2 != null) return 1;
 
-        List<Appointment> appointments;
-        if (hasSearched) {
-            appointments = dailyAppointments.stream()
-                    .filter(a -> doctorId == null || (a.getDoctor() != null && a.getDoctor().getDoctorId().equals(doctorId)))
-                    .sorted((a1, a2) -> {
-                        LocalTime t1 = a1.getTimeSlot();
-                        LocalTime t2 = a2.getTimeSlot();
-                        if (t1 != null && t2 != null) {
-                            return t1.compareTo(t2);
-                        }
-                        if (t1 != null) return -1;
-                        if (t2 != null) return 1;
+                    LocalDateTime r1 = a1.getRequestTime();
+                    LocalDateTime r2 = a2.getRequestTime();
+                    if (r1 != null && r2 != null) {
+                        return r1.compareTo(r2);
+                    }
+                    if (r1 != null) return -1;
+                    if (r2 != null) return 1;
 
-                        LocalDateTime r1 = a1.getRequestTime();
-                        LocalDateTime r2 = a2.getRequestTime();
-                        if (r1 != null && r2 != null) {
-                            return r1.compareTo(r2);
-                        }
-                        if (r1 != null) return -1;
-                        if (r2 != null) return 1;
+                    return a1.getAppointmentId().compareTo(a2.getAppointmentId());
+                })
+                .collect(Collectors.toList());
 
-                        return a1.getAppointmentId().compareTo(a2.getAppointmentId());
-                    })
-                    .collect(Collectors.toList());
-
-            // Sort using the status-based priority queue sorting
-            appointments = sortAppointmentsForQueue(appointments);
-
-            // Apply Status Filter
-            if (filterStatus != null && !filterStatus.isBlank() && !"all".equalsIgnoreCase(filterStatus)) {
-                if ("waiting".equalsIgnoreCase(filterStatus)) {
-                    appointments = appointments.stream()
-                            .filter(a -> "CheckedIn".equalsIgnoreCase(a.getStatus()) || "Confirmed".equalsIgnoreCase(a.getStatus()) || "InProgress".equalsIgnoreCase(a.getStatus()))
-                            .collect(Collectors.toList());
-                } else if ("completed".equalsIgnoreCase(filterStatus)) {
-                    appointments = appointments.stream()
-                            .filter(a -> "Completed".equalsIgnoreCase(a.getStatus()))
-                            .collect(Collectors.toList());
-                }
-            }
-        } else {
-            appointments = List.of();
-        }
+        List<Appointment> allReference = appointmentRepository.findAll();
+        Appointment.populateQueueNumbers(appointments, allReference);
 
         java.util.Map<Integer, Long> workloads = new java.util.HashMap<>();
         for (DoctorProfile doc : doctors) {
-            long count = dailyAppointments.stream()
-                    .filter(a -> a.getDoctor() != null && a.getDoctor().getDoctorId().equals(doc.getDoctorId())
+            long count = appointmentRepository.findAll().stream()
+                    .filter(a -> a.getScheduledDate().equals(date) && a.getDoctor() != null && a.getDoctor().getDoctorId().equals(doc.getDoctorId())
                             && !"Cancelled".equalsIgnoreCase(a.getStatus()))
                     .count();
             workloads.put(doc.getDoctorId(), count);
@@ -611,46 +446,48 @@ public class ReceptionController {
         model.addAttribute("workloads", workloads);
         model.addAttribute("selectedDate", date);
         model.addAttribute("selectedDoctorId", doctorId);
-        model.addAttribute("filterStatus", filterStatus);
         return "reception/schedule";
-    }
-
-    private int getStatusPriority(String status) {
-        if ("InProgress".equalsIgnoreCase(status)) return 0;
-        if ("CheckedIn".equalsIgnoreCase(status)) return 1;
-        if ("Confirmed".equalsIgnoreCase(status)) return 2;
-        if ("Pending".equalsIgnoreCase(status)) return 3;
-        if ("Completed".equalsIgnoreCase(status)) return 4;
-        return 5; // Cancelled or other
     }
 
     private List<Appointment> sortAppointmentsForQueue(List<Appointment> list) {
         if (list == null) return java.util.Collections.emptyList();
         return list.stream().sorted((a1, a2) -> {
-            int dateCompare = a2.getScheduledDate().compareTo(a1.getScheduledDate());
-            if (dateCompare != 0) {
-                return dateCompare;
-            }
-
-            int p1 = getStatusPriority(a1.getStatus());
-            int p2 = getStatusPriority(a2.getStatus());
+            // Priority 1: Status InProgress
+            int p1 = "InProgress".equalsIgnoreCase(a1.getStatus()) ? 0 : 1;
+            int p2 = "InProgress".equalsIgnoreCase(a2.getStatus()) ? 0 : 1;
             if (p1 != p2) return Integer.compare(p1, p2);
 
-            // Within the same status priority, sort by queueNumber ascending
-            Integer q1 = a1.getQueueNumber();
-            Integer q2 = a2.getQueueNumber();
-            if (q1 != null && q2 != null) {
-                return q1.compareTo(q2);
+            // Priority 2: Status CheckedIn (FIFO by arrival time / timeSlot)
+            int c1 = "CheckedIn".equalsIgnoreCase(a1.getStatus()) ? 0 : 1;
+            int c2 = "CheckedIn".equalsIgnoreCase(a2.getStatus()) ? 0 : 1;
+            if (c1 != c2) return Integer.compare(c1, c2);
+            if (c1 == 0) {
+                if (a1.getTimeSlot() != null && a2.getTimeSlot() != null) {
+                    return a1.getTimeSlot().compareTo(a2.getTimeSlot());
+                }
+                if (a1.getTimeSlot() != null) return -1;
+                if (a2.getTimeSlot() != null) return 1;
             }
-            if (q1 != null) return -1;
-            if (q2 != null) return 1;
 
-            // Fallback: TimeSlot
-            LocalTime t1 = a1.getTimeSlot();
-            LocalTime t2 = a2.getTimeSlot();
-            if (t1 != null && t2 != null) return t1.compareTo(t2);
-            if (t1 != null) return -1;
-            if (t2 != null) return 1;
+            // Priority 3: Status Confirmed
+            int f1 = "Confirmed".equalsIgnoreCase(a1.getStatus()) ? 0 : 1;
+            int f2 = "Confirmed".equalsIgnoreCase(a2.getStatus()) ? 0 : 1;
+            if (f1 != f2) return Integer.compare(f1, f2);
+
+            // Priority 4: Status Pending
+            int d1 = "Pending".equalsIgnoreCase(a1.getStatus()) ? 0 : 1;
+            int d2 = "Pending".equalsIgnoreCase(a2.getStatus()) ? 0 : 1;
+            if (d1 != d2) return Integer.compare(d1, d2);
+
+            // Priority 5: Completed
+            int m1 = "Completed".equalsIgnoreCase(a1.getStatus()) ? 0 : 1;
+            int m2 = "Completed".equalsIgnoreCase(a2.getStatus()) ? 0 : 1;
+            if (m1 != m2) return Integer.compare(m1, m2);
+
+            // Priority 6: Cancelled
+            int n1 = "Cancelled".equalsIgnoreCase(a1.getStatus()) ? 0 : 1;
+            int n2 = "Cancelled".equalsIgnoreCase(a2.getStatus()) ? 0 : 1;
+            if (n1 != n2) return Integer.compare(n1, n2);
 
             // Fallback: ID
             if (a1.getAppointmentId() != null && a2.getAppointmentId() != null) {

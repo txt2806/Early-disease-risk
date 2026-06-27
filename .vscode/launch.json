@@ -1,0 +1,15 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-CardioApplication<cardio-doctor-portal>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.cardio.CardioApplication",
+            "projectName": "cardio-doctor-portal",
+            "args": "",
+            "vmArgs": "-Dfile.encoding=UTF-8",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}

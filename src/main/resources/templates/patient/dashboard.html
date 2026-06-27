@@ -50,7 +50,7 @@
             <tr>
               <th>Bác sĩ</th>
               <th>Ngày khám</th>
-              <th>Thời gian</th>
+              <th>Giờ vào / ra</th>
               <th>Phòng & STT</th>
               <th>Trạng thái</th>
             </tr>
@@ -68,9 +68,8 @@
               </td>
               <td th:text="${#temporals.format(a.scheduledDate, 'dd/MM/yyyy')}">--</td>
               <td>
-                <div style="font-size:11.5px;" th:text="${a.timeSlot != null ? 'Đăng ký: ' + #temporals.format(a.timeSlot, 'HH:mm') : 'Đăng ký: --'}">--</div>
-                <div style="font-size:11.5px;" th:text="${a.startTime != null ? 'Vào: ' + #temporals.format(a.startTime, 'HH:mm') : 'Vào: --'}">--</div>
-                <div th:if="${a.endTime != null}" th:text="'Ra: ' + ${#temporals.format(a.endTime, 'HH:mm')}" style="font-size:11px;color:#8a96b0;">--</div>
+                <div th:text="${a.timeSlot != null ? 'Vào: ' + a.timeSlot : 'Chờ Check-in'}">--</div>
+                <div th:if="${a.endTime != null}" th:text="'Ra: ' + ${a.endTime}" style="font-size:11px;color:#8a96b0;">--</div>
               </td>
               <td>
                 <strong style="color: #e8edf5; display: block;" th:text="${a.roomNumber != null && !a.roomNumber.isEmpty() ? a.roomNumber : 'Chờ xếp phòng'}">--</strong>

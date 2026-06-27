@@ -3,8 +3,6 @@ package com.cardio.model;
 import jakarta.persistence.*;
 import lombok.Data;
 
-// ── MODEL (M trong MVC) ──────────────────────────────
-// Ánh xạ trực tiếp với bảng Doctor_Profile trong SQL Server
 @Data
 @Entity
 @Table(name = "Doctor_Profile")
@@ -33,12 +31,22 @@ public class DoctorProfile implements SystemUser {
     @Column(name = "AlertThreshold_BP")
     private String alertThresholdBp;
 
-    @Transient
-    private String role = "DOCTOR";
-
     @Column(name = "Status")
     private String status = "ACTIVE";
 
     @Column(name = "LicenseNumber")
     private String licenseNumber;
+
+    @Column(name = "RoomNumber")
+    private String roomNumber;
+
+    // SystemUser interface - role is always DOCTOR
+    @Override
+    public String getRole() {
+        return "DOCTOR";
+    }
+
+    // SystemUser interface methods already covered by @Data:
+    // getDoctorId(), getUsername(), getPasswordHash(), getFullName(),
+    // getStatus(), getLicenseNumber(), getAlertThresholdBpm(), getAlertThresholdBp()
 }

@@ -208,16 +208,6 @@
               onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">📅 Xem lịch</button>
           </div>
 
-          <div style="display:flex; gap:10px; align-items:center;">
-            <label style="color:#8a96b0; font-size:13px; font-weight:600;">Trạng thái:</label>
-            <select name="filterStatus" onchange="this.form.submit()"
-              style="background: #1a2440; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; padding: 8px 12px; color: #e8edf5; outline:none; cursor:pointer; font-size:13px;">
-              <option value="all" th:selected="${filterStatus == null || filterStatus == 'all'}">Tất cả</option>
-              <option value="waiting" th:selected="${filterStatus == 'waiting'}">Chưa hoàn thành</option>
-              <option value="completed" th:selected="${filterStatus == 'completed'}">Hoàn thành</option>
-            </select>
-          </div>
-
           <div style="flex:1;"></div>
 
           <!-- Nút Đặt lịch chỉ hiện cho Lễ tân, Bác sĩ, Admin -->
@@ -244,8 +234,7 @@
           <thead>
             <tr>
               <th style="width: 80px; text-align: center;">STT</th>
-              <th style="width: 150px; text-align: center;">Giờ đăng ký khám</th>
-              <th style="width: 120px; text-align: center;">Giờ vào khám</th>
+              <th style="width: 120px; text-align: center;">Giờ vào</th>
               <th style="width: 120px; text-align: center;">Giờ ra</th>
               <th>Bệnh nhân</th>
               <th>Triệu chứng (Khai báo)</th>
@@ -264,9 +253,6 @@
               </td>
               <td style="vertical-align: middle; text-align: center;">
                 <span th:text="${a.timeSlot != null ? #temporals.format(a.timeSlot, 'HH:mm') : '--'}" style="font-weight: 600; color: #e8edf5;">--</span>
-              </td>
-              <td style="vertical-align: middle; text-align: center;">
-                <span th:text="${a.startTime != null ? #temporals.format(a.startTime, 'HH:mm') : '--'}" style="font-weight: 600; color: #e8edf5;">--</span>
               </td>
               <td style="vertical-align: middle; text-align: center;">
                 <span th:text="${a.endTime != null ? #temporals.format(a.endTime, 'HH:mm') : '--'}" style="font-weight: 600; color: #8a96b0;">--</span>
@@ -292,7 +278,7 @@
                 <!-- Bác sĩ thao tác -->
                 <div sec:authorize="hasRole('DOCTOR')" style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
                   <!-- Bắt đầu khám (cho Pending, Confirmed, CheckedIn) -->
-                  <form th:if="${a.status != 'InProgress' and a.status != 'Completed' and a.status != 'Cancelled' and firstEligibleAppIdMap[doc.doctorId] == a.appointmentId}"
+                  <form th:if="${a.status != 'InProgress' and a.status != 'Completed' and a.status != 'Cancelled'}"
                     th:action="@{/doctor/appointments/{id}/start(id=${a.appointmentId})}" method="post"
                     style="display: inline;">
                     <button type="submit" class="btn btn-ai" th:disabled="${hasInProgress}"
@@ -303,7 +289,7 @@
                   </form>
 
                   <!-- Hủy khám (cho Pending, Confirmed, CheckedIn, InProgress) -->
-                  <form th:if="${a.status == 'InProgress' or (a.status != 'Completed' and a.status != 'Cancelled' and firstEligibleAppIdMap[doc.doctorId] == a.appointmentId)}"
+                  <form th:if="${a.status != 'Completed' and a.status != 'Cancelled'}"
                     th:action="@{/doctor/appointments/update-status}" method="post" style="display: inline;">
                     <input type="hidden" name="appointmentId" th:value="${a.appointmentId}">
                     <input type="hidden" name="status" value="Cancelled">
@@ -381,7 +367,7 @@
               <tr style="border-bottom: 1px solid rgba(255,255,255,0.08); text-align: left;">
                 <th style="padding: 8px; color: #8a96b0; font-size: 12px;">Bác sĩ phụ trách</th>
                 <th style="padding: 8px; color: #8a96b0; font-size: 12px;">Bệnh nhân</th>
-                <th style="padding: 8px; color: #8a96b0; font-size: 12px;">Giờ đăng ký khám</th>
+                <th style="padding: 8px; color: #8a96b0; font-size: 12px;">Giờ đến</th>
                 <th style="padding: 8px; color: #8a96b0; font-size: 12px;">Trạng thái</th>
               </tr>
             </thead>
@@ -392,7 +378,7 @@
                   th:text="${a.doctor != null ? a.doctor.fullName : 'Chưa phân công'}">Doctor</td>
                 <td style="padding: 8px; color: #cbd5e1; font-weight: 600;" th:text="${a.patient.fullName}">Patient Name
                 </td>
-                <td style="padding: 8px; color: #cbd5e1;" th:text="${a.timeSlot != null ? #temporals.format(a.timeSlot, 'HH:mm') : '--'}">--</td>
+                <td style="padding: 8px; color: #cbd5e1;" th:text="${a.timeSlot != null ? a.timeSlot : 'Chưa đến'}">Chưa đến</td>
                 <td style="padding: 8px;"><span class="risk-badge risk-HIGH"
                     style="font-size: 10px; padding: 2px 6px;">Đã hủy</span></td>
               </tr>

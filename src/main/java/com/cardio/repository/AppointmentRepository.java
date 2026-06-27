@@ -40,19 +40,4 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     boolean existsByDoctorAndStatus(DoctorProfile doctor, String status);
 
     boolean existsByDoctorAndScheduledDateAndStatusAndAppointmentIdNot(DoctorProfile doctor, java.time.LocalDate scheduledDate, String status, Integer appointmentId);
-
-    @Query("SELECT MAX(a.queueNumber) FROM Appointment a WHERE a.doctor = :doctor AND a.scheduledDate = :date")
-    Integer findMaxQueueNumberByDoctorAndScheduledDate(@Param("doctor") DoctorProfile doctor, @Param("date") java.time.LocalDate date);
-
-    List<Appointment> findByScheduledDate(java.time.LocalDate scheduledDate);
-
-    @Query("SELECT a FROM Appointment a LEFT JOIN FETCH a.patient LEFT JOIN FETCH a.doctor WHERE a.scheduledDate = :scheduledDate")
-    List<Appointment> findByScheduledDateFetchPatientAndDoctor(@Param("scheduledDate") java.time.LocalDate scheduledDate);
-
-    boolean existsByPatientAndDoctorAndScheduledDateAndStatusNot(PatientProfile patient, DoctorProfile doctor, java.time.LocalDate scheduledDate, String status);
-
-    @Query("SELECT COUNT(a) > 0 FROM Appointment a WHERE a.patient.patientId = :patientId AND a.doctor.doctorId = :doctorId AND a.status = :status")
-    boolean existsByPatientIdAndDoctorIdAndStatus(@Param("patientId") Integer patientId, @Param("doctorId") Integer doctorId, @Param("status") String status);
-
-    java.util.Optional<Appointment> findFirstByPatientPatientIdAndDoctorDoctorIdAndStatus(Integer patientId, Integer doctorId, String status);
 }

@@ -41,6 +41,8 @@ public class PatientController {
     public String dashboard(@AuthenticationPrincipal UserDetails userDetails, Model model) {
         PatientProfile patient = getCurrentPatient(userDetails);
         List<Appointment> appointments = appointmentRepository.findByPatientOrderByScheduledDateDescTimeSlotDesc(patient);
+        List<Appointment> allReference = appointmentRepository.findAll();
+        Appointment.populateQueueNumbers(appointments, allReference);
 
         List<AIRiskPrediction> predictions = aiRiskRepository.findByPatient(patient);
         
@@ -154,112 +156,41 @@ public class PatientController {
     public String bookAppointmentForm(@AuthenticationPrincipal UserDetails userDetails, Model model) {
         PatientProfile patient = getCurrentPatient(userDetails);
         List<DoctorProfile> doctors = doctorRepository.findAll();
-        
-        // Kiểm tra xem bệnh nhân có phải mới khám lần đầu (chưa có Consultation_Record)
-        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM Consultation_Record WHERE PatientID = ?", Integer.class, patient.getPatientId());
-        boolean isNewPatient = (count == null || count == 0);
 
         model.addAttribute("patient", patient);
         model.addAttribute("doctors", doctors);
-        model.addAttribute("isNewPatient", isNewPatient);
         return "patient/book-appointment";
-    }
-
-    @GetMapping("/available-slots")
-    @ResponseBody
-    public List<String> getAvailableSlots(@RequestParam(value = "doctorId", required = false) Integer doctorId,
-                                          @RequestParam("date") String dateStr,
-                                          @RequestParam(value = "isGPAuto", required = false, defaultValue = "false") boolean isGPAuto) {
-        LocalDate date = LocalDate.parse(dateStr);
-        List<LocalTime> CLINIC_SLOTS = List.of(
-            LocalTime.of(8, 0), LocalTime.of(9, 0), LocalTime.of(10, 0), LocalTime.of(11, 0),
-            LocalTime.of(13, 0), LocalTime.of(14, 0), LocalTime.of(15, 0), LocalTime.of(16, 0)
-        );
-
-        if (isGPAuto) {
-            // Lấy tất cả bác sĩ đa khoa
-            List<DoctorProfile> gpDoctors = doctorRepository.findAll().stream()
-                    .filter(d -> d.getSpecialty() != null && d.getSpecialty().toLowerCase().contains("đa khoa"))
-                    .toList();
-            
-            // Một khung giờ khả dụng nếu có ít nhất 1 bác sĩ đa khoa rảnh
-            return CLINIC_SLOTS.stream()
-                    .filter(slot -> gpDoctors.stream().anyMatch(doc -> 
-                        !appointmentRepository.existsByDoctorAndScheduledDateAndTimeSlotAndStatusNot(doc, date, slot, "Cancelled")
-                    ))
-                    .map(slot -> slot.toString())
-                    .toList();
-        } else if (doctorId != null) {
-            DoctorProfile doctor = doctorRepository.findById(doctorId).orElse(null);
-            if (doctor == null) return List.of();
-            
-            return CLINIC_SLOTS.stream()
-                    .filter(slot -> !appointmentRepository.existsByDoctorAndScheduledDateAndTimeSlotAndStatusNot(doctor, date, slot, "Cancelled"))
-                    .map(slot -> slot.toString())
-                    .toList();
-        }
-        return List.of();
     }
 
     @PostMapping("/book-appointment/save")
     public String saveAppointment(@AuthenticationPrincipal UserDetails userDetails,
-                                  @RequestParam(value = "doctorId", required = false) Integer doctorId,
+                                  @RequestParam("doctorId") Integer doctorId,
                                   @RequestParam("scheduledDate") String scheduledDateStr,
-                                  @RequestParam("timeSlot") String timeSlotStr,
                                   @RequestParam("preliminaryStatus") String preliminaryStatus,
-                                  @RequestParam(value = "autoGP", required = false, defaultValue = "false") boolean autoGP,
                                   RedirectAttributes ra) {
         PatientProfile patient = getCurrentPatient(userDetails);
         
         try {
+            DoctorProfile doctor = doctorRepository.findById(doctorId)
+                    .orElseThrow(() -> new RuntimeException("Doctor not found"));
+
             LocalDate scheduledDate = LocalDate.parse(scheduledDateStr);
-            LocalTime timeSlot = LocalTime.parse(timeSlotStr);
             
-            // Kiểm tra xem bệnh nhân có phải mới khám lần đầu
-            Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM Consultation_Record WHERE PatientID = ?", Integer.class, patient.getPatientId());
-            boolean isNewPatient = (count == null || count == 0);
-            
-            DoctorProfile doctor = null;
-            if (isNewPatient || autoGP || doctorId == null || doctorId == -1) {
-                // Tự động phân cho bác sĩ đa khoa
-                List<DoctorProfile> gpDoctors = doctorRepository.findAll().stream()
-                        .filter(d -> d.getSpecialty() != null && d.getSpecialty().toLowerCase().contains("đa khoa"))
-                        .toList();
-                
-                // Tìm bác sĩ đa khoa rảnh trong khung giờ đó
-                List<DoctorProfile> freeGPs = gpDoctors.stream()
-                        .filter(doc -> !appointmentRepository.existsByDoctorAndScheduledDateAndTimeSlotAndStatusNot(doc, scheduledDate, timeSlot, "Cancelled"))
-                        .toList();
-                
-                if (freeGPs.isEmpty()) {
-                    ra.addFlashAttribute("error", "Không có Bác sĩ Đa khoa nào trống lịch vào khung giờ này. Vui lòng chọn khung giờ khác.");
-                    return "redirect:/patient/book-appointment";
-                }
-                
-                // Chọn bác sĩ có ít lịch hẹn nhất trong ngày để cân bằng tải
-                doctor = freeGPs.get(0);
-                long minCount = appointmentRepository.countByDoctorAndScheduledDateAndStatusNot(doctor, scheduledDate, "Cancelled");
-                for (DoctorProfile gp : freeGPs) {
-                    long c = appointmentRepository.countByDoctorAndScheduledDateAndStatusNot(gp, scheduledDate, "Cancelled");
-                    if (c < minCount) {
-                        minCount = c;
-                        doctor = gp;
-                    }
-                }
-            } else {
-                doctor = doctorRepository.findById(doctorId)
-                        .orElseThrow(() -> new RuntimeException("Không tìm thấy bác sĩ"));
-                
-                // Xác thực xem bác sĩ được chọn có rảnh vào khung giờ đó không
-                boolean isBusy = appointmentRepository.existsByDoctorAndScheduledDateAndTimeSlotAndStatusNot(doctor, scheduledDate, timeSlot, "Cancelled");
-                if (isBusy) {
-                    ra.addFlashAttribute("error", "Bác sĩ đã có lịch hẹn khác vào khung giờ này. Vui lòng chọn khung giờ khác.");
-                    return "redirect:/patient/book-appointment";
-                }
+            // Auto-overflow logic: find next consecutive day where doctor has < 8 appointments
+            LocalDate targetDate = scheduledDate;
+            boolean wasShifted = false;
+            while (appointmentRepository.countByDoctorAndScheduledDateAndStatusNot(doctor, targetDate, "Cancelled") >= 8) {
+                targetDate = targetDate.plusDays(1);
+                wasShifted = true;
             }
 
-            // Kiểm tra xem bệnh nhân đã đăng ký khám với bác sĩ này vào ngày này chưa
-            boolean alreadyBooked = appointmentRepository.existsByPatientAndDoctorAndScheduledDateAndStatusNot(patient, doctor, scheduledDate, "Cancelled");
+            // Check if patient already has an active appointment with the same doctor on this final date
+            final LocalDate finalDate = targetDate;
+            boolean alreadyBooked = appointmentRepository.findAll().stream()
+                .anyMatch(a -> a.getPatient().getPatientId().equals(patient.getPatientId())
+                        && a.getDoctor() != null && a.getDoctor().getDoctorId().equals(doctor.getDoctorId())
+                        && a.getScheduledDate().equals(finalDate)
+                        && !"Cancelled".equalsIgnoreCase(a.getStatus()));
             if (alreadyBooked) {
                 ra.addFlashAttribute("error", "Bạn đã đăng ký lịch hẹn khám với bác sĩ " + doctor.getFullName() + " vào ngày này rồi.");
                 return "redirect:/patient/book-appointment";
@@ -268,32 +199,34 @@ public class PatientController {
             Appointment appointment = new Appointment();
             appointment.setPatient(patient);
             appointment.setDoctor(doctor);
-            appointment.setRoomNumber(doctor.getRoomNumber());
-            appointment.setScheduledDate(scheduledDate);
-            appointment.setTimeSlot(timeSlot);
-            appointment.setStartTime(null);
+            appointment.setScheduledDate(targetDate);
+            appointment.setTimeSlot(null); // No time slot until physical check-in
             appointment.setPreliminaryStatus(preliminaryStatus);
             appointment.setStatus("Pending");
 
-            if (appointment.getDoctor() != null && appointment.getScheduledDate() != null) {
-                Integer maxQueue = appointmentRepository.findMaxQueueNumberByDoctorAndScheduledDate(appointment.getDoctor(), appointment.getScheduledDate());
-                appointment.setQueueNumber(maxQueue == null ? 1 : maxQueue + 1);
-            }
-
             appointmentRepository.save(appointment);
 
-            // Lưu log hệ thống
+            // Save system log
             SystemLog sysLog = new SystemLog();
             sysLog.setUsername(patient.getUsername());
             sysLog.setAction("PATIENT_BOOK_APPOINTMENT");
-            sysLog.setDetails("Bệnh nhân đặt lịch khám (STT: " + appointment.getQueueNumber() + ") lúc " + timeSlot.toString() + " với bác sĩ: " + doctor.getFullName());
+            sysLog.setDetails("Bệnh nhân đặt lịch hẹn khám với bác sĩ: " + doctor.getFullName() + " vào ngày " + targetDate.toString());
             sysLog.setTimestamp(LocalDateTime.now());
             systemLogRepository.save(sysLog);
 
-            ra.addFlashAttribute("success", "Đặt lịch hẹn khám thành công lúc " + timeSlotStr + " ngày " + scheduledDateStr + "! Vui lòng chờ tiếp nhận.");
+            if (wasShifted) {
+                ra.addFlashAttribute("success", "Do bác sĩ đã đầy lịch khám vào ngày đã chọn (tối đa 8 ca/ngày), lịch hẹn của bạn đã được tự động chuyển sang ngày " + targetDate.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ". Vui lòng chờ tiếp nhận.");
+            } else {
+                ra.addFlashAttribute("success", "Đặt lịch hẹn khám thành công! Vui lòng chờ phòng khám tiếp nhận.");
+            }
         } catch (Exception e) {
             log.error("Error booking appointment: ", e);
-            ra.addFlashAttribute("error", "Lỗi đặt lịch hẹn: " + e.getMessage());
+            String message = e.getMessage();
+            if (message != null && (message.contains("unique_doctor_slot") || message.contains("unique_patient_slot") || message.contains("ConstraintViolation") || message.contains("duplicate key"))) {
+                ra.addFlashAttribute("error", "Lỗi đặt lịch hẹn: đã có lịch hẹn được đặt trước đó");
+            } else {
+                ra.addFlashAttribute("error", "Lỗi đặt lịch hẹn: " + e.getMessage());
+            }
         }
         return "redirect:/patient/dashboard";
     }

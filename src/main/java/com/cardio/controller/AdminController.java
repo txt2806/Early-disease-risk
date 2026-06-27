@@ -10,7 +10,6 @@ import com.cardio.repository.DoctorRepository;
 import com.cardio.repository.PatientRepository;
 import com.cardio.repository.SystemLogRepository;
 import com.cardio.repository.AIRiskRepository;
-import com.cardio.repository.ConsultationRepository;
 import com.cardio.repository.StaffRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -34,7 +33,6 @@ public class AdminController {
     private final PatientRepository patientRepository;
     private final SystemLogRepository systemLogRepository;
     private final AIRiskRepository aiRiskRepository;
-    private final ConsultationRepository consultationRepository;
     private final StaffRepository staffRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -123,6 +121,7 @@ public class AdminController {
             existing.setAlertThresholdBpm(user.getAlertThresholdBpm());
             existing.setAlertThresholdBp(user.getAlertThresholdBp());
             existing.setLicenseNumber(user.getLicenseNumber());
+            existing.setRoomNumber(user.getRoomNumber());
             
             if (newPassword != null && !newPassword.trim().isEmpty()) {
                 existing.setPasswordHash(passwordEncoder.encode(newPassword.trim()));

@@ -56,30 +56,18 @@
           style="background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.08); padding: 16px 20px;">
           <form th:action="@{/reception/dashboard}" method="get"
             style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
-            <input type="hidden" name="sortBy" th:value="${sortBy}">
             <div style="display: flex; align-items: center; gap: 8px;">
-              <label style="color: #8a96b0; font-size: 13px; font-weight: 600; white-space: nowrap;">📅 Ngày khám:</label>
+              <label style="color: #8a96b0; font-size: 13px; font-weight: 600; white-space: nowrap;">📅 Ngày
+                khám:</label>
               <input type="date" name="dateStr" th:value="${selectedDate}"
                 style="background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 12px; color: #e8edf5; outline: none; cursor: pointer; font-size: 13px;">
             </div>
             <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 250px;">
-              <label style="color: #8a96b0; font-size: 13px; font-weight: 600; white-space: nowrap;">🔍 Tìm kiếm:</label>
+              <label style="color: #8a96b0; font-size: 13px; font-weight: 600; white-space: nowrap;">🔍 Tìm
+                kiếm:</label>
               <input type="text" name="search" th:value="${search}"
                 placeholder="Nhập tên bệnh nhân hoặc số điện thoại..."
                 style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 12px; color: #e8edf5; outline: none; font-size: 13px;">
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <label style="color: #8a96b0; font-size: 13px; font-weight: 600; white-space: nowrap;">Trạng thái:</label>
-              <select name="statusFilter" onchange="this.form.submit()"
-                style="background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 12px; color: #e8edf5; outline: none; cursor: pointer; font-size: 13px;">
-                <option value="all" th:selected="${statusFilter == null || statusFilter == 'all'}">Tất cả</option>
-                <option value="Pending" th:selected="${statusFilter == 'Pending'}">Chờ duyệt</option>
-                <option value="Confirmed" th:selected="${statusFilter == 'Confirmed'}">Đã xác nhận</option>
-                <option value="CheckedIn" th:selected="${statusFilter == 'CheckedIn'}">Đã đến</option>
-                <option value="InProgress" th:selected="${statusFilter == 'InProgress'}">Đang khám</option>
-                <option value="Completed" th:selected="${statusFilter == 'Completed'}">Đã khám</option>
-                <option value="Cancelled" th:selected="${statusFilter == 'Cancelled'}">Đã hủy</option>
-              </select>
             </div>
             <div style="display: flex; gap: 8px;">
               <button type="submit" class="btn"
@@ -96,12 +84,7 @@
           <thead>
             <tr>
               <th>Bệnh nhân / SĐT</th>
-              <th>
-                <a th:href="@{/reception/dashboard(dateStr=${selectedDate}, search=${search}, statusFilter=${statusFilter}, sortBy=${sortBy == 'timeSlot' ? 'default' : 'timeSlot'})}"
-                   style="color: #cbd5e1; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
-                  Lịch hẹn <span th:text="${sortBy == 'timeSlot' ? '▲' : '▼'}" style="font-size:10px;"></span>
-                </a>
-              </th>
+              <th>Lịch hẹn</th>
               <th>Tình trạng sơ bộ (Khai báo)</th>
               <th>Bác sĩ được xếp</th>
               <th>Phòng khám</th>
@@ -128,9 +111,8 @@
               <td>
                 <div style="font-weight:600; color:#e8edf5;"
                   th:text="${#temporals.format(a.scheduledDate, 'dd/MM/yyyy')}">--</div>
-                <div style="font-size:11px; color:#8a96b0;" th:text="${a.timeSlot != null ? 'Đăng ký: ' + #temporals.format(a.timeSlot, 'HH:mm') : 'Đăng ký: --'}">--</div>
-                <div style="font-size:11px; color:#8a96b0;" th:text="${a.startTime != null ? 'Khám: ' + #temporals.format(a.startTime, 'HH:mm') : 'Khám: --'}">--</div>
-                <div th:if="${a.endTime != null}" style="font-size:11px; color:#a3b3cc;" th:text="${'Ra: ' + #temporals.format(a.endTime, 'HH:mm')}">--</div>
+                <div style="font-size:11px; color:#8a96b0;" th:text="${a.timeSlot != null ? 'Vào: ' + a.timeSlot : 'Chưa Check-In'}">--</div>
+                <div th:if="${a.endTime != null}" style="font-size:11px; color:#a3b3cc;" th:text="${'Ra: ' + a.endTime}">--</div>
               </td>
               <td>
                 <span
@@ -158,26 +140,15 @@
                   th:text="${a.status == 'Pending' ? 'Chờ duyệt' : (a.status == 'Confirmed' ? 'Đã xác nhận' : (a.status == 'CheckedIn' ? 'Đã đến' : (a.status == 'Completed' ? 'Đã khám' : 'Đã hủy')))}">Pending</span>
               </td>
               <td>
-                <div style="display:flex; gap:6px; align-items:center;" th:if="${a.status != 'Completed' and a.status != 'Cancelled'}">
-                  <!-- Nút xác nhận có đến khám nhanh -->
-                  <form th:if="${a.status == 'Pending' or a.status == 'Confirmed'}" th:action="@{/reception/appointments/{id}/checkin(id=${a.appointmentId})}" method="post" style="margin:0;">
-                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-                    <button type="submit" class="btn" style="padding: 6px 12px; font-size: 11px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
-                      ✓ Xác nhận đến
-                    </button>
-                  </form>
-                  
+                <div style="display:flex; flex-direction:column; gap:4px;">
                   <button class="btn"
-                    style="padding: 6px 12px; font-size: 11px; background: rgba(255, 255, 255, 0.05); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+                    style="padding: 6px 12px; font-size: 11px; background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
                     th:data-id="${a.appointmentId}" th:data-patient-name="${a.patient.fullName}"
                     th:data-doctor-id="${a.doctor != null ? a.doctor.doctorId : ''}"
                     th:data-room-number="${a.roomNumber != null ? a.roomNumber : ''}" th:data-date="${a.scheduledDate}"
                     th:data-time="${a.timeSlot}" th:data-end-time="${a.endTime}" th:data-status="${a.status}" onclick="openAssignModal(this)">
                     ⚙️ Xếp lịch & Phòng
                   </button>
-                </div>
-                <div th:if="${a.status == 'Completed' or a.status == 'Cancelled'}">
-                  <span style="color:#8a96b0; font-size:12px;">--</span>
                 </div>
               </td>
             </tr>
@@ -197,14 +168,14 @@
           <div style="display: flex; gap: 6px;">
             <!-- Previous Button -->
             <a th:if="${currentPage > 0}" 
-               th:href="@{/reception/dashboard(page=${currentPage - 1}, size=${pageSize}, dateStr=${selectedDate}, search=${search}, statusFilter=${statusFilter}, sortBy=${sortBy})}" 
+               th:href="@{/reception/dashboard(page=${currentPage - 1}, size=${pageSize}, dateStr=${selectedDate}, search=${search})}" 
                class="btn" style="padding: 6px 12px; font-size: 12px; background: rgba(255,255,255,0.05); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; margin: 0;">&laquo; Trước</a>
             <span th:if="${currentPage == 0}" 
                   class="btn disabled" style="padding: 6px 12px; font-size: 12px; background: rgba(255,255,255,0.01); color: #4a5568; border: 1px solid rgba(255,255,255,0.02); border-radius: 6px; cursor: default; margin: 0;">&laquo; Trước</span>
 
             <!-- Next Button -->
             <a th:if="${currentPage < totalPages - 1}" 
-               th:href="@{/reception/dashboard(page=${currentPage + 1}, size=${pageSize}, dateStr=${selectedDate}, search=${search}, statusFilter=${statusFilter}, sortBy=${sortBy})}" 
+               th:href="@{/reception/dashboard(page=${currentPage + 1}, size=${pageSize}, dateStr=${selectedDate}, search=${search})}" 
                class="btn" style="padding: 6px 12px; font-size: 12px; background: rgba(255,255,255,0.05); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; margin: 0;">Sau &raquo;</a>
             <span th:if="${currentPage == totalPages - 1}" 
                   class="btn disabled" style="padding: 6px 12px; font-size: 12px; background: rgba(255,255,255,0.01); color: #4a5568; border: 1px solid rgba(255,255,255,0.02); border-radius: 6px; cursor: default; margin: 0;">Sau &raquo;</span>
@@ -263,9 +234,9 @@
               style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 14px; outline: none;">
           </div>
 
-          <!-- Giờ đăng ký khám -->
+          <!-- Giờ đến (Check-In) -->
           <div class="form-group">
-            <label>Giờ đăng ký khám</label>
+            <label>Giờ đến (vào)</label>
             <input type="time" name="timeSlot" id="modalTimeSlot"
               style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 14px; outline: none;">
           </div>

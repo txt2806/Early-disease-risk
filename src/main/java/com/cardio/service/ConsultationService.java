@@ -2,6 +2,11 @@ package com.cardio.service;
 
 import com.cardio.model.*;
 import com.cardio.repository.*;
+import com.cardio.repository.IcdCatalogRepository;
+import com.cardio.repository.RecordIcdRepository;
+import com.cardio.model.IcdCatalog;
+import com.cardio.model.RecordIcd;
+import com.cardio.model.RecordIcdKey;
 import com.cardio.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,12 +25,9 @@ public class ConsultationService {
     private final ConsultationRepository consultationRepository;
     private final AIRiskRepository aiRiskRepository;
     private final AIService aiService;
-    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     private final HeartClinicalMetricsRepository heartClinicalMetricsRepository;
-
-    public List<ConsultationRecord> getByDoctor(DoctorProfile doctor) {
-        return consultationRepository.findByDoctorOrderByVisitDateDesc(doctor);
-    }
+    private final IcdCatalogRepository icdCatalogRepository;
+    private final RecordIcdRepository recordIcdRepository;
 
     public List<ConsultationRecord> getByPatient(PatientProfile patient) {
         return consultationRepository.findByPatientOrderByVisitDateDesc(patient);
@@ -42,7 +44,7 @@ public class ConsultationService {
         // 1. Lưu hồ sơ khám
         ConsultationRecord record = new ConsultationRecord();
         record.setPatient(patient);
-        record.setDoctor(doctor);
+        record.setDoctor(doctor != null && doctor.getDoctorId() != null ? doctor : null);
         record.setVisitDate(LocalDateTime.now());
         record.setConsultationNotes(notes);
         record.setTreatmentPlan(treatmentPlan);
@@ -65,7 +67,7 @@ public class ConsultationService {
         try {
             boolean fastSugar = "1".equals(aiRequest.getFbs()) || "true".equalsIgnoreCase(aiRequest.getFbs());
             boolean exAng = "1".equals(aiRequest.getExang()) || "true".equalsIgnoreCase(aiRequest.getExang());
-            
+
             Integer cpValue = null;
             if (aiRequest.getCp() != null) {
                 switch (aiRequest.getCp()) {
@@ -94,14 +96,14 @@ public class ConsultationService {
             metrics.setMaxHeartRate(aiRequest.getThalch() != null ? aiRequest.getThalch().intValue() : null);
             metrics.setExerciseAngina(exAng);
             metrics.setRecordedAt(LocalDateTime.now());
-            
+
             metrics.setOldpeak(aiRequest.getOldpeak());
             metrics.setSlope(aiRequest.getSlope());
             metrics.setCa(aiRequest.getCa() != null ? aiRequest.getCa().intValue() : null);
             metrics.setThal(aiRequest.getThal());
             metrics.setAge(aiRequest.getAge() != null ? aiRequest.getAge().intValue() : null);
             metrics.setSex(aiRequest.getSex());
-            
+
             heartClinicalMetricsRepository.save(metrics);
         } catch (Exception e) {
             log.warn("Failed to save Heart_Clinical_Metrics: " + e.getMessage());
@@ -124,7 +126,7 @@ public class ConsultationService {
         // 1. Lưu hồ sơ khám
         ConsultationRecord record = new ConsultationRecord();
         record.setPatient(patient);
-        record.setDoctor(doctor);
+        record.setDoctor(doctor != null && doctor.getDoctorId() != null ? doctor : null);
         record.setVisitDate(LocalDateTime.now());
         record.setConsultationNotes(doctorNotes);
         record.setTreatmentPlan(treatmentPlan);
@@ -144,7 +146,7 @@ public class ConsultationService {
         try {
             boolean fastSugar = "1".equals(aiRequest.getFbs()) || "true".equalsIgnoreCase(aiRequest.getFbs());
             boolean exAng = "1".equals(aiRequest.getExang()) || "true".equalsIgnoreCase(aiRequest.getExang());
-            
+
             Integer cpValue = null;
             if (aiRequest.getCp() != null) {
                 switch (aiRequest.getCp()) {
@@ -173,14 +175,14 @@ public class ConsultationService {
             metrics.setMaxHeartRate(aiRequest.getThalch() != null ? aiRequest.getThalch().intValue() : null);
             metrics.setExerciseAngina(exAng);
             metrics.setRecordedAt(LocalDateTime.now());
-            
+
             metrics.setOldpeak(aiRequest.getOldpeak());
             metrics.setSlope(aiRequest.getSlope());
             metrics.setCa(aiRequest.getCa() != null ? aiRequest.getCa().intValue() : null);
             metrics.setThal(aiRequest.getThal());
             metrics.setAge(aiRequest.getAge() != null ? aiRequest.getAge().intValue() : null);
             metrics.setSex(aiRequest.getSex());
-            
+
             heartClinicalMetricsRepository.save(metrics);
         } catch (Exception e) {
             log.warn("Failed to save Heart_Clinical_Metrics: " + e.getMessage());
@@ -195,5 +197,82 @@ public class ConsultationService {
 
     public List<AIRiskPrediction> getUnhandledHighAlerts() {
         return aiRiskRepository.findUnhandledHighAlerts();
+    }
+
+    // ── UC03: Cập nhật trạng thái cảnh báo ───────────────
+    @Transactional
+    public void updateAlertStatus(Integer predictionId, String action, String reason) {
+        aiRiskRepository.findById(predictionId).ifPresent(prediction -> {
+            prediction.setIsAlertSent(true);
+            if (reason != null && !reason.isBlank()) {
+                String note = "[" + action.toUpperCase() + "] " + reason;
+                prediction.setHealthAdvice(note);
+            }
+            aiRiskRepository.save(prediction);
+        });
+    }
+
+    // ── UC04: Cập nhật ngưỡng cảnh báo bác sĩ ────────────
+    @Transactional
+    public void updateDoctorThresholds(DoctorProfile doctor) {
+        // Lưu ngưỡng mới vào DB
+        // DoctorProfile đã có DoctorID nên save() sẽ UPDATE
+    }
+
+    // ── UC02: Lấy record theo ID ─────────────────────────────────
+    public java.util.Optional<ConsultationRecord> getRecordById(Integer recordId) {
+        return consultationRepository.findById(recordId);
+    }
+
+    // ── UC02: Cập nhật hồ sơ khám (BR03 - audit log ở controller) ─
+    @Transactional
+    public ConsultationRecord updateRecord(Integer recordId,
+            String newNotes,
+            String newTreatmentPlan) {
+        // BR04: Không xóa dữ liệu cũ - chỉ UPDATE, không DELETE
+        ConsultationRecord record = consultationRepository.findById(recordId)
+                .orElseThrow(() -> new RuntimeException("Record not found: " + recordId));
+        record.setConsultationNotes(newNotes);
+        record.setTreatmentPlan(newTreatmentPlan);
+        return consultationRepository.save(record);
+    }
+
+    // ── UC02: Thêm chẩn đoán ICD-10 (BR06 - mỗi lần khám ≥1 ICD) ──
+    @Transactional
+    public RecordIcd addDiagnosis(Integer recordId, String icdCode, String notes) {
+        ConsultationRecord record = consultationRepository.findById(recordId)
+                .orElseThrow(() -> new RuntimeException("Record not found: " + recordId));
+        IcdCatalog icd = icdCatalogRepository.findById(icdCode)
+                .orElseThrow(() -> new RuntimeException("ICD code not found: " + icdCode));
+
+        // BR07: Nếu đã có ICD này thì không thêm trùng
+        RecordIcdKey key = new RecordIcdKey();
+        key.setRecordId(recordId);
+        key.setIcdCode(icdCode);
+        if (recordIcdRepository.existsById(key)) {
+            throw new RuntimeException("Chẩn đoán ICD " + icdCode + " đã tồn tại trong hồ sơ này!");
+        }
+
+        RecordIcd recordIcd = new RecordIcd();
+        recordIcd.setId(key);
+        recordIcd.setRecord(record);
+        recordIcd.setIcdCatalog(icd);
+        recordIcd.setNotes(notes);
+        return recordIcdRepository.save(recordIcd);
+    }
+
+    // ── ICD: Lấy danh sách chẩn đoán của một lần khám ──────────────
+    public List<RecordIcd> getDiagnosesByRecord(Integer recordId) {
+        return recordIcdRepository.findByRecordRecordId(recordId);
+    }
+
+    // ── ICD: Search autocomplete ─────────────────────────────────────
+    public List<IcdCatalog> searchIcd(String keyword) {
+        return icdCatalogRepository.searchByKeyword(keyword);
+    }
+
+    // ── ICD: Lấy thông tin một ICD ──────────────────────────────────
+    public java.util.Optional<IcdCatalog> findIcd(String code) {
+        return icdCatalogRepository.findById(code);
     }
 }

@@ -213,21 +213,11 @@
 
             <div style="display:flex; gap:10px; align-items:center;">
               <label style="color:#8a96b0; font-size:13px; font-weight:600;">Tra theo tên Bác sĩ:</label>
-              <select name="doctorId"
+              <select name="doctorId" onchange="this.form.submit()"
                 style="background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 12px; color: #e8edf5; outline:none; cursor:pointer; font-size:13px;">
                 <option value="">-- Tất cả bác sĩ --</option>
                 <option th:each="d : ${doctors}" th:value="${d.doctorId}" th:text="${d.fullName}"
                   th:selected="${d.doctorId == selectedDoctorId}"></option>
-              </select>
-            </div>
-
-            <div style="display:flex; gap:10px; align-items:center;">
-              <label style="color:#8a96b0; font-size:13px; font-weight:600;">Trạng thái:</label>
-              <select name="filterStatus"
-                style="background: #1a2440; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; padding: 8px 12px; color: #e8edf5; outline:none; cursor:pointer; font-size:13px;">
-                <option value="all" th:selected="${filterStatus == null || filterStatus == 'all'}">Tất cả</option>
-                <option value="waiting" th:selected="${filterStatus == 'waiting'}">Chưa hoàn thành</option>
-                <option value="completed" th:selected="${filterStatus == 'completed'}">Hoàn thành</option>
               </select>
             </div>
 
@@ -261,8 +251,7 @@
           <thead>
             <tr>
               <th style="width: 80px; text-align: center;">STT</th>
-              <th style="width: 150px; text-align: center;">Giờ đăng ký khám</th>
-              <th style="width: 120px; text-align: center;">Giờ vào khám</th>
+              <th style="width: 120px; text-align: center;">Giờ vào</th>
               <th style="width: 120px; text-align: center;">Giờ ra</th>
               <th>Bệnh nhân</th>
               <th>Triệu chứng (Khai báo)</th>
@@ -281,9 +270,6 @@
               </td>
               <td style="vertical-align: middle; text-align: center;">
                 <span th:text="${a.timeSlot != null ? #temporals.format(a.timeSlot, 'HH:mm') : '--'}" style="font-weight: 600; color: #e8edf5;">--</span>
-              </td>
-              <td style="vertical-align: middle; text-align: center;">
-                <span th:text="${a.startTime != null ? #temporals.format(a.startTime, 'HH:mm') : '--'}" style="font-weight: 600; color: #e8edf5;">--</span>
               </td>
               <td style="vertical-align: middle; text-align: center;">
                 <span th:text="${a.endTime != null ? #temporals.format(a.endTime, 'HH:mm') : '--'}" style="font-weight: 600; color: #8a96b0;">--</span>
@@ -306,7 +292,7 @@
                       th:text="${a.status == 'Pending' ? 'Chờ duyệt' : (a.status == 'Confirmed' ? 'Đã duyệt' : (a.status == 'CheckedIn' ? 'Đã đến' : (a.status == 'InProgress' ? 'Đang khám' : (a.status == 'Completed' ? 'Hoàn thành' : 'Đã hủy'))))}">Pending</span>
               </td>
               <td style="vertical-align: middle; text-align: center;">
-                <button th:if="${a.status != 'Completed' and a.status != 'Cancelled'}" class="btn" th:data-id="${a.appointmentId}"
+                <button class="btn" th:data-id="${a.appointmentId}"
                   th:data-patient-name="${a.patient.fullName}" th:data-doctor-id="${a.doctor != null ? a.doctor.doctorId : ''}"
                   th:data-room-number="${a.roomNumber != null ? a.roomNumber : ''}" th:data-date="${a.scheduledDate}"
                   th:data-time="${a.timeSlot != null ? #temporals.format(a.timeSlot, 'HH:mm') : ''}" 
@@ -315,7 +301,6 @@
                   style="text-align: center; background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); padding: 6px 12px; border-radius: 6px; font-weight: 600; display: inline-block; margin: 0; font-size: 11px; cursor: pointer; text-decoration: none; outline: none;">
                   ⚙️ Điều phối
                 </button>
-                <span th:if="${a.status == 'Completed' or a.status == 'Cancelled'}" style="color:#8a96b0; font-size:12px;">--</span>
               </td>
             </tr>
             <!-- If no appointments for this doctor -->
@@ -354,8 +339,6 @@
         <input type="hidden" name="appointmentId" id="modalAppointmentId">
         <input type="hidden" name="redirectSource" value="schedule">
         <input type="hidden" name="redirectDate" id="modalRedirectDate">
-        <input type="hidden" name="redirectDoctorId" id="modalRedirectDoctorId">
-        <input type="hidden" name="redirectFilterStatus" id="modalRedirectFilterStatus">
         <input type="hidden" name="scheduledDate" id="modalDate">
 
         <div style="margin-bottom: 14px;">
@@ -366,9 +349,8 @@
         <!-- Phân bác sĩ -->
         <div class="form-group" style="margin-bottom: 14px;">
           <label>Bác sĩ điều phối</label>
-          <select name="doctorId" id="modalDoctorId"
+          <select name="doctorId" id="modalDoctorId" required
             style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 14px; outline: none;">
-            <option value="">-- Chưa phân công --</option>
             <option th:each="doc : ${doctors}" th:value="${doc.doctorId}" th:data-room="${doc.roomNumber}"
               th:text="${doc.fullName + ' - Tim mạch'}"></option>
           </select>
@@ -383,9 +365,9 @@
 
         <!-- Giờ đến & Giờ khám xong -->
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom: 14px;">
-          <!-- Giờ đăng ký khám -->
+          <!-- Giờ đến (Check-In) -->
           <div class="form-group">
-            <label>Giờ đăng ký khám</label>
+            <label>Giờ đến (vào)</label>
             <input type="time" name="timeSlot" id="modalTimeSlot"
               style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 14px; outline: none;">
           </div>
@@ -426,39 +408,29 @@
 
   <script>
     function openAssignModal(btn) {
-      try {
-        const id = btn.getAttribute("data-id");
-        const name = btn.getAttribute("data-patient-name");
-        const doctorId = btn.getAttribute("data-doctor-id");
-        const room = btn.getAttribute("data-room-number");
-        const date = btn.getAttribute("data-date");
-        const time = btn.getAttribute("data-time");
-        const endTime = btn.getAttribute("data-end-time");
-        const status = btn.getAttribute("data-status");
+      const id = btn.getAttribute("data-id");
+      const name = btn.getAttribute("data-patient-name");
+      const doctorId = btn.getAttribute("data-doctor-id");
+      const room = btn.getAttribute("data-room-number");
+      const date = btn.getAttribute("data-date");
+      const time = btn.getAttribute("data-time");
+      const endTime = btn.getAttribute("data-end-time");
+      const status = btn.getAttribute("data-status");
 
-        document.getElementById("modalAppointmentId").value = id || "";
-        document.getElementById("modalPatientName").textContent = name || "";
-        document.getElementById("modalDoctorId").value = doctorId || "";
-        document.getElementById("modalRoomNumber").value = room || "";
-        document.getElementById("modalDate").value = date || "";
-        
-        const dateStrInput = document.querySelector('input[name="dateStr"]');
-        document.getElementById("modalRedirectDate").value = dateStrInput ? dateStrInput.value : "";
+      document.getElementById("modalAppointmentId").value = id || "";
+      document.getElementById("modalPatientName").textContent = name || "";
+      document.getElementById("modalDoctorId").value = doctorId || "";
+      document.getElementById("modalRoomNumber").value = room || "";
+      document.getElementById("modalDate").value = date || "";
+      
+      const dateStrInput = document.querySelector('input[name="dateStr"]');
+      document.getElementById("modalRedirectDate").value = dateStrInput ? dateStrInput.value : "";
 
-        const doctorIdSelect = document.querySelector('select[name="doctorId"]');
-        document.getElementById("modalRedirectDoctorId").value = doctorIdSelect ? doctorIdSelect.value : "";
+      document.getElementById("modalTimeSlot").value = time || "";
+      document.getElementById("modalEndTime").value = endTime || "";
+      document.getElementById("modalStatus").value = status || "Pending";
 
-        const filterStatusSelect = document.querySelector('select[name="filterStatus"]');
-        document.getElementById("modalRedirectFilterStatus").value = filterStatusSelect ? filterStatusSelect.value : "";
-
-        document.getElementById("modalTimeSlot").value = time || "";
-        document.getElementById("modalEndTime").value = endTime || "";
-        document.getElementById("modalStatus").value = status || "Pending";
-
-        document.getElementById("assignModal").style.display = "flex";
-      } catch (err) {
-        console.error("Error opening coordination modal:", err);
-      }
+      document.getElementById("assignModal").style.display = "flex";
     }
 
     document.addEventListener("DOMContentLoaded", function () {
@@ -466,7 +438,7 @@
       if (docSelect) {
         docSelect.addEventListener("change", function () {
           const selectedOption = this.options[this.selectedIndex];
-          const room = (selectedOption && selectedOption.getAttribute("data-room")) || "";
+          const room = selectedOption.getAttribute("data-room") || "";
           document.getElementById("modalRoomNumber").value = room;
         });
       }
@@ -475,6 +447,8 @@
     function closeAssignModal() {
       document.getElementById("assignModal").style.display = "none";
     }
+
+
 
     // Close when clicking outside content
     window.onclick = function (event) {

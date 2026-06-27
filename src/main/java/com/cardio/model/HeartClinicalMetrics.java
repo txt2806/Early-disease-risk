@@ -18,6 +18,9 @@ public class HeartClinicalMetrics {
     @JoinColumn(name = "RecordID")
     private ConsultationRecord record;
 
+    @Column(name = "RecordedBy_StaffID")
+    private Integer recordedByStaffID;
+
     @Column(name = "ChestPainType")
     private Integer chestPainType;
 
@@ -60,4 +63,28 @@ public class HeartClinicalMetrics {
 
     @Column(name = "RecordedAt")
     private LocalDateTime recordedAt;
+
+    @Column(name = "Temperature")
+    private Double temperature;
+
+    @Column(name = "SpO2")
+    private Integer spO2;
+
+    @Column(name = "BloodTest", columnDefinition = "TEXT")
+    private String bloodTest;
+
+    @Column(name = "UrineTest", columnDefinition = "TEXT")
+    private String urineTest;
+
+    @Column(name = "Xray", columnDefinition = "TEXT")
+    private String xray;
+
+    @Column(name = "MRI", columnDefinition = "TEXT")
+    private String mri;
+
+    @Column(name = "CT", columnDefinition = "TEXT")
+    private String ct;
+
+    @Column(name = "Ultrasound", columnDefinition = "TEXT")
+    private String ultrasound;
 }
