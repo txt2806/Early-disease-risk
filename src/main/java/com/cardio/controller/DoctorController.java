@@ -14,6 +14,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -310,6 +311,25 @@ public class DoctorController {
             @RequestParam String consultationNotes,
             @RequestParam(required = false) String treatmentPlan,
             @RequestParam Integer patientId,
+            @RequestParam(required = false) Integer restingBP,
+            @RequestParam(required = false) Integer maxHeartRate,
+            @RequestParam(required = false) Double temperature,
+            @RequestParam(required = false) Integer spO2,
+            @RequestParam(value = "bloodTestFile", required = false) MultipartFile bloodTestFile,
+            @RequestParam(value = "urineTestFile", required = false) MultipartFile urineTestFile,
+            @RequestParam(value = "xrayFile", required = false) MultipartFile xrayFile,
+            @RequestParam(value = "ultrasoundFile", required = false) MultipartFile ultrasoundFile,
+            @RequestParam(value = "mriFile", required = false) MultipartFile mriFile,
+            @RequestParam(value = "ctFile", required = false) MultipartFile ctFile,
+            @RequestParam(required = false) Integer chestPainType,
+            @RequestParam(required = false) Integer cholesterol,
+            @RequestParam(required = false) Boolean fastingBloodSugar,
+            @RequestParam(required = false) Integer restingECG,
+            @RequestParam(required = false) Boolean exerciseAngina,
+            @RequestParam(required = false) Double oldpeak,
+            @RequestParam(required = false) String slope,
+            @RequestParam(required = false) Integer ca,
+            @RequestParam(required = false) String thal,
             @AuthenticationPrincipal UserDetails userDetails,
             RedirectAttributes ra) {
         DoctorProfile doctor = getCurrentDoctor(userDetails);
@@ -322,8 +342,19 @@ public class DoctorController {
         String oldNotes = oldRecord.map(r -> r.getConsultationNotes()).orElse("");
         String oldPlan = oldRecord.map(r -> r.getTreatmentPlan()).orElse("");
 
+        // Save files if uploaded
+        String bloodPath = saveUploadedFile(bloodTestFile, "blood");
+        String urinePath = saveUploadedFile(urineTestFile, "urine");
+        String xrayPath = saveUploadedFile(xrayFile, "xray");
+        String ultrasoundPath = saveUploadedFile(ultrasoundFile, "ultrasound");
+        String mriPath = saveUploadedFile(mriFile, "mri");
+        String ctPath = saveUploadedFile(ctFile, "ct");
+
         // Cập nhật
-        consultationService.updateRecord(recordId, consultationNotes, treatmentPlan);
+        consultationService.updateRecord(recordId, consultationNotes, treatmentPlan,
+                restingBP, maxHeartRate, temperature, spO2, 
+                bloodPath, urinePath, xrayPath, ultrasoundPath, mriPath, ctPath,
+                chestPainType, cholesterol, fastingBloodSugar, restingECG, exerciseAngina, oldpeak, slope, ca, thal);
 
         // BR03: Ghi audit log
         auditLogService.logRecordUpdate(
@@ -899,6 +930,15 @@ public class DoctorController {
     @PostMapping("/patients/{id}/vitals/save")
     public String saveVitals(@PathVariable Integer id,
             @ModelAttribute HeartClinicalMetrics vitals,
+            @RequestParam(required = false) String consultationNotes,
+            @RequestParam(required = false) String treatmentPlan,
+            @RequestParam(required = false) String status,
+            @RequestParam(value = "bloodTestFile", required = false) MultipartFile bloodTestFile,
+            @RequestParam(value = "urineTestFile", required = false) MultipartFile urineTestFile,
+            @RequestParam(value = "xrayFile", required = false) MultipartFile xrayFile,
+            @RequestParam(value = "ultrasoundFile", required = false) MultipartFile ultrasoundFile,
+            @RequestParam(value = "mriFile", required = false) MultipartFile mriFile,
+            @RequestParam(value = "ctFile", required = false) MultipartFile ctFile,
             @AuthenticationPrincipal UserDetails userDetails,
             RedirectAttributes ra) {
         DoctorProfile doctor = getCurrentDoctor(userDetails);
@@ -912,26 +952,56 @@ public class DoctorController {
         PatientProfile patient = patientService.findById(id)
                 .orElseThrow(() -> new RuntimeException("Patient not found"));
 
+        // Save uploaded files
+        if (bloodTestFile != null && !bloodTestFile.isEmpty()) {
+            vitals.setBloodTest(saveUploadedFile(bloodTestFile, "blood"));
+        }
+        if (urineTestFile != null && !urineTestFile.isEmpty()) {
+            vitals.setUrineTest(saveUploadedFile(urineTestFile, "urine"));
+        }
+        if (xrayFile != null && !xrayFile.isEmpty()) {
+            vitals.setXray(saveUploadedFile(xrayFile, "xray"));
+        }
+        if (ultrasoundFile != null && !ultrasoundFile.isEmpty()) {
+            vitals.setUltrasound(saveUploadedFile(ultrasoundFile, "ultrasound"));
+        }
+        if (mriFile != null && !mriFile.isEmpty()) {
+            vitals.setMri(saveUploadedFile(mriFile, "mri"));
+        }
+        if (ctFile != null && !ctFile.isEmpty()) {
+            vitals.setCt(saveUploadedFile(ctFile, "ct"));
+        }
+
         // 1. Lưu hồ sơ khám (ConsultationRecord)
         ConsultationRecord record = new ConsultationRecord();
         record.setPatient(patient);
-        record.setDoctor(null);
+        if (doctor != null && doctor.getDoctorId() != null) {
+            record.setDoctor(doctor);
+        } else {
+            record.setDoctor(null);
+        }
         record.setVisitDate(LocalDateTime.now());
-        record.setConsultationNotes(
-                "Nhập chỉ số sinh tồn & xét nghiệm bởi " + (staff != null ? staff.getFullName() : "Nhân viên y tế"));
-        record.setTreatmentPlan("Chờ khám chuyên khoa.");
-        record.setStatus("Completed");
+        record.setConsultationNotes(consultationNotes != null && !consultationNotes.trim().isEmpty() ? consultationNotes : 
+                ("Nhập chỉ số sinh tồn & xét nghiệm bởi " + (staff != null ? staff.getFullName() : (doctor != null ? doctor.getFullName() : "Nhân viên y tế"))));
+        record.setTreatmentPlan(treatmentPlan != null && !treatmentPlan.trim().isEmpty() ? treatmentPlan : "Chờ khám chuyên khoa.");
+        record.setStatus(status != null && !status.trim().isEmpty() ? status : "Completed");
         consultationRepository.save(record);
 
         // 2. Thiết lập liên kết và lưu chỉ số (HeartClinicalMetrics)
         vitals.setRecord(record);
+        if (patient.getDob() != null) {
+            vitals.setAge(java.time.Period.between(patient.getDob(), java.time.LocalDate.now()).getYears());
+        }
+        if (patient.getGender() != null) {
+            vitals.setSex("Nam".equalsIgnoreCase(patient.getGender()) || "Male".equalsIgnoreCase(patient.getGender()) ? "Male" : "Female");
+        }
         if (staff != null) {
             vitals.setRecordedByStaffID(staff.getStaffId());
         }
         vitals.setRecordedAt(LocalDateTime.now());
         heartClinicalMetricsRepository.save(vitals);
 
-        ra.addFlashAttribute("success", "Đã ghi nhận chỉ số sinh tồn và kết quả xét nghiệm!");
+        ra.addFlashAttribute("success", "Đã ghi nhận bệnh án và các chỉ số sức khỏe của bệnh nhân!");
         return "redirect:/doctor/patients/" + id;
     }
 
@@ -948,8 +1018,12 @@ public class DoctorController {
 
     // ── CẤU HÌNH NGƯỠNG CẢNH BÁO ──────────────────────────
     @GetMapping("/thresholds")
-    public String thresholds(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+    public String thresholds(@AuthenticationPrincipal UserDetails userDetails, Model model, RedirectAttributes ra) {
         DoctorProfile doctor = getCurrentDoctor(userDetails);
+        if (doctor.getDoctorId() == null) {
+            ra.addFlashAttribute("error", "Chỉ bác sĩ mới có quyền cấu hình ngưỡng cảnh báo!");
+            return "redirect:/doctor/dashboard";
+        }
         model.addAttribute("doctor", doctor);
         return "doctor/thresholds";
     }
@@ -959,13 +1033,17 @@ public class DoctorController {
             @RequestParam Integer alertThresholdBpm,
             @RequestParam String alertThresholdBp,
             RedirectAttributes ra) {
+        DoctorProfile doctor = getCurrentDoctor(userDetails);
+        if (doctor.getDoctorId() == null) {
+            ra.addFlashAttribute("error", "Chỉ bác sĩ mới có quyền cấu hình ngưỡng cảnh báo!");
+            return "redirect:/doctor/dashboard";
+        }
         // BR12: Validate giới hạn lâm sàng
         if (alertThresholdBpm < 60 || alertThresholdBpm > 250) {
             ra.addFlashAttribute("error", "Ngưỡng nhịp tim phải từ 60–250 bpm!");
             return "redirect:/doctor/thresholds";
         }
         // BR13: Lưu audit log + cập nhật ngưỡng
-        DoctorProfile doctor = getCurrentDoctor(userDetails);
         doctor.setAlertThresholdBpm(alertThresholdBpm);
         doctor.setAlertThresholdBp(alertThresholdBp);
         doctorRepository.save(doctor);
@@ -988,10 +1066,6 @@ public class DoctorController {
                 return "redirect:/doctor/appointments";
             }
             if (appointmentRepository.existsByDoctorAndScheduledDateAndStatusAndAppointmentIdNot(doctor, app.getScheduledDate(), "InProgress", id)) {
-                ra.addFlashAttribute("error", "Bạn đang có một ca khám chưa hoàn thành. Vui lòng hoàn thành ca khám hiện tại trước khi bắt đầu tiếp nhận bệnh nhân tiếp theo!");
-                return "redirect:/doctor/appointments";
-            }
-        } else if (app.getDoctor() != null) {
             if (appointmentRepository.existsByDoctorAndScheduledDateAndStatusAndAppointmentIdNot(app.getDoctor(), app.getScheduledDate(), "InProgress", id)) {
                 ra.addFlashAttribute("error", "Bác sĩ đang có một ca khám chưa hoàn thành. Vui lòng hoàn thành ca khám hiện tại trước khi bắt đầu tiếp nhận bệnh nhân tiếp theo!");
                 return "redirect:/doctor/appointments";
@@ -1076,5 +1150,34 @@ public class DoctorController {
             }
             return 0;
         }).collect(java.util.stream.Collectors.toList());
+    }
+
+    private String saveUploadedFile(MultipartFile file, String subDir) {
+        if (file == null || file.isEmpty()) {
+            return null;
+        }
+        try {
+            String projectPath = new java.io.File(".").getAbsolutePath();
+            if (projectPath.endsWith(".")) {
+                projectPath = projectPath.substring(0, projectPath.length() - 1);
+            }
+            projectPath = projectPath.replace("\\", "/");
+            if (!projectPath.endsWith("/")) {
+                projectPath += "/";
+            }
+            String uploadPathStr = projectPath + "uploads/" + subDir;
+            java.io.File uploadDir = new java.io.File(uploadPathStr);
+            if (!uploadDir.exists()) {
+                uploadDir.mkdirs();
+            }
+            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename().replace(" ", "_");
+            java.nio.file.Path filePath = java.nio.file.Paths.get(uploadPathStr, fileName);
+            java.nio.file.Files.copy(file.getInputStream(), filePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            return "/uploads/" + subDir + "/" + fileName;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+>>>>>>> PhucQuynh_medicalstaff,-receptionist
     }
 }

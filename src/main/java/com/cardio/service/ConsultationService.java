@@ -227,13 +227,81 @@ public class ConsultationService {
     // ── UC02: Cập nhật hồ sơ khám (BR03 - audit log ở controller) ─
     @Transactional
     public ConsultationRecord updateRecord(Integer recordId,
-            String newNotes,
-            String newTreatmentPlan) {
+                                           String newNotes,
+                                           String newTreatmentPlan,
+                                           Integer restingBP,
+                                           Integer maxHeartRate,
+                                           Double temperature,
+                                           Integer spO2,
+                                           String bloodTest,
+                                           String urineTest,
+                                           String xray,
+                                           String ultrasound,
+                                           String mri,
+                                           String ct,
+                                           Integer chestPainType,
+                                           Integer cholesterol,
+                                           Boolean fastingBloodSugar,
+                                           Integer restingECG,
+                                           Boolean exerciseAngina,
+                                           Double oldpeak,
+                                           String slope,
+                                           Integer ca,
+                                           String thal) {
         // BR04: Không xóa dữ liệu cũ - chỉ UPDATE, không DELETE
         ConsultationRecord record = consultationRepository.findById(recordId)
                 .orElseThrow(() -> new RuntimeException("Record not found: " + recordId));
         record.setConsultationNotes(newNotes);
         record.setTreatmentPlan(newTreatmentPlan);
+
+        HeartClinicalMetrics metrics = record.getClinicalMetrics();
+        if (metrics == null) {
+            metrics = new HeartClinicalMetrics();
+            metrics.setRecord(record);
+            metrics.setRecordedAt(LocalDateTime.now());
+        }
+
+        if (metrics.getAge() == null && record.getPatient().getDob() != null) {
+            metrics.setAge(java.time.Period.between(record.getPatient().getDob(), java.time.LocalDate.now()).getYears());
+        }
+        if (metrics.getSex() == null && record.getPatient().getGender() != null) {
+            metrics.setSex("Nam".equalsIgnoreCase(record.getPatient().getGender()) || "Male".equalsIgnoreCase(record.getPatient().getGender()) ? "Male" : "Female");
+        }
+
+        metrics.setRestingBP(restingBP);
+        metrics.setMaxHeartRate(maxHeartRate);
+        metrics.setTemperature(temperature);
+        metrics.setSpO2(spO2);
+        if (bloodTest != null && !bloodTest.isEmpty()) {
+            metrics.setBloodTest(bloodTest);
+        }
+        if (urineTest != null && !urineTest.isEmpty()) {
+            metrics.setUrineTest(urineTest);
+        }
+        if (xray != null && !xray.isEmpty()) {
+            metrics.setXray(xray);
+        }
+        if (ultrasound != null && !ultrasound.isEmpty()) {
+            metrics.setUltrasound(ultrasound);
+        }
+        if (mri != null && !mri.isEmpty()) {
+            metrics.setMri(mri);
+        }
+        if (ct != null && !ct.isEmpty()) {
+            metrics.setCt(ct);
+        }
+        metrics.setChestPainType(chestPainType);
+        metrics.setCholesterol(cholesterol);
+        metrics.setFastingBloodSugar(fastingBloodSugar);
+        metrics.setRestingECG(restingECG);
+        metrics.setExerciseAngina(exerciseAngina);
+        metrics.setOldpeak(oldpeak);
+        metrics.setSlope(slope);
+        metrics.setCa(ca);
+        metrics.setThal(thal);
+
+        heartClinicalMetricsRepository.save(metrics);
+        record.setClinicalMetrics(metrics);
         return consultationRepository.save(record);
     }
 

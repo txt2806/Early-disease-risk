@@ -17,6 +17,11 @@ import java.time.LocalTime;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 @Controller
 @RequestMapping("/reception")
@@ -380,18 +385,20 @@ public class ReceptionController {
 
     @GetMapping("/patients")
     public String patients(@AuthenticationPrincipal UserDetails userDetails,
-            @RequestParam(required = false) String search,
-            Model model) {
+                            @RequestParam(required = false) String search,
+                           @RequestParam(defaultValue = "0") int page,
+                           @RequestParam(defaultValue = "10") int size,
+                           Model model) {
         StaffProfile staff = getCurrentStaff(userDetails);
-        List<PatientProfile> patients;
-        if (search != null && !search.isBlank()) {
-            patients = patientRepository.findByFullNameContainingIgnoreCase(search);
-        } else {
-            patients = patientRepository.findAll();
-        }
-
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<PatientProfile> patientPage = (search != null && !search.isBlank())
+                ? patientRepository.findByFullNameContainingIgnoreCase(search, pageable)
+                : patientRepository.findAll(pageable);
         model.addAttribute("staff", staff);
-        model.addAttribute("patients", patients);
+        model.addAttribute("patients", patientPage.getContent());
+        model.addAttribute("currentPage", page);
+        model.addAttribute("totalPages", patientPage.getTotalPages());
+        model.addAttribute("totalItems", patientPage.getTotalElements());
         model.addAttribute("search", search);
         return "reception/patients";
     }

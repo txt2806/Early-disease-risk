@@ -37,7 +37,7 @@ public class SecurityConfig {
                 .requestMatchers("/doctor/patients/new", "/doctor/patients/save").hasAnyRole("RECEPTIONIST", "DOCTOR", "ADMIN")
                 .requestMatchers("/doctor/appointments/*/details").hasAnyRole("DOCTOR", "STAFF", "ADMIN")
                 .requestMatchers("/doctor/appointments/**").hasAnyRole("RECEPTIONIST", "DOCTOR", "STAFF", "ADMIN")
-                .requestMatchers("/doctor/**").hasAnyRole("DOCTOR", "ADMIN")
+                .requestMatchers("/doctor/**").hasAnyRole("DOCTOR", "STAFF", "ADMIN")
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form
@@ -72,7 +72,7 @@ public class SecurityConfig {
                 try {
                     // Query app_users table directly (case-insensitive)
                     users = jdbcTemplate.queryForList(
-                        "SELECT * FROM app_users WHERE LOWER(\"Username\") = LOWER(?)", username);
+                        "SELECT * FROM app_users WHERE LOWER(Username) = LOWER(?)", username);
                     
                     if (users.isEmpty()) {
                         // Trông giống số điện thoại? Thử tìm theo Phone (hỗ trợ mọi định dạng biến thể)
@@ -84,7 +84,7 @@ public class SecurityConfig {
                         if (patOpt.isPresent()) {
                             String realUsername = patOpt.get().getUsername();
                             users = jdbcTemplate.queryForList(
-                                "SELECT * FROM app_users WHERE LOWER(\"Username\") = LOWER(?)", realUsername);
+                                "SELECT * FROM app_users WHERE LOWER(Username) = LOWER(?)", realUsername);
                         }
                     }
                 } catch (Exception sqlEx) {
