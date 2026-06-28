@@ -30,19 +30,20 @@ DBCC CHECKIDENT ('System_Log', RESEED, 0);
 -- Mật khẩu mặc định của tất cả tài khoản mẫu là '123' (mã hóa bằng BCrypt)
 INSERT INTO Staff_Profile (Username, PasswordHash, FullName, Role, Status) VALUES
 ('admin@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'System Administrator', 'ADMIN', 'ACTIVE'),
-('staff1@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'Điều dưỡng Lê Thị Bình', 'STAFF', 'ACTIVE'),
-('staff2@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'Điều dưỡng Hoàng Văn Giang', 'STAFF', 'ACTIVE'),
-('staff3@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'Điều dưỡng Vũ Thị Hương', 'STAFF', 'ACTIVE'),
+('medicalstaff01@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'Điều dưỡng Lê Thị Bình', 'STAFF', 'ACTIVE'),
+('medicalstaff02@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'Điều dưỡng Hoàng Văn Giang', 'STAFF', 'ACTIVE'),
+('medicalstaff03@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'Điều dưỡng Vũ Thị Hương', 'STAFF', 'ACTIVE'),
+('medicalstaff04@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'Điều dưỡng Phạm Thị Nhung', 'STAFF', 'ACTIVE'),
 ('recep1@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'Lễ tân Trần Văn Cường', 'RECEPTIONIST', 'ACTIVE'),
 ('recep2@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'Lễ tân Ngô Thị Khánh', 'RECEPTIONIST', 'ACTIVE'),
 ('recep3@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'Lễ tân Bùi Văn Long', 'RECEPTIONIST', 'ACTIVE');
 
 -- 3. Nạp dữ liệu vào bảng Doctor_Profile (Danh sách bác sĩ)
 INSERT INTO Doctor_Profile (Username, PasswordHash, FullName, Specialty, AlertThreshold_BPM, AlertThreshold_BP, LicenseNumber, RoomNumber, Status) VALUES
-('doctor1@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'BS. Nguyễn Văn An', N'Tim mạch', 100, '140/90', 'CCHN-11111', 'Phòng 101', 'ACTIVE'),
-('doctor2@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'BS. Trần Văn Bình', N'Tim mạch', 100, '140/90', 'CCHN-22222', 'Phòng 102', 'ACTIVE'),
-('doctor3@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'BS. Lê Thị Chi', N'Tim mạch', 100, '140/90', 'CCHN-33333', 'Phòng 103', 'ACTIVE'),
-('doctor4@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'BS. Phạm Minh Đức', N'Tim mạch', 100, '140/90', 'CCHN-44444', 'Phòng 104', 'ACTIVE');
+('doctor01@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'BS. Nguyễn Văn An', N'Tim mạch', 100, '140/90', 'CCHN-11111', 'Phòng 101', 'ACTIVE'),
+('doctor02@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'BS. Trần Văn Bình', N'Tim mạch', 100, '140/90', 'CCHN-22222', 'Phòng 102', 'ACTIVE'),
+('doctor03@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'BS. Lê Thị Chi', N'Tim mạch', 100, '140/90', 'CCHN-33333', 'Phòng 103', 'ACTIVE'),
+('doctor04@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'BS. Phạm Minh Đức', N'Tim mạch', 100, '140/90', 'CCHN-44444', 'Phòng 104', 'ACTIVE');
 
 -- 4. Nạp dữ liệu vào bảng Patient_Profile (Hồ sơ bệnh nhân - có thêm cột is_alert mặc định = 0)
 INSERT INTO Patient_Profile (Username, PasswordHash, FullName, DOB, Gender, Phone, Address, Status, is_alert) VALUES
@@ -55,43 +56,43 @@ INSERT INTO Patient_Profile (Username, PasswordHash, FullName, DOB, Gender, Phon
 INSERT INTO System_Log (Username, Action, Details, Timestamp) VALUES
 -- Hôm nay (Days ago = 0)
 ('admin@cardio.com', 'LOGIN_SUCCESS', N'Đăng nhập hệ thống quản trị thành công', GETDATE()),
-('doctor1@cardio.com', 'LOGIN_SUCCESS', N'Bác sĩ Nguyễn Văn An đăng nhập thành công', GETDATE()),
-('doctor1@cardio.com', 'CREATE_CONSULTATION', N'Tạo hồ sơ khám cho bệnh nhân patient1@cardio.com', GETDATE()),
-('staff1@cardio.com', 'UPDATE_METRICS', N'Cập nhật chỉ số lâm sàng cho bệnh nhân patient1@cardio.com', GETDATE()),
+('doctor01@cardio.com', 'LOGIN_SUCCESS', N'Bác sĩ Nguyễn Văn An đăng nhập thành công', GETDATE()),
+('doctor01@cardio.com', 'CREATE_CONSULTATION', N'Tạo hồ sơ khám cho bệnh nhân patient1@cardio.com', GETDATE()),
+('medicalstaff01@cardio.com', 'UPDATE_METRICS', N'Cập nhật chỉ số lâm sàng cho bệnh nhân patient1@cardio.com', GETDATE()),
 ('system', 'AI_PREDICTION_SUCCESS', N'AI hoàn thành dự đoán rủi ro tim mạch cho bệnh nhân patient1@cardio.com', GETDATE()),
 
 -- 1 ngày trước
-('admin@cardio.com', 'CREATE_USER_SUCCESS', N'Tạo tài khoản bác sĩ: doctor4@cardio.com', DATEADD(minute, -5, DATEADD(hour, -2, DATEADD(day, -1, GETDATE())))),
+('admin@cardio.com', 'CREATE_USER_SUCCESS', N'Tạo tài khoản bác sĩ: doctor04@cardio.com', DATEADD(minute, -5, DATEADD(hour, -2, DATEADD(day, -1, GETDATE())))),
 ('recep1@cardio.com', 'CREATE_APPOINTMENT', N'Đặt lịch hẹn cho bệnh nhân patient2@cardio.com với BS Nguyễn Văn An', DATEADD(minute, -5, DATEADD(hour, -2, DATEADD(day, -1, GETDATE())))),
-('doctor2@cardio.com', 'LOGIN_SUCCESS', N'Bác sĩ Trần Văn Bình đăng nhập thành công', DATEADD(minute, -5, DATEADD(hour, -2, DATEADD(day, -1, GETDATE())))),
-('doctor2@cardio.com', 'VIEW_PATIENT_HISTORY', N'Xem lịch sử bệnh án bệnh nhân patient2@cardio.com', DATEADD(minute, -5, DATEADD(hour, -2, DATEADD(day, -1, GETDATE())))),
+('doctor02@cardio.com', 'LOGIN_SUCCESS', N'Bác sĩ Trần Văn Bình đăng nhập thành công', DATEADD(minute, -5, DATEADD(hour, -2, DATEADD(day, -1, GETDATE())))),
+('doctor02@cardio.com', 'VIEW_PATIENT_HISTORY', N'Xem lịch sử bệnh án bệnh nhân patient2@cardio.com', DATEADD(minute, -5, DATEADD(hour, -2, DATEADD(day, -1, GETDATE())))),
 
 -- 2 ngày trước
-('admin@cardio.com', 'LOCK_USER', N'Tạm khóa tài khoản bác sĩ nghỉ phép: doctor3@cardio.com', DATEADD(minute, -10, DATEADD(hour, -4, DATEADD(day, -2, GETDATE())))),
-('staff2@cardio.com', 'LOGIN_SUCCESS', N'Điều dưỡng Hoàng Văn Giang đăng nhập thành công', DATEADD(minute, -10, DATEADD(hour, -4, DATEADD(day, -2, GETDATE())))),
-('staff2@cardio.com', 'UPDATE_METRICS', N'Cập nhật chỉ số lâm sàng cho bệnh nhân patient3@cardio.com', DATEADD(minute, -10, DATEADD(hour, -4, DATEADD(day, -2, GETDATE())))),
+('admin@cardio.com', 'LOCK_USER', N'Tạm khóa tài khoản bác sĩ nghỉ phép: doctor03@cardio.com', DATEADD(minute, -10, DATEADD(hour, -4, DATEADD(day, -2, GETDATE())))),
+('medicalstaff02@cardio.com', 'LOGIN_SUCCESS', N'Điều dưỡng Hoàng Văn Giang đăng nhập thành công', DATEADD(minute, -10, DATEADD(hour, -4, DATEADD(day, -2, GETDATE())))),
+('medicalstaff02@cardio.com', 'UPDATE_METRICS', N'Cập nhật chỉ số lâm sàng cho bệnh nhân patient3@cardio.com', DATEADD(minute, -10, DATEADD(hour, -4, DATEADD(day, -2, GETDATE())))),
 ('system', 'AI_PREDICTION_SUCCESS', N'AI hoàn thành dự đoán rủi ro cho bệnh nhân patient3@cardio.com', DATEADD(minute, -10, DATEADD(hour, -4, DATEADD(day, -2, GETDATE())))),
 
 -- 3 ngày trước
 ('recep2@cardio.com', 'LOGIN_SUCCESS', N'Lễ tân Ngô Thị Khánh đăng nhập hệ thống thành công', DATEADD(minute, -15, DATEADD(hour, -6, DATEADD(day, -3, GETDATE())))),
 ('recep2@cardio.com', 'CREATE_APPOINTMENT', N'Đặt lịch hẹn tái khám cho bệnh nhân patient1@cardio.com', DATEADD(minute, -15, DATEADD(hour, -6, DATEADD(day, -3, GETDATE())))),
-('doctor1@cardio.com', 'LOGIN_SUCCESS', N'Bác sĩ Nguyễn Văn An đăng nhập thành công', DATEADD(minute, -15, DATEADD(hour, -6, DATEADD(day, -3, GETDATE())))),
-('doctor1@cardio.com', 'UPDATE_TREATMENT_PLAN', N'Cập nhật phác đồ điều trị cho bệnh nhân patient1@cardio.com', DATEADD(minute, -15, DATEADD(hour, -6, DATEADD(day, -3, GETDATE())))),
+('doctor01@cardio.com', 'LOGIN_SUCCESS', N'Bác sĩ Nguyễn Văn An đăng nhập thành công', DATEADD(minute, -15, DATEADD(hour, -6, DATEADD(day, -3, GETDATE())))),
+('doctor01@cardio.com', 'UPDATE_TREATMENT_PLAN', N'Cập nhật phác đồ điều trị cho bệnh nhân patient1@cardio.com', DATEADD(minute, -15, DATEADD(hour, -6, DATEADD(day, -3, GETDATE())))),
 
 -- 4 ngày trước
 ('admin@cardio.com', 'LOGIN_SUCCESS', N'Đăng nhập hệ thống quản trị', DATEADD(minute, -20, DATEADD(hour, -8, DATEADD(day, -4, GETDATE())))),
 ('admin@cardio.com', 'RESET_PASSWORD_PATIENT', N'Đặt lại mật khẩu cho bệnh nhân patient2@cardio.com theo yêu cầu', DATEADD(minute, -20, DATEADD(hour, -8, DATEADD(day, -4, GETDATE())))),
-('doctor3@cardio.com', 'LOGIN_SUCCESS', N'Bác sĩ Lê Thị Chi đăng nhập thành công', DATEADD(minute, -20, DATEADD(hour, -8, DATEADD(day, -4, GETDATE())))),
+('doctor03@cardio.com', 'LOGIN_SUCCESS', N'Bác sĩ Lê Thị Chi đăng nhập thành công', DATEADD(minute, -20, DATEADD(hour, -8, DATEADD(day, -4, GETDATE())))),
 
 -- 5 ngày trước
 ('recep3@cardio.com', 'LOGIN_SUCCESS', N'Lễ tân Bùi Văn Long đăng nhập thành công', DATEADD(minute, -25, DATEADD(hour, -10, DATEADD(day, -5, GETDATE())))),
 ('recep3@cardio.com', 'CREATE_APPOINTMENT', N'Đặt lịch hẹn mới cho bệnh nhân patient3@cardio.com', DATEADD(minute, -25, DATEADD(hour, -10, DATEADD(day, -5, GETDATE())))),
-('doctor2@cardio.com', 'LOGIN_SUCCESS', N'Bác sĩ Trần Văn Bình đăng nhập thành công', DATEADD(minute, -25, DATEADD(hour, -10, DATEADD(day, -5, GETDATE())))),
+('doctor02@cardio.com', 'LOGIN_SUCCESS', N'Bác sĩ Trần Văn Bình đăng nhập thành công', DATEADD(minute, -25, DATEADD(hour, -10, DATEADD(day, -5, GETDATE())))),
 
 -- 6 ngày trước
-('admin@cardio.com', 'UNLOCK_USER', N'Mở khóa hoạt động tài khoản bác sĩ: doctor3@cardio.com', DATEADD(minute, -30, DATEADD(hour, -12, DATEADD(day, -6, GETDATE())))),
-('doctor1@cardio.com', 'LOGIN_SUCCESS', N'Bác sĩ Nguyễn Văn An đăng nhập thành công', DATEADD(minute, -30, DATEADD(hour, -12, DATEADD(day, -6, GETDATE())))),
-('doctor1@cardio.com', 'CREATE_CONSULTATION', N'Tạo hồ sơ khám mới cho bệnh nhân patient3@cardio.com', DATEADD(minute, -30, DATEADD(hour, -12, DATEADD(day, -6, GETDATE()))));
+('admin@cardio.com', 'UNLOCK_USER', N'Mở khóa hoạt động tài khoản bác sĩ: doctor03@cardio.com', DATEADD(minute, -30, DATEADD(hour, -12, DATEADD(day, -6, GETDATE())))),
+('doctor01@cardio.com', 'LOGIN_SUCCESS', N'Bác sĩ Nguyễn Văn An đăng nhập thành công', DATEADD(minute, -30, DATEADD(hour, -12, DATEADD(day, -6, GETDATE())))),
+('doctor01@cardio.com', 'CREATE_CONSULTATION', N'Tạo hồ sơ khám mới cho bệnh nhân patient3@cardio.com', DATEADD(minute, -30, DATEADD(hour, -12, DATEADD(day, -6, GETDATE()))));
 
 -- 6. Nạp dữ liệu vào bảng Appointment (Lịch hẹn)
 -- Trạng thái: Pending, N'Đã khám', N'Hủy', N'Dời lịch'

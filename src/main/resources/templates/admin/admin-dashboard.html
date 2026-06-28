@@ -489,7 +489,7 @@ input:focus, select:focus { border-color: #3b82f6; }
         <tbody id="usersBody">
           <tr th:each="user : ${users}" class="user-row">
             <td th:text="'NS-' + ${user.doctorId}">1</td>
-            <td th:text="${user.username}" style="font-family: monospace;">doctor01</td>
+            <td th:text="${user.username}" style="font-family: monospace;">doctor01@cardio.com</td>
             <td th:text="${user.fullName}" style="font-weight: 600;">Nguyen Van A</td>
             <td>
               <span class="badge" 

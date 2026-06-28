@@ -133,10 +133,10 @@ public class DatabaseInitializer implements CommandLineRunner {
 
         // 2. Seed at least 4 Doctor accounts in Doctor_Profile
         String[][] doctors = {
-                { "doctor1@cardio.com", "BS. Nguyễn Văn An", "Tim mạch", "CCHN-11111", "Phòng 101" },
-                { "doctor2@cardio.com", "BS. Trần Văn Bình", "Tim mạch", "CCHN-22222", "Phòng 102" },
-                { "doctor3@cardio.com", "BS. Lê Thị Chi", "Tim mạch", "CCHN-33333", "Phòng 103" },
-                { "doctor4@cardio.com", "BS. Phạm Minh Đức", "Tim mạch", "CCHN-44444", "Phòng 104" }
+                { "doctor01@cardio.com", "BS. Nguyễn Văn An", "Tim mạch", "CCHN-11111", "Phòng 101" },
+                { "doctor02@cardio.com", "BS. Trần Văn Bình", "Tim mạch", "CCHN-22222", "Phòng 102" },
+                { "doctor03@cardio.com", "BS. Lê Thị Chi", "Tim mạch", "CCHN-33333", "Phòng 103" },
+                { "doctor04@cardio.com", "BS. Phạm Minh Đức", "Tim mạch", "CCHN-44444", "Phòng 104" }
         };
         for (String[] doc : doctors) {
             jdbcTemplate.update(
@@ -149,9 +149,10 @@ public class DatabaseInitializer implements CommandLineRunner {
 
         // 3. Seed at least 3 Staff accounts in Staff_Profile
         String[][] staffMembers = {
-                { "staff1@cardio.com", "Điều dưỡng Lê Thị Bình", "STAFF" },
-                { "staff2@cardio.com", "Điều dưỡng Hoàng Văn Giang", "STAFF" },
-                { "staff3@cardio.com", "Điều dưỡng Vũ Thị Hương", "STAFF" }
+                { "medicalstaff01@cardio.com", "Điều dưỡng Lê Thị Bình", "STAFF" },
+                { "medicalstaff02@cardio.com", "Điều dưỡng Hoàng Văn Giang", "STAFF" },
+                { "medicalstaff03@cardio.com", "Điều dưỡng Vũ Thị Hương", "STAFF" },
+                { "medicalstaff04@cardio.com", "Điều dưỡng Phạm Thị Nhung", "STAFF" }
         };
         for (String[] st : staffMembers) {
             jdbcTemplate.update("INSERT INTO Staff_Profile (Username, PasswordHash, FullName, Role, Status) " +
@@ -209,24 +210,24 @@ public class DatabaseInitializer implements CommandLineRunner {
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
         String[][] sampleLogs = {
                 { "admin@cardio.com", "LOGIN_SUCCESS", "Đăng nhập hệ thống quản trị thành công", "0" },
-                { "doctor1@cardio.com", "LOGIN_SUCCESS", "Bác sĩ Nguyễn Văn An đăng nhập thành công", "0" },
-                { "doctor1@cardio.com", "CREATE_CONSULTATION", "Tạo hồ sơ khám cho bệnh nhân patient1@cardio.com",
+                { "doctor01@cardio.com", "LOGIN_SUCCESS", "Bác sĩ Nguyễn Văn An đăng nhập thành công", "0" },
+                { "doctor01@cardio.com", "CREATE_CONSULTATION", "Tạo hồ sơ khám cho bệnh nhân patient1@cardio.com",
                         "0" },
-                { "staff1@cardio.com", "UPDATE_METRICS", "Cập nhật chỉ số lâm sàng cho bệnh nhân patient1@cardio.com",
+                { "medicalstaff01@cardio.com", "UPDATE_METRICS", "Cập nhật chỉ số lâm sàng cho bệnh nhân patient1@cardio.com",
                         "0" },
                 { "system", "AI_PREDICTION_SUCCESS",
                         "AI hoàn thành dự đoán rủi ro tim mạch cho bệnh nhân patient1@cardio.com", "0" },
 
-                { "admin@cardio.com", "CREATE_USER_SUCCESS", "Tạo tài khoản bác sĩ: doctor4@cardio.com", "1" },
+                { "admin@cardio.com", "CREATE_USER_SUCCESS", "Tạo tài khoản bác sĩ: doctor04@cardio.com", "1" },
                 { "recep1@cardio.com", "CREATE_APPOINTMENT",
                         "Đặt lịch hẹn cho bệnh nhân patient2@cardio.com với BS Nguyễn Văn An", "1" },
-                { "doctor2@cardio.com", "LOGIN_SUCCESS", "Bác sĩ Trần Văn Bình đăng nhập thành công", "1" },
-                { "doctor2@cardio.com", "VIEW_PATIENT_HISTORY", "Xem lịch sử bệnh án bệnh nhân patient2@cardio.com",
+                { "doctor02@cardio.com", "LOGIN_SUCCESS", "Bác sĩ Trần Văn Bình đăng nhập thành công", "1" },
+                { "doctor02@cardio.com", "VIEW_PATIENT_HISTORY", "Xem lịch sử bệnh án bệnh nhân patient2@cardio.com",
                         "1" },
 
-                { "admin@cardio.com", "LOCK_USER", "Tạm khóa tài khoản bác sĩ nghỉ phép: doctor3@cardio.com", "2" },
-                { "staff2@cardio.com", "LOGIN_SUCCESS", "Điều dưỡng Hoàng Văn Giang đăng nhập thành công", "2" },
-                { "staff2@cardio.com", "UPDATE_METRICS", "Cập nhật chỉ số lâm sàng cho bệnh nhân patient3@cardio.com",
+                { "admin@cardio.com", "LOCK_USER", "Tạm khóa tài khoản bác sĩ nghỉ phép: doctor03@cardio.com", "2" },
+                { "medicalstaff02@cardio.com", "LOGIN_SUCCESS", "Điều dưỡng Hoàng Văn Giang đăng nhập thành công", "2" },
+                { "medicalstaff02@cardio.com", "UPDATE_METRICS", "Cập nhật chỉ số lâm sàng cho bệnh nhân patient3@cardio.com",
                         "2" },
                 { "system", "AI_PREDICTION_SUCCESS", "AI hoàn thành dự đoán rủi ro cho bệnh nhân patient3@cardio.com",
                         "2" },
@@ -234,23 +235,23 @@ public class DatabaseInitializer implements CommandLineRunner {
                 { "recep2@cardio.com", "LOGIN_SUCCESS", "Lễ tân Ngô Thị Khánh đăng nhập hệ thống thành công", "3" },
                 { "recep2@cardio.com", "CREATE_APPOINTMENT", "Đặt lịch hẹn tái khám cho bệnh nhân patient1@cardio.com",
                         "3" },
-                { "doctor1@cardio.com", "LOGIN_SUCCESS", "Bác sĩ Nguyễn Văn An đăng nhập thành công", "3" },
-                { "doctor1@cardio.com", "UPDATE_TREATMENT_PLAN",
+                { "doctor01@cardio.com", "LOGIN_SUCCESS", "Bác sĩ Nguyễn Văn An đăng nhập thành công", "3" },
+                { "doctor01@cardio.com", "UPDATE_TREATMENT_PLAN",
                         "Cập nhật phác đồ điều trị cho bệnh nhân patient1@cardio.com", "3" },
 
                 { "admin@cardio.com", "LOGIN_SUCCESS", "Đăng nhập hệ thống quản trị", "4" },
                 { "admin@cardio.com", "RESET_PASSWORD_PATIENT",
                         "Đặt lại mật khẩu cho bệnh nhân patient2@cardio.com theo yêu cầu", "4" },
-                { "doctor3@cardio.com", "LOGIN_SUCCESS", "Bác sĩ Lê Thị Chi đăng nhập thành công", "4" },
+                { "doctor03@cardio.com", "LOGIN_SUCCESS", "Bác sĩ Lê Thị Chi đăng nhập thành công", "4" },
 
                 { "recep3@cardio.com", "LOGIN_SUCCESS", "Lễ tân Bùi Văn Long đăng nhập thành công", "5" },
                 { "recep3@cardio.com", "CREATE_APPOINTMENT", "Đặt lịch hẹn mới cho bệnh nhân patient3@cardio.com",
                         "5" },
-                { "doctor2@cardio.com", "LOGIN_SUCCESS", "Bác sĩ Trần Văn Bình đăng nhập thành công", "5" },
+                { "doctor02@cardio.com", "LOGIN_SUCCESS", "Bác sĩ Trần Văn Bình đăng nhập thành công", "5" },
 
-                { "admin@cardio.com", "UNLOCK_USER", "Mở khóa hoạt động tài khoản bác sĩ: doctor3@cardio.com", "6" },
-                { "doctor1@cardio.com", "LOGIN_SUCCESS", "Bác sĩ Nguyễn Văn An đăng nhập thành công", "6" },
-                { "doctor1@cardio.com", "CREATE_CONSULTATION", "Tạo hồ sơ khám mới cho bệnh nhân patient3@cardio.com",
+                { "admin@cardio.com", "UNLOCK_USER", "Mở khóa hoạt động tài khoản bác sĩ: doctor03@cardio.com", "6" },
+                { "doctor01@cardio.com", "LOGIN_SUCCESS", "Bác sĩ Nguyễn Văn An đăng nhập thành công", "6" },
+                { "doctor01@cardio.com", "CREATE_CONSULTATION", "Tạo hồ sơ khám mới cho bệnh nhân patient3@cardio.com",
                         "6" }
         };
 
