@@ -135,7 +135,8 @@ public class PatientController {
                 "d.FullName AS DoctorName, d.Specialty AS DoctorSpecialty, " +
                 "p.RiskScore, p.RiskLevel, p.RiskExplanation, p.HealthAdvice, " +
                 "m.ChestPainType, m.RestingBP, m.Cholesterol, m.FastingBloodSugar, " +
-                "m.RestingECG, m.MaxHeartRate, m.ExerciseAngina, m.Oldpeak, m.Slope, m.Ca, m.Thal " +
+                "m.RestingECG, m.MaxHeartRate, m.ExerciseAngina, m.Oldpeak, m.Slope, m.Ca, m.Thal, " +
+                "m.Temperature, m.SpO2, m.BloodTest, m.UrineTest, m.Xray, m.Ultrasound, m.Mri, m.Ct " +
                 "FROM Consultation_Record r " +
                 "LEFT JOIN Doctor_Profile d ON r.DoctorID = d.DoctorID " +
                 "LEFT JOIN AI_Risk_Prediction p ON r.RecordID = p.RecordID " +

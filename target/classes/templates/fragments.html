@@ -42,7 +42,7 @@
        th:classappend="${page == 'appointments'} ? ' active'" class="nav-item">
       <i class="ti ti-calendar-event"></i> Lịch làm việc
     </a>
-    <a th:href="@{/doctor/thresholds}"
+    <a th:href="@{/doctor/thresholds}" sec:authorize="hasRole('DOCTOR')"
        th:classappend="${page == 'thresholds'} ? ' active'" class="nav-item">
       <i class="ti ti-adjustments-horizontal"></i> Ngưỡng cảnh báo
     </a>

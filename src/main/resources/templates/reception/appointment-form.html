@@ -21,6 +21,8 @@
         <!-- Chọn bệnh nhân -->
         <div class="form-group" style="margin-bottom: 16px;">
           <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Bệnh nhân đăng ký khám</label>
+          <input type="text" id="patientSearchInput" placeholder="🔍 Nhập tên hoặc SĐT để lọc nhanh..." 
+                 style="width: 100%; background: #131a30; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 13px; outline: none; margin-bottom: 8px;">
           <select name="patientId" required 
                   style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none; cursor:pointer;">
             <option value="" disabled th:selected="${param.patientId == null}">-- Chọn Bệnh nhân từ danh sách --</option>
@@ -104,6 +106,37 @@ if (dateInput) {
   const today = new Date().toISOString().split('T')[0];
   dateInput.value = today;
 }
+
+document.addEventListener("DOMContentLoaded", function() {
+  const searchInput = document.getElementById("patientSearchInput");
+  const select = document.querySelector('select[name="patientId"]');
+  if (searchInput && select) {
+    const originalOptions = Array.from(select.options);
+    
+    searchInput.addEventListener("input", function() {
+      const query = searchInput.value.toLowerCase().trim();
+      const currentVal = select.value;
+      
+      select.innerHTML = "";
+      
+      originalOptions.forEach(function(opt) {
+        if (opt.value === "") {
+          select.appendChild(opt);
+          return;
+        }
+        const text = opt.textContent.toLowerCase();
+        if (text.includes(query)) {
+          select.appendChild(opt);
+        }
+      });
+      
+      // Restore selected value if it's still available in filtered options
+      if (Array.from(select.options).some(o => o.value === currentVal)) {
+        select.value = currentVal;
+      }
+    });
+  }
+});
 </script>
 <script th:src="@{/js/main.js}"></script>
 </body>

@@ -62,6 +62,14 @@
                       th:data-slope="${r.Slope != null ? r.Slope : '--'}"
                       th:data-ca="${r.Ca != null ? r.Ca : '--'}"
                       th:data-thal="${r.Thal != null ? r.Thal : '--'}"
+                      th:data-temp="${r.Temperature != null ? r.Temperature : '--'}"
+                      th:data-spo2="${r.SpO2 != null ? r.SpO2 : '--'}"
+                      th:data-blood-test="${r.BloodTest != null ? r.BloodTest : '--'}"
+                      th:data-urine-test="${r.UrineTest != null ? r.UrineTest : '--'}"
+                      th:data-xray="${r.Xray != null ? r.Xray : '--'}"
+                      th:data-ultrasound="${r.Ultrasound != null ? r.Ultrasound : '--'}"
+                      th:data-mri="${r.Mri != null ? r.Mri : '--'}"
+                      th:data-ct="${r.Ct != null ? r.Ct : '--'}"
                       onclick="viewDetails(this)">
                 🔍 Chi tiết bệnh án
               </button>
@@ -145,6 +153,43 @@
       </div>
     </div>
 
+    <!-- Tài liệu & Kết quả cận lâm sàng -->
+    <h4 style="font-size:13px;font-weight:700;color:#8a96b0;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Tài liệu & Kết quả cận lâm sàng</h4>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;background:#0f172a;padding:16px;border-radius:12px;margin-bottom:20px;">
+      <div>
+        <span style="font-size:11px;color:#64748b;display:block;">Nhiệt độ cơ thể</span>
+        <span id="modalTemp" style="font-size:13px;font-weight:600;color:#e8edf5;">--</span>
+      </div>
+      <div>
+        <span style="font-size:11px;color:#64748b;display:block;">Chỉ số SpO2</span>
+        <span id="modalSpO2" style="font-size:13px;font-weight:600;color:#e8edf5;">--</span>
+      </div>
+      <div>
+        <span style="font-size:11px;color:#64748b;display:block;">Xét nghiệm máu</span>
+        <div id="modalBloodContainer">--</div>
+      </div>
+      <div>
+        <span style="font-size:11px;color:#64748b;display:block;">Xét nghiệm nước tiểu</span>
+        <div id="modalUrineContainer">--</div>
+      </div>
+      <div>
+        <span style="font-size:11px;color:#64748b;display:block;">Ảnh chụp X-Quang phổi</span>
+        <div id="modalXrayContainer">--</div>
+      </div>
+      <div>
+        <span style="font-size:11px;color:#64748b;display:block;">Ảnh siêu âm tim</span>
+        <div id="modalUltrasoundContainer">--</div>
+      </div>
+      <div>
+        <span style="font-size:11px;color:#64748b;display:block;">Ảnh chụp MRI tim</span>
+        <div id="modalMRIContainer">--</div>
+      </div>
+      <div>
+        <span style="font-size:11px;color:#64748b;display:block;">Ảnh chụp CT động mạch vành</span>
+        <div id="modalCTContainer">--</div>
+      </div>
+    </div>
+
     <!-- Ghi chú chẩn đoán bác sĩ -->
     <h4 style="font-size:13px;font-weight:700;color:#8a96b0;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Chẩn đoán lâm sàng của Bác sĩ</h4>
     <div id="modalNotes" style="font-size:13px;color:#cbd5e1;line-height:1.5;background:#1e293b;padding:16px;border-radius:12px;white-space:pre-wrap;border-left:4px solid #10b981;margin-bottom:12px;">--</div>
@@ -183,6 +228,15 @@ function viewDetails(btn) {
   const cp = btn.getAttribute("data-cp");
   const oldpeak = btn.getAttribute("data-oldpeak");
 
+  const temp = btn.getAttribute("data-temp");
+  const spo2 = btn.getAttribute("data-spo2");
+  const blood = btn.getAttribute("data-blood-test");
+  const urine = btn.getAttribute("data-urine-test");
+  const xray = btn.getAttribute("data-xray");
+  const mri = btn.getAttribute("data-mri");
+  const ct = btn.getAttribute("data-ct");
+  const ultrasound = btn.getAttribute("data-ultrasound");
+
   // Format ECG text
   let ecgText = ecg;
   if (ecg === "0") ecgText = "Bình thường (0)";
@@ -220,12 +274,37 @@ function viewDetails(btn) {
   document.getElementById("modalCP").textContent = cpText;
   document.getElementById("modalOldpeak").textContent = oldpeak;
 
+  // Set vitals and tests
+  document.getElementById("modalTemp").textContent = temp === "--" || !temp ? "--" : temp + " °C";
+  document.getElementById("modalSpO2").textContent = spo2 === "--" || !spo2 ? "--" : spo2 + " %";
+  displayFileHelper("modalBloodContainer", blood);
+  displayFileHelper("modalUrineContainer", urine);
+  displayFileHelper("modalXrayContainer", xray);
+  displayFileHelper("modalUltrasoundContainer", ultrasound);
+  displayFileHelper("modalMRIContainer", mri);
+  displayFileHelper("modalCTContainer", ct);
+
   // Show modal
   document.getElementById("detailsModal").style.display = "flex";
 }
 
 function closeModal() {
   document.getElementById("detailsModal").style.display = "none";
+}
+
+function displayFileHelper(containerId, filePath) {
+  const container = document.getElementById(containerId);
+  if (!filePath || filePath === "--" || filePath === "null" || filePath === "undefined" || filePath === "") {
+    container.innerHTML = '<span style="color:#64748b;font-weight:600;">--</span>';
+    return;
+  }
+  const lowerPath = filePath.toLowerCase();
+  const isImage = lowerPath.endsWith(".png") || lowerPath.endsWith(".jpg") || lowerPath.endsWith(".jpeg") || lowerPath.endsWith(".gif") || lowerPath.endsWith(".webp");
+  if (isImage) {
+    container.innerHTML = `<a href="${filePath}" target="_blank" style="display:inline-block;margin-top:4px;"><img src="${filePath}" style="max-width:120px; max-height:120px; border-radius:6px; border:1px solid rgba(255,255,255,0.1);" /></a>`;
+  } else {
+    container.innerHTML = `<a href="/download?file=${encodeURIComponent(filePath)}" target="_blank" style="display:inline-flex; align-items:center; gap:6px; color:#60a5fa; text-decoration:underline; font-weight:600; margin-top:4px;"><i class="ti ti-download"></i> Tải tài liệu</a>`;
+  }
 }
 
 // Close when clicking outside content

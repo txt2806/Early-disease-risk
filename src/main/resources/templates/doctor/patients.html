@@ -76,6 +76,45 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Pagination -->
+    <div class="pagination-container" th:if="${totalPages > 0}">
+      <div class="pagination-info">
+        Hiển thị từ trang <span th:text="${currentPage + 1}">1</span> / <span th:text="${totalPages}">1</span> (Tổng <span th:text="${totalItems}">0</span> bệnh nhân)
+      </div>
+      <div class="pagination-buttons">
+        <!-- Trang đầu -->
+        <a th:href="@{/doctor/patients(page=0, search=${search})}"
+           class="page-btn" th:classappend="${currentPage == 0} ? 'disabled' : ''">
+          «
+        </a>
+        <!-- Trang trước -->
+        <a th:href="@{/doctor/patients(page=${currentPage - 1}, search=${search})}"
+           class="page-btn" th:classappend="${currentPage == 0} ? 'disabled' : ''">
+          ‹
+        </a>
+        <!-- Các số trang -->
+        <a th:each="i : ${#numbers.sequence(0, totalPages - 1)}"
+           th:if="${totalPages > 0 and i >= currentPage - 2 && i <= currentPage + 2}"
+           th:href="@{/doctor/patients(page=${i}, search=${search})}"
+           class="page-btn"
+           th:classappend="${currentPage == i} ? 'active' : ''"
+           th:text="${i + 1}">
+          1
+        </a>
+        <!-- Trang sau -->
+        <a th:href="@{/doctor/patients(page=${currentPage + 1}, search=${search})}"
+           class="page-btn" th:classappend="${currentPage == totalPages - 1} ? 'disabled' : ''">
+          ›
+        </a>
+        <!-- Trang cuối -->
+        <a th:href="@{/doctor/patients(page=${totalPages - 1}, search=${search})}"
+           class="page-btn" th:classappend="${currentPage == totalPages - 1} ? 'disabled' : ''">
+          »
+        </a>
+      </div>
+    </div>
+
   </div>
 </main>
 <script th:src="@{/js/main.js}"></script>

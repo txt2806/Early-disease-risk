@@ -160,3 +160,14 @@ CREATE TABLE System_Log (
     Timestamp DATETIME NOT NULL DEFAULT GETDATE()
 );
 GO
+
+-- 12. Tạo View app_users hỗ trợ đăng nhập tích hợp cho Spring Security
+IF OBJECT_ID('dbo.app_users', 'V') IS NOT NULL DROP VIEW dbo.app_users;
+GO
+CREATE VIEW app_users AS
+SELECT Username, PasswordHash, FullName, Role, Status FROM Staff_Profile
+UNION ALL
+SELECT Username, PasswordHash, FullName, 'DOCTOR' AS Role, Status FROM Doctor_Profile
+UNION ALL
+SELECT Username, PasswordHash, FullName, 'PATIENT' AS Role, Status FROM Patient_Profile;
+GO

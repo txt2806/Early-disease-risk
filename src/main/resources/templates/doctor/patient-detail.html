@@ -129,7 +129,7 @@
 
         <!-- Form sửa hồ sơ (ẩn mặc định) - BR04: chỉ UPDATE không DELETE -->
         <div th:id="'edit-' + ${r.recordId}" style="display:none;">
-          <form th:action="@{/doctor/records/{id}/update(id=${r.recordId})}" method="post">
+          <form th:action="@{/doctor/records/{id}/update(id=${r.recordId})}" method="post" enctype="multipart/form-data">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <input type="hidden" name="patientId" th:value="${patient.patientId}">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
@@ -146,6 +146,155 @@
                           style="resize:vertical;"></textarea>
               </div>
             </div>
+
+            <!-- Sửa Chỉ số sinh tồn & Kết quả xét nghiệm -->
+            <div style="background:rgba(255,255,255,0.02); padding:16px; border-radius:8px; margin-bottom:12px; border:1px solid rgba(255,255,255,0.06); text-align: left;">
+              <h4 style="font-size:12px;color:#3b82f6;text-transform:uppercase;margin:0 0 12px 0;"><i class="ti ti-activity-heartbeat"></i> Sửa chỉ số & Kết quả cận lâm sàng</h4>
+              
+              <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:10px;margin-bottom:10px;">
+                <div class="form-group">
+                  <label class="form-label">Huyết áp (mmHg)</label>
+                  <input type="number" class="form-input" name="restingBP" th:value="${r.clinicalMetrics != null ? r.clinicalMetrics.restingBP : ''}" placeholder="VD: 120" style="background:#1f2937; border:1px solid rgba(255,255,255,0.1); color:#e8edf5; border-radius:6px; padding:6px; font-size:13px; width: 100%;">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Nhịp tim (BPM)</label>
+                  <input type="number" class="form-input" name="maxHeartRate" th:value="${r.clinicalMetrics != null ? r.clinicalMetrics.maxHeartRate : ''}" placeholder="VD: 75" style="background:#1f2937; border:1px solid rgba(255,255,255,0.1); color:#e8edf5; border-radius:6px; padding:6px; font-size:13px; width: 100%;">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Nhiệt độ (°C)</label>
+                  <input type="number" step="0.1" class="form-input" name="temperature" th:value="${r.clinicalMetrics != null ? r.clinicalMetrics.temperature : ''}" placeholder="VD: 36.5" style="background:#1f2937; border:1px solid rgba(255,255,255,0.1); color:#e8edf5; border-radius:6px; padding:6px; font-size:13px; width: 100%;">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">SpO2 (%)</label>
+                  <input type="number" class="form-input" name="spO2" th:value="${r.clinicalMetrics != null ? r.clinicalMetrics.spO2 : ''}" placeholder="VD: 98" min="0" max="100" style="background:#1f2937; border:1px solid rgba(255,255,255,0.1); color:#e8edf5; border-radius:6px; padding:6px; font-size:13px; width: 100%;">
+                </div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                <div class="form-group">
+                  <label class="form-label">Xét nghiệm máu (PDF, Word, Ảnh)</label>
+                  <div th:if="${r.clinicalMetrics != null && r.clinicalMetrics.bloodTest != null && !r.clinicalMetrics.bloodTest.isEmpty()}" style="margin-bottom:6px;">
+                    <a th:href="${r.clinicalMetrics.bloodTest}" target="_blank" style="color:#60a5fa; font-size:12px; text-decoration:underline;">📄 Xem file hiện tại</a>
+                  </div>
+                  <input type="file" name="bloodTestFile" accept=".doc,.docx,.pdf,.xls,.xlsx,.png,.jpg,.jpeg" style="background:#1f2937; border:1px solid rgba(255,255,255,0.1); color:#e8edf5; border-radius:6px; padding:6px; font-size:13px; width: 100%;">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Xét nghiệm nước tiểu (PDF, Word, Ảnh)</label>
+                  <div th:if="${r.clinicalMetrics != null && r.clinicalMetrics.urineTest != null && !r.clinicalMetrics.urineTest.isEmpty()}" style="margin-bottom:6px;">
+                    <a th:href="${r.clinicalMetrics.urineTest}" target="_blank" style="color:#60a5fa; font-size:12px; text-decoration:underline;">📄 Xem file hiện tại</a>
+                  </div>
+                  <input type="file" name="urineTestFile" accept=".doc,.docx,.pdf,.xls,.xlsx,.png,.jpg,.jpeg" style="background:#1f2937; border:1px solid rgba(255,255,255,0.1); color:#e8edf5; border-radius:6px; padding:6px; font-size:13px; width: 100%;">
+                </div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                <div class="form-group">
+                  <label class="form-label">Phim X-quang (Ảnh)</label>
+                  <div th:if="${r.clinicalMetrics != null && r.clinicalMetrics.xray != null && !r.clinicalMetrics.xray.isEmpty()}" style="margin-bottom:6px;">
+                    <a th:href="${r.clinicalMetrics.xray}" target="_blank" style="color:#60a5fa; font-size:12px; text-decoration:underline;">🖼️ Xem ảnh hiện tại</a>
+                  </div>
+                  <input type="file" name="xrayFile" accept="image/*" style="background:#1f2937; border:1px solid rgba(255,255,255,0.1); color:#e8edf5; border-radius:6px; padding:6px; font-size:13px; width: 100%;">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Siêu âm (Ảnh)</label>
+                  <div th:if="${r.clinicalMetrics != null && r.clinicalMetrics.ultrasound != null && !r.clinicalMetrics.ultrasound.isEmpty()}" style="margin-bottom:6px;">
+                    <a th:href="${r.clinicalMetrics.ultrasound}" target="_blank" style="color:#60a5fa; font-size:12px; text-decoration:underline;">🖼️ Xem ảnh hiện tại</a>
+                  </div>
+                  <input type="file" name="ultrasoundFile" accept="image/*" style="background:#1f2937; border:1px solid rgba(255,255,255,0.1); color:#e8edf5; border-radius:6px; padding:6px; font-size:13px; width: 100%;">
+                </div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div class="form-group">
+                  <label class="form-label">Ảnh chụp MRI</label>
+                  <div th:if="${r.clinicalMetrics != null && r.clinicalMetrics.mri != null && !r.clinicalMetrics.mri.isEmpty()}" style="margin-bottom:6px;">
+                    <a th:href="${r.clinicalMetrics.mri}" target="_blank" style="color:#60a5fa; font-size:12px; text-decoration:underline;">🖼️ Xem ảnh hiện tại</a>
+                  </div>
+                  <input type="file" name="mriFile" accept="image/*" style="background:#1f2937; border:1px solid rgba(255,255,255,0.1); color:#e8edf5; border-radius:6px; padding:6px; font-size:13px; width: 100%;">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Ảnh chụp CT Scan</label>
+                  <div th:if="${r.clinicalMetrics != null && r.clinicalMetrics.ct != null && !r.clinicalMetrics.ct.isEmpty()}" style="margin-bottom:6px;">
+                    <a th:href="${r.clinicalMetrics.ct}" target="_blank" style="color:#60a5fa; font-size:12px; text-decoration:underline;">🖼️ Xem ảnh hiện tại</a>
+                  </div>
+                  <input type="file" name="ctFile" accept="image/*" style="background:#1f2937; border:1px solid rgba(255,255,255,0.1); color:#e8edf5; border-radius:6px; padding:6px; font-size:13px; width: 100%;">
+                </div>
+              </div>
+            </div>
+
+            <!-- Sửa thông số hỗ trợ dự đoán AI -->
+            <div style="background:rgba(255,255,255,0.02); padding:16px; border-radius:8px; margin-bottom:12px; border:1px solid rgba(255,255,255,0.06); text-align: left;">
+              <h4 style="font-size:12px;color:#60a5fa;text-transform:uppercase;margin:0 0 12px 0;"><i class="ti ti-brain"></i> Sửa thông số hỗ trợ dự đoán AI</h4>
+              
+              <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:10px;margin-bottom:10px;">
+                <div class="form-group">
+                  <label class="form-label">Loại đau ngực (cp)</label>
+                  <select name="chestPainType" class="form-input" style="background:#1f2937; border:1px solid rgba(255,255,255,0.1); color:#e8edf5; border-radius:6px; padding:6px; font-size:13px; width: 100%;">
+                    <option value="0" th:selected="${r.clinicalMetrics != null && r.clinicalMetrics.chestPainType == 0}">Không triệu chứng (0)</option>
+                    <option value="1" th:selected="${r.clinicalMetrics != null && r.clinicalMetrics.chestPainType == 1}">Điển hình (1)</option>
+                    <option value="2" th:selected="${r.clinicalMetrics != null && r.clinicalMetrics.chestPainType == 2}">Không điển hình (2)</option>
+                    <option value="3" th:selected="${r.clinicalMetrics != null && r.clinicalMetrics.chestPainType == 3}">Không đau ngực (3)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Cholesterol (mg/dl)</label>
+                  <input type="number" class="form-input" name="cholesterol" th:value="${r.clinicalMetrics != null ? r.clinicalMetrics.cholesterol : ''}" placeholder="VD: 200" style="background:#1f2937; border:1px solid rgba(255,255,255,0.1); color:#e8edf5; border-radius:6px; padding:6px; font-size:13px; width: 100%;">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Đường huyết lúc đói > 120 (fbs)</label>
+                  <select name="fastingBloodSugar" class="form-input" style="background:#1f2937; border:1px solid rgba(255,255,255,0.1); color:#e8edf5; border-radius:6px; padding:6px; font-size:13px; width: 100%;">
+                    <option value="false" th:selected="${r.clinicalMetrics != null && r.clinicalMetrics.fastingBloodSugar == false}">Không (False)</option>
+                    <option value="true" th:selected="${r.clinicalMetrics != null && r.clinicalMetrics.fastingBloodSugar == true}">Có (True)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:10px;margin-bottom:10px;">
+                <div class="form-group">
+                  <label class="form-label">Điện tâm đồ lúc nghỉ (restecg)</label>
+                  <select name="restingECG" class="form-input" style="background:#1f2937; border:1px solid rgba(255,255,255,0.1); color:#e8edf5; border-radius:6px; padding:6px; font-size:13px; width: 100%;">
+                    <option value="0" th:selected="${r.clinicalMetrics != null && r.clinicalMetrics.restingECG == 0}">Bình thường (0)</option>
+                    <option value="1" th:selected="${r.clinicalMetrics != null && r.clinicalMetrics.restingECG == 1}">Bất thường ST-T (1)</option>
+                    <option value="2" th:selected="${r.clinicalMetrics != null && r.clinicalMetrics.restingECG == 2}">Phì đại thất trái (2)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Đau thắt ngực gắng sức (exang)</label>
+                  <select name="exerciseAngina" class="form-input" style="background:#1f2937; border:1px solid rgba(255,255,255,0.1); color:#e8edf5; border-radius:6px; padding:6px; font-size:13px; width: 100%;">
+                    <option value="false" th:selected="${r.clinicalMetrics != null && r.clinicalMetrics.exerciseAngina == false}">Không (False)</option>
+                    <option value="true" th:selected="${r.clinicalMetrics != null && r.clinicalMetrics.exerciseAngina == true}">Có (True)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">ST Depression (oldpeak)</label>
+                  <input type="number" step="0.1" class="form-input" name="oldpeak" th:value="${r.clinicalMetrics != null ? r.clinicalMetrics.oldpeak : ''}" placeholder="VD: 1.0" style="background:#1f2937; border:1px solid rgba(255,255,255,0.1); color:#e8edf5; border-radius:6px; padding:6px; font-size:13px; width: 100%;">
+                </div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:10px;">
+                <div class="form-group">
+                  <label class="form-label">Độ dốc đoạn ST (slope)</label>
+                  <select name="slope" class="form-input" style="background:#1f2937; border:1px solid rgba(255,255,255,0.1); color:#e8edf5; border-radius:6px; padding:6px; font-size:13px; width: 100%;">
+                    <option value="upsloping" th:selected="${r.clinicalMetrics != null && r.clinicalMetrics.slope == 'upsloping'}">Dốc lên (upsloping)</option>
+                    <option value="flat" th:selected="${r.clinicalMetrics != null && r.clinicalMetrics.slope == 'flat'}">Đi ngang (flat)</option>
+                    <option value="downsloping" th:selected="${r.clinicalMetrics != null && r.clinicalMetrics.slope == 'downsloping'}">Dốc xuống (downsloping)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Số mạch vành tắc nghẽn (ca)</label>
+                  <input type="number" min="0" max="3" class="form-input" name="ca" th:value="${r.clinicalMetrics != null ? r.clinicalMetrics.ca : ''}" placeholder="VD: 0" style="background:#1f2937; border:1px solid rgba(255,255,255,0.1); color:#e8edf5; border-radius:6px; padding:6px; font-size:13px; width: 100%;">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Thalassemia (thal)</label>
+                  <select name="thal" class="form-input" style="background:#1f2937; border:1px solid rgba(255,255,255,0.1); color:#e8edf5; border-radius:6px; padding:6px; font-size:13px; width: 100%;">
+                    <option value="normal" th:selected="${r.clinicalMetrics != null && r.clinicalMetrics.thal == 'normal'}">Bình thường (normal)</option>
+                    <option value="fixed defect" th:selected="${r.clinicalMetrics != null && r.clinicalMetrics.thal == 'fixed defect'}">Khiếm khuyết cố định (fixed defect)</option>
+                    <option value="reversable defect" th:selected="${r.clinicalMetrics != null && r.clinicalMetrics.thal == 'reversable defect'}">Khiếm khuyết hồi phục (reversable defect)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
             <div style="display:flex;gap:8px;">
               <button type="submit" class="btn btn-primary" style="font-size:12px;padding:7px 16px;">
                 <i class="ti ti-device-floppy"></i> Lưu thay đổi
@@ -314,28 +463,28 @@
     <div style="background:#0f172a;padding:16px;border-radius:12px;margin-bottom:20px;font-size:13px;color:#e8edf5;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div>
         <span style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">Xét nghiệm máu</span>
-        <span id="modalBlood" style="font-weight:600;color:#cbd5e1;white-space:pre-wrap;">--</span>
+        <div id="modalBloodContainer">--</div>
       </div>
       <div>
         <span style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">Xét nghiệm nước tiểu</span>
-        <span id="modalUrine" style="font-weight:600;color:#cbd5e1;white-space:pre-wrap;">--</span>
+        <div id="modalUrineContainer">--</div>
       </div>
       <div>
         <span style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">Chụp X-quang</span>
-        <span id="modalXray" style="font-weight:600;color:#cbd5e1;white-space:pre-wrap;">--</span>
+        <div id="modalXrayContainer">--</div>
       </div>
       <div>
         <span style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">Chụp siêu âm</span>
-        <span id="modalUltrasound" style="font-weight:600;color:#cbd5e1;white-space:pre-wrap;">--</span>
+        <div id="modalUltrasoundContainer">--</div>
       </div>
       <div style="grid-column: span 2;">
         <span style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">Chụp MRI / CT</span>
         <div style="display:flex;gap:24px;">
           <div>
-            <span style="font-size:11px;color:#475569;">MRI: </span><span id="modalMRI" style="font-weight:600;color:#cbd5e1;">--</span>
+            <span style="font-size:11px;color:#475569;">MRI: </span><div id="modalMRIContainer" style="display:inline-block;">--</div>
           </div>
           <div>
-            <span style="font-size:11px;color:#475569;">CT: </span><span id="modalCT" style="font-weight:600;color:#cbd5e1;">--</span>
+            <span style="font-size:11px;color:#475569;">CT: </span><div id="modalCTContainer" style="display:inline-block;">--</div>
           </div>
         </div>
       </div>
@@ -441,12 +590,12 @@ function viewDetails(btn) {
   // Set vitals and tests
   document.getElementById("modalTemp").textContent = temp === "--" || !temp ? "--" : temp + " °C";
   document.getElementById("modalSpO2").textContent = spo2 === "--" || !spo2 ? "--" : spo2 + " %";
-  document.getElementById("modalBlood").textContent = blood === "null" || !blood || blood === "--" ? "--" : blood;
-  document.getElementById("modalUrine").textContent = urine === "null" || !urine || urine === "--" ? "--" : urine;
-  document.getElementById("modalXray").textContent = xray === "null" || !xray || xray === "--" ? "--" : xray;
-  document.getElementById("modalMRI").textContent = mri === "null" || !mri || mri === "--" ? "--" : mri;
-  document.getElementById("modalCT").textContent = ct === "null" || !ct || ct === "--" ? "--" : ct;
-  document.getElementById("modalUltrasound").textContent = ultrasound === "null" || !ultrasound || ultrasound === "--" ? "--" : ultrasound;
+  displayFileHelper("modalBloodContainer", blood);
+  displayFileHelper("modalUrineContainer", urine);
+  displayFileHelper("modalXrayContainer", xray);
+  displayFileHelper("modalUltrasoundContainer", ultrasound);
+  displayFileHelper("modalMRIContainer", mri);
+  displayFileHelper("modalCTContainer", ct);
 
   // Show modal
   document.getElementById("detailsModal").style.display = "flex";
@@ -454,6 +603,21 @@ function viewDetails(btn) {
 
 function closeModal() {
   document.getElementById("detailsModal").style.display = "none";
+}
+
+function displayFileHelper(containerId, filePath) {
+  const container = document.getElementById(containerId);
+  if (!filePath || filePath === "--" || filePath === "null" || filePath === "undefined" || filePath === "") {
+    container.innerHTML = '<span style="color:#64748b;font-weight:600;">--</span>';
+    return;
+  }
+  const lowerPath = filePath.toLowerCase();
+  const isImage = lowerPath.endsWith(".png") || lowerPath.endsWith(".jpg") || lowerPath.endsWith(".jpeg") || lowerPath.endsWith(".gif") || lowerPath.endsWith(".webp");
+  if (isImage) {
+    container.innerHTML = `<a href="${filePath}" target="_blank" style="display:inline-block;margin-top:4px;"><img src="${filePath}" style="max-width:120px; max-height:120px; border-radius:6px; border:1px solid rgba(255,255,255,0.1);" /></a>`;
+  } else {
+    container.innerHTML = `<a href="/download?file=${encodeURIComponent(filePath)}" target="_blank" style="display:inline-flex; align-items:center; gap:6px; color:#60a5fa; text-decoration:underline; font-weight:600; margin-top:4px;"><i class="ti ti-download"></i> Tải tài liệu</a>`;
+  }
 }
 
 // Close when clicking outside content
