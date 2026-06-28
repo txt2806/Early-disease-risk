@@ -72,7 +72,7 @@ public class SecurityConfig {
                 try {
                     // Query app_users table directly (case-insensitive)
                     users = jdbcTemplate.queryForList(
-                        "SELECT * FROM app_users WHERE LOWER(Username) = LOWER(?)", username);
+                        "SELECT * FROM app_users WHERE LOWER(\"Username\") = LOWER(?)", username);
                     
                     if (users.isEmpty()) {
                         // Trông giống số điện thoại? Thử tìm theo Phone (hỗ trợ mọi định dạng biến thể)
@@ -84,7 +84,7 @@ public class SecurityConfig {
                         if (patOpt.isPresent()) {
                             String realUsername = patOpt.get().getUsername();
                             users = jdbcTemplate.queryForList(
-                                "SELECT * FROM app_users WHERE LOWER(Username) = LOWER(?)", realUsername);
+                                "SELECT * FROM app_users WHERE LOWER(\"Username\") = LOWER(?)", realUsername);
                         }
                     }
                 } catch (Exception sqlEx) {
