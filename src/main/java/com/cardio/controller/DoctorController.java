@@ -1066,6 +1066,10 @@ public class DoctorController {
                 return "redirect:/doctor/appointments";
             }
             if (appointmentRepository.existsByDoctorAndScheduledDateAndStatusAndAppointmentIdNot(doctor, app.getScheduledDate(), "InProgress", id)) {
+                ra.addFlashAttribute("error", "Bạn đang có một ca khám chưa hoàn thành. Vui lòng hoàn thành ca khám hiện tại trước khi bắt đầu tiếp nhận bệnh nhân tiếp theo!");
+                return "redirect:/doctor/appointments";
+            }
+        } else if (app.getDoctor() != null) {
             if (appointmentRepository.existsByDoctorAndScheduledDateAndStatusAndAppointmentIdNot(app.getDoctor(), app.getScheduledDate(), "InProgress", id)) {
                 ra.addFlashAttribute("error", "Bác sĩ đang có một ca khám chưa hoàn thành. Vui lòng hoàn thành ca khám hiện tại trước khi bắt đầu tiếp nhận bệnh nhân tiếp theo!");
                 return "redirect:/doctor/appointments";
@@ -1178,6 +1182,5 @@ public class DoctorController {
             e.printStackTrace();
             return null;
         }
->>>>>>> PhucQuynh_medicalstaff,-receptionist
     }
 }
