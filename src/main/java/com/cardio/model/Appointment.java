@@ -35,7 +35,6 @@ public class Appointment {
 
     @Column(name = "RequestTime")
     private LocalDateTime requestTime = LocalDateTime.now();
-
     @Column(name = "Status", nullable = false)
     private String status = "Pending"; // Pending, Confirmed, CheckedIn, InProgress, Completed, Cancelled
 
@@ -44,7 +43,6 @@ public class Appointment {
 
     @Column(name = "PreliminaryStatus")
     private String preliminaryStatus;
-
     @Transient
     private Integer queueNumber;
 
@@ -108,4 +106,3 @@ public class Appointment {
         }
     }
 }
-

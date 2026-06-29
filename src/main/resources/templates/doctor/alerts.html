@@ -1,113 +1,222 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
+
 <head th:replace="~{fragments :: head('Cảnh báo')}"></head>
+
 <body>
-<div th:replace="~{fragments :: sidebar('alerts')}"></div>
-<main class="main">
-  <header th:replace="~{fragments :: topbar('Cảnh báo sớm')}"></header>
-  <div class="content">
+  <div th:replace="~{fragments :: sidebar('alerts')}"></div>
+  <main class="main">
+    <header th:replace="~{fragments :: topbar('Cảnh báo sớm')}"></header>
+    <div class="content">
 
-    <div class="alert-success" th:if="${success}" th:text="${success}"></div>
+      <div class="alert-success" th:if="${success}" th:text="${success}"></div>
 
-    <!-- Summary badges -->
-    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-      <div class="risk-badge risk-HIGH" style="padding:8px 16px;font-size:13px;">
-        🔴 HIGH: <span th:text="${highCount}">0</span>
-      </div>
-      <div class="risk-badge risk-MEDIUM" style="padding:8px 16px;font-size:13px;">
-        🟡 MEDIUM: <span th:text="${medCount}">0</span>
-      </div>
-      <div class="risk-badge risk-LOW" style="padding:8px 16px;font-size:13px;">
-        🟢 LOW: <span th:text="${lowCount}">0</span>
-      </div>
-    </div>
-
-    <!-- Alert list -->
-    <div th:each="a : ${alerts}"
-         class="alert-full-item"
-         th:classappend="${a.riskLevel}">
-      <div class="alert-severity"
-           th:classappend="'sev-' + ${a.riskLevel}"
-           style="width:42px;height:42px;font-size:20px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"
-           th:text="${a.riskLevel == 'HIGH'} ? '🔴' : (${a.riskLevel == 'MEDIUM'} ? '🟡' : '🟢')">🔴</div>
-
-      <div class="alert-full-body" style="flex:1;">
-        <div class="alert-full-name">
-          <span th:text="${a.record.patient.fullName}">Bệnh nhân</span>
-          <span style="color:#8a96b0;font-size:12px;font-weight:400;"
-                th:text="' (#BN' + ${a.record.patient.patientId} + ')'"> (#BN001)</span>
+      <!-- ── Summary badges (chỉ đếm chưa xử lý) ── -->
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <div class="risk-badge risk-HIGH" style="padding:8px 16px;font-size:13px;">
+          🔴 HIGH: <span th:text="${highCount}">0</span>
         </div>
-        <div class="alert-full-desc" th:text="${a.riskExplanation}">Mô tả</div>
-        <div class="alert-full-meta"
-             th:text="${#temporals.format(a.record.visitDate, 'dd/MM/yyyy HH:mm')}">Thời gian</div>
+        <div class="risk-badge risk-MEDIUM" style="padding:8px 16px;font-size:13px;">
+          🟡 MEDIUM: <span th:text="${medCount}">0</span>
+        </div>
+        <div class="risk-badge risk-LOW" style="padding:8px 16px;font-size:13px;">
+          🟢 LOW: <span th:text="${lowCount}">0</span>
+        </div>
       </div>
 
-      <div style="flex-shrink:0;text-align:right;">
-        <div class="risk-badge" th:classappend="'risk-' + ${a.riskLevel}"
-             th:text="${a.riskLevel + ' · ' + a.riskScore + '%'}">HIGH</div>
-        <div style="font-size:11px;margin-top:4px;"
-             th:style="${a.isAlertSent} ? 'color:#34d399' : 'color:#f59e0b'"
-             th:text="${a.isAlertSent} ? '✅ Đã xử lý' : '⏳ Chưa xử lý'">Trạng thái</div>
-      </div>
-
-      <!-- Nút xử lý (chỉ hiện khi chưa xử lý) -->
-      <div th:if="${!a.isAlertSent}" style="flex-shrink:0;display:flex;flex-direction:column;gap:6px;">
-        <form th:action="@{/doctor/alerts/{id}/resolve(id=${a.predictionId})}" method="post">
-          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-          <input type="hidden" name="action" value="resolved">
-          <button type="submit" class="action-btn primary" style="font-size:11px;width:100%;">
+      <!-- ── Thanh lọc + tìm kiếm ── -->
+      <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
+        <div style="display:flex;gap:6px;">
+          <button onclick="filterAlerts('all')" id="btn-all"
+                  class="btn btn-primary" style="font-size:12px;padding:6px 14px;">
+            Tất cả
+          </button>
+          <button onclick="filterAlerts('unhandled')" id="btn-unhandled"
+                  class="btn btn-ghost" style="font-size:12px;padding:6px 14px;">
+            ⏳ Chưa xử lý
+          </button>
+          <button onclick="filterAlerts('handled')" id="btn-handled"
+                  class="btn btn-ghost" style="font-size:12px;padding:6px 14px;">
             ✅ Đã xử lý
           </button>
-        </form>
-        <button onclick="showIgnoreModal(this)"
-                th:data-id="${a.predictionId}"
-                class="action-btn" style="font-size:11px;">
-          🚫 Bỏ qua
-        </button>
+        </div>
+        <input type="text" id="alertSearch" class="form-input"
+               placeholder="🔍 Tìm bệnh nhân..."
+               style="max-width:220px;padding:6px 12px;font-size:13px;"
+               oninput="filterAlerts()">
       </div>
+
+      <!-- ── Danh sách cảnh báo ── -->
+      <!-- Mỗi item tính daysOld và urgency ngay trong th:with của chính nó -->
+      <div th:each="a : ${alerts}"
+           class="alert-full-item"
+           th:classappend="${a.riskLevel}"
+           th:attr="data-handled=${a.isAlertSent},
+                    data-patient=${a.record.patient.fullName}"
+           th:with="daysOld=${T(java.time.temporal.ChronoUnit).DAYS.between(
+                        a.record.visitDate.toLocalDate(),
+                        T(java.time.LocalDate).now())},
+                    urgency=${urgencyMap[a.predictionId]},
+                    thresholdExceeded=${thresholdExceededMap[a.predictionId]}">
+
+        <!-- Icon mức độ -->
+        <div class="alert-severity"
+             th:classappend="'sev-' + ${a.riskLevel}"
+             style="width:42px;height:42px;font-size:20px;border-radius:10px;
+                    display:flex;align-items:center;justify-content:center;flex-shrink:0;"
+             th:text="${a.riskLevel == 'HIGH'} ? '🔴' : (${a.riskLevel == 'MEDIUM'} ? '🟡' : '🟢')">
+          🔴
+        </div>
+
+        <!-- Thông tin bệnh nhân -->
+        <div class="alert-full-body" style="flex:1;">
+          <div class="alert-full-name">
+            <span th:text="${a.record.patient.fullName}">Bệnh nhân</span>
+            <span style="color:#8a96b0;font-size:12px;font-weight:400;"
+                  th:text="' (#BN' + ${a.record.patient.patientId} + ')'">
+              (#BN001)
+            </span>
+          </div>
+          <div class="alert-full-desc" th:text="${a.riskExplanation}">Mô tả</div>
+          <div class="alert-full-meta"
+               th:text="${#temporals.format(a.record.visitDate, 'dd/MM/yyyy HH:mm')}">
+            Thời gian
+          </div>
+        </div>
+
+        <!-- Badge nguy cơ + leo thang -->
+        <div style="flex-shrink:0;text-align:right;">
+          <div class="risk-badge"
+               th:classappend="'risk-' + ${a.riskLevel}"
+               th:text="${a.riskLevel + ' · ' + a.riskScore + '%'}">
+            HIGH
+          </div>
+
+          <!-- [A.5] Badge VƯỢT NGƯỠNG RIÊNG: bác sĩ đã chủ động đặt ngưỡng
+               cảnh báo thấp hơn cho bệnh nhân này (thresholds.html), và
+               riskScore lần khám này đã vượt qua ngưỡng đó. -->
+          <div th:if="${thresholdExceeded != null and thresholdExceeded}"
+               style="font-size:11px;margin-top:4px;color:#a78bfa;font-weight:600;
+               background:rgba(167,139,250,0.12);border:1px solid rgba(167,139,250,0.35);
+               border-radius:6px;padding:2px 6px;display:inline-block;">
+            ⚡ Vượt ngưỡng riêng đã đặt
+          </div>
+
+          <!-- Badge leo thang: hiện khi chưa xử lý VÀ đã quá 2 ngày -->
+          <div th:if="${!a.isAlertSent and daysOld >= 2}"
+               style="font-size:11px;margin-top:4px;color:#ff7b7b;font-weight:600;">
+            🔥 Chờ <span th:text="${daysOld}">0</span> ngày
+            <span th:if="${urgency != null and urgency >= 70}"> — CẦN XỬ LÝ NGAY</span>
+          </div>
+
+          <!-- Trạng thái xử lý -->
+          <div style="font-size:11px;margin-top:2px;"
+               th:style="${a.isAlertSent} ? 'color:#34d399' : 'color:#f59e0b'"
+               th:text="${a.isAlertSent} ? '✅ Đã xử lý' : '⏳ Chưa xử lý'">
+          </div>
+        </div>
+
+        <!-- Nút hành động (chỉ hiện khi chưa xử lý) -->
+        <div th:if="${!a.isAlertSent}"
+             style="flex-shrink:0;display:flex;flex-direction:column;gap:6px;">
+          <form th:action="@{/doctor/alerts/{id}/resolve(id=${a.predictionId})}" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <input type="hidden" name="action" value="resolved">
+            <button type="submit" class="action-btn primary"
+                    style="font-size:11px;width:100%;">
+              ✅ Đã xử lý
+            </button>
+          </form>
+          <button onclick="showIgnoreModal(this)"
+                  th:data-id="${a.predictionId}"
+                  class="action-btn"
+                  style="font-size:11px;">
+            🚫 Bỏ qua
+          </button>
+        </div>
+
+      </div><!-- end th:each -->
+
+      <!-- Empty state -->
+      <div th:if="${#lists.isEmpty(alerts)}"
+           style="text-align:center;padding:60px;color:#8a96b0;">
+        <i class="ti ti-bell-off"
+           style="font-size:48px;display:block;margin-bottom:12px;opacity:0.3;"></i>
+        Không có cảnh báo nào
+      </div>
+
+    </div><!-- end .content -->
+  </main>
+
+  <!-- Modal bỏ qua cảnh báo -->
+  <div id="ignore-modal"
+       style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);
+              z-index:200;align-items:center;justify-content:center;">
+    <div style="background:#111827;border:1px solid rgba(255,255,255,0.12);
+                border-radius:16px;padding:24px;width:400px;">
+      <div style="font-size:18px;font-weight:700;margin-bottom:16px;color:#e8edf5;">
+        Bỏ qua cảnh báo
+      </div>
+      <form id="ignore-form" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+        <input type="hidden" name="action" value="ignored">
+        <div class="form-group" style="margin-bottom:16px;">
+          <label class="form-label">Lý do bỏ qua (bắt buộc)</label>
+          <textarea class="form-input" name="reason" rows="3"
+                    placeholder="VD: Bệnh nhân đã được theo dõi trực tiếp..."
+                    required style="resize:vertical;"></textarea>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button type="button" onclick="closeIgnoreModal()" class="btn btn-ghost">Hủy</button>
+          <button type="submit" class="btn btn-primary">Xác nhận bỏ qua</button>
+        </div>
+      </form>
     </div>
-
-    <div th:if="${#lists.isEmpty(alerts)}"
-         style="text-align:center;padding:60px;color:#8a96b0;">
-      <i class="ti ti-bell-off" style="font-size:48px;display:block;margin-bottom:12px;opacity:0.3;"></i>
-      Không có cảnh báo nào
-    </div>
-
   </div>
-</main>
 
-<!-- Modal bỏ qua cảnh báo -->
-<div id="ignore-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:center;justify-content:center;">
-  <div style="background:#111827;border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:24px;width:400px;">
-    <div style="font-size:18px;font-weight:700;margin-bottom:16px;color:#e8edf5;">Bỏ qua cảnh báo</div>
-    <form id="ignore-form" method="post">
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-      <input type="hidden" name="action" value="ignored">
-      <div class="form-group" style="margin-bottom:16px;">
-        <label class="form-label">Lý do bỏ qua (bắt buộc)</label>
-        <textarea class="form-input" name="reason" rows="3"
-                  placeholder="VD: Bệnh nhân đã được theo dõi trực tiếp..." required
-                  style="resize:vertical;"></textarea>
-      </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;">
-        <button type="button" onclick="closeIgnoreModal()" class="btn btn-ghost">Hủy</button>
-        <button type="submit" class="btn btn-primary">Xác nhận bỏ qua</button>
-      </div>
-    </form>
-  </div>
-</div>
+  <script th:src="@{/js/main.js}"></script>
+  <script>
+    // ── Modal bỏ qua ──
+    function showIgnoreModal(btn) {
+      const id = btn.getAttribute('data-id');
+      document.getElementById('ignore-form').action = '/doctor/alerts/' + id + '/resolve';
+      document.getElementById('ignore-modal').style.display = 'flex';
+    }
+    function closeIgnoreModal() {
+      document.getElementById('ignore-modal').style.display = 'none';
+    }
 
-<script th:src="@{/js/main.js}"></script>
-<script>
-function showIgnoreModal(btn) {
-  const id = btn.getAttribute('data-id');
-  document.getElementById('ignore-form').action = '/doctor/alerts/' + id + '/resolve';
-  const modal = document.getElementById('ignore-modal');
-  modal.style.display = 'flex';
-}
-function closeIgnoreModal() {
-  document.getElementById('ignore-modal').style.display = 'none';
-}
-</script>
+    // ── Filter + Search ──
+    let currentFilter = 'all';
+
+    function filterAlerts(filter) {
+      if (filter) currentFilter = filter;
+
+      // Cập nhật style nút filter
+      ['all', 'unhandled', 'handled'].forEach(f => {
+        const btn = document.getElementById('btn-' + f);
+        if (!btn) return;
+        btn.className = (f === currentFilter) ? 'btn btn-primary' : 'btn btn-ghost';
+        btn.style.cssText = 'font-size:12px; padding:6px 14px;';
+      });
+
+      const searchVal = (document.getElementById('alertSearch')?.value || '').toLowerCase();
+      const items = document.querySelectorAll('.alert-full-item');
+
+      items.forEach(item => {
+        const isHandled  = item.dataset.handled === 'true';
+        const patName    = (item.dataset.patient || '').toLowerCase();
+
+        const matchFilter =
+          currentFilter === 'all'       ? true :
+          currentFilter === 'handled'   ? isHandled :
+          currentFilter === 'unhandled' ? !isHandled : true;
+
+        const matchSearch = !searchVal || patName.includes(searchVal);
+
+        item.style.display = (matchFilter && matchSearch) ? '' : 'none';
+      });
+    }
+  </script>
 </body>
 </html>

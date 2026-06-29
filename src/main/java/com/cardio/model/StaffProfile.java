@@ -47,7 +47,6 @@ public class StaffProfile implements SystemUser {
     public String getAlertThresholdBp() {
         return null;
     }
-
     @Override
     public String getRoomNumber() {
         return null;

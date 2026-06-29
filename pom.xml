@@ -98,10 +98,50 @@
             <artifactId>h2</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!-- Test dependencies -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
         <plugins>
+            <!--
+                [A.6] KHẮC PHỤC: thiếu khai báo maven-compiler-plugin khiến Lombok
+                annotation processing không chạy khi build qua dòng lệnh (mvnw),
+                dù IDE (VS Code) vẫn hiển thị code chạy bình thường vì IDE có
+                plugin Lombok riêng, độc lập với Maven build thật.
+
+                Triệu chứng: hàng loạt lỗi "cannot find symbol: method getXxx()/
+                setXxx()" trên MỌI entity dùng @Data, và "cannot find symbol:
+                variable log" trên MỌI class dùng @Slf4j — vì các method/field
+                này do Lombok tự sinh lúc compile, không có sẵn trong source code.
+
+                Khai báo annotationProcessorPaths tường minh dưới đây buộc Maven
+                chạy đúng Lombok annotation processor bất kể IDE hay JDK nào.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <!-- annotationProcessorPaths KHÔNG tự kế thừa version
+                                 từ dependencyManagement như dependency thường —
+                                 đây là hành vi đặc thù của Maven, bắt buộc phải
+                                 khai báo version tường minh ở đây. Dùng property
+                                 ${lombok.version} sẵn có trong spring-boot BOM để
+                                 tự động khớp với version Lombok mà Spring Boot
+                                 3.2.0 đang quản lý, không cần ghi số cứng. -->
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 // ── SERVICE tầng nghiệp vụ hồ sơ & AI ───────────────
 @Service
@@ -28,9 +30,17 @@ public class ConsultationService {
     private final HeartClinicalMetricsRepository heartClinicalMetricsRepository;
     private final IcdCatalogRepository icdCatalogRepository;
     private final RecordIcdRepository recordIcdRepository;
+    private final PatientAlertThresholdRepository thresholdRepository;
+    private final ObjectMapper objectMapper;
 
     public List<ConsultationRecord> getByPatient(PatientProfile patient) {
         return consultationRepository.findByPatientOrderByVisitDateDesc(patient);
+    }
+
+    public List<ConsultationRecord> getByPatientChronological(PatientProfile patient) {
+        List<ConsultationRecord> records = consultationRepository.findByPatientOrderByVisitDateDesc(patient);
+        java.util.Collections.reverse(records);
+        return records;
     }
 
     @Transactional
@@ -60,13 +70,16 @@ public class ConsultationService {
         prediction.setRiskScore(BigDecimal.valueOf(aiResponse.getProbability() * 100));
         prediction.setRiskLevel(aiResponse.getRisk_level());
         prediction.setRiskExplanation(aiResponse.getMessage());
+        // [A.4] Lưu lại giải thích SHAP + xu hướng để xem được khi mở hồ sơ cũ sau này
+        prediction.setTopFactorsJson(serializeTopFactors(aiResponse));
+        prediction.setTrendInfoJson(serializeTrendInfo(aiResponse));
         prediction.setIsAlertSent(false);
         aiRiskRepository.save(prediction);
 
         // 4. Lưu chỉ số lâm sàng vào Heart_Clinical_Metrics
         try {
-            boolean fastSugar = "1".equals(aiRequest.getFbs()) || "true".equalsIgnoreCase(aiRequest.getFbs());
-            boolean exAng = "1".equals(aiRequest.getExang()) || "true".equalsIgnoreCase(aiRequest.getExang());
+            boolean fastSugar = parseFbsExangFlag(aiRequest.getFbs());
+            boolean exAng = parseFbsExangFlag(aiRequest.getExang());
 
             Integer cpValue = null;
             if (aiRequest.getCp() != null) {
@@ -112,6 +125,58 @@ public class ConsultationService {
         return prediction;
     }
 
+    /**
+     * Chuẩn hoá việc parse cờ true/false cho fbs/exang.
+     * Giá trị CHUẨN từ form/AIRequest là "1.0"/"0.0" (khớp đúng LabelEncoder
+     * đã train trong heart_model_tuned.pkl). Vẫn chấp nhận "1"/"true"/"TRUE"
+     * để tương thích ngược với dữ liệu cũ hoặc nguồn gọi khác, tránh vỡ luồng
+     * nếu còn nơi nào chưa kịp cập nhật.
+     */
+    private boolean parseFbsExangFlag(String raw) {
+        if (raw == null) {
+            return false;
+        }
+        String v = raw.trim();
+        return "1.0".equals(v) || "1".equals(v) || "true".equalsIgnoreCase(v);
+    }
+
+    /**
+     * [A.4] Chuyển danh sách top_factors (SHAP) từ AIResponse thành JSON
+     * string để lưu vào cột TopFactorsJson. Trả về null nếu rỗng/null thay
+     * vì chuỗi "null" hay "[]" — để patient-detail.html dễ kiểm tra th:if.
+     */
+    private String serializeTopFactors(AIResponse aiResponse) {
+        if (aiResponse == null || aiResponse.getTop_factors() == null || aiResponse.getTop_factors().isEmpty()) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(aiResponse.getTop_factors());
+        } catch (Exception e) {
+            log.warn("Không serialize được top_factors: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * [A.4] Gộp trend + trend_message + history thành 1 JSON object,
+     * vì 3 trường này luôn được đọc/ghi cùng nhau cho 1 lần khám cụ thể.
+     */
+    private String serializeTrendInfo(AIResponse aiResponse) {
+        if (aiResponse == null || aiResponse.getTrend() == null || "UNKNOWN".equals(aiResponse.getTrend())) {
+            return null;
+        }
+        try {
+            Map<String, Object> trendInfo = Map.of(
+                    "trend", aiResponse.getTrend(),
+                    "trend_message", aiResponse.getTrend_message() != null ? aiResponse.getTrend_message() : "",
+                    "history", aiResponse.getHistory() != null ? aiResponse.getHistory() : List.of()
+            );
+            return objectMapper.writeValueAsString(trendInfo);
+        } catch (Exception e) {
+            log.warn("Không serialize được trend info: {}", e.getMessage());
+            return null;
+        }
+    }
     @Transactional
     public AIRiskPrediction saveRecordAfterPrediction(
             PatientProfile patient,
@@ -121,7 +186,9 @@ public class ConsultationService {
             BigDecimal riskScore,
             String riskLevel,
             String riskExplanation,
-            AIRequest aiRequest) {
+            AIRequest aiRequest,
+            String topFactorsJson,
+            String trendInfoJson) {
 
         // 1. Lưu hồ sơ khám
         ConsultationRecord record = new ConsultationRecord();
@@ -139,13 +206,17 @@ public class ConsultationService {
         prediction.setRiskScore(riskScore);
         prediction.setRiskLevel(riskLevel);
         prediction.setRiskExplanation(riskExplanation);
+        // [A.4] Lưu lại giải thích SHAP + xu hướng (đã serialize sẵn từ Controller,
+        // vì lúc submit form này không còn truy cập được object AIResponse gốc).
+        prediction.setTopFactorsJson(topFactorsJson);
+        prediction.setTrendInfoJson(trendInfoJson);
         prediction.setIsAlertSent(false);
         aiRiskRepository.save(prediction);
 
         // 3. Lưu chỉ số lâm sàng vào Heart_Clinical_Metrics
         try {
-            boolean fastSugar = "1".equals(aiRequest.getFbs()) || "true".equalsIgnoreCase(aiRequest.getFbs());
-            boolean exAng = "1".equals(aiRequest.getExang()) || "true".equalsIgnoreCase(aiRequest.getExang());
+            boolean fastSugar = parseFbsExangFlag(aiRequest.getFbs());
+            boolean exAng = parseFbsExangFlag(aiRequest.getExang());
 
             Integer cpValue = null;
             if (aiRequest.getCp() != null) {
@@ -342,5 +413,77 @@ public class ConsultationService {
     // ── ICD: Lấy thông tin một ICD ──────────────────────────────────
     public java.util.Optional<IcdCatalog> findIcd(String code) {
         return icdCatalogRepository.findById(code);
+    }
+    public double calcUrgencyScore(AIRiskPrediction p) {
+        if (p.getIsAlertSent()) {
+            return 0; // Đã xử lý → ưu tiên = 0
+        }
+        double base = p.getRiskScore().doubleValue();
+        long daysUnhandled = 0;
+
+        if (p.getRecord() != null && p.getRecord().getVisitDate() != null) {
+            daysUnhandled = java.time.temporal.ChronoUnit.DAYS.between(
+                    p.getRecord().getVisitDate().toLocalDate(),
+                    java.time.LocalDate.now()
+            );
+        }
+
+        double bonus = Math.min(daysUnhandled * 2, 30); // tối đa +30 điểm
+        return base + bonus;
+    }
+
+    /**
+     * Sắp xếp alerts: chưa xử lý lên trên, ưu tiên theo urgencyScore giảm dần
+     */
+    public List<AIRiskPrediction> getAlertsByDoctorSorted(Integer doctorId) {
+        List<AIRiskPrediction> all = aiRiskRepository.findByDoctorId(doctorId);
+        all.sort((a, b) -> {
+            // Chưa xử lý lên trước
+            if (!a.getIsAlertSent() && b.getIsAlertSent()) {
+                return -1;
+            }
+            if (a.getIsAlertSent() && !b.getIsAlertSent()) {
+                return 1;
+            }
+            // Cùng trạng thái → sort theo urgencyScore
+            return Double.compare(calcUrgencyScore(b), calcUrgencyScore(a));
+        });
+        return all;
+    }
+    /**
+     * [A.5] Kiểm tra prediction này có VƯỢT ngưỡng cảnh báo RIÊNG (cá nhân
+     * hoá theo từng cặp bệnh nhân-bác sĩ, cấu hình ở thresholds.html) hay
+     * không. KHÔNG dùng để ẩn/lọc bớt alerts — mọi prediction vẫn hiển thị
+     * đầy đủ trong alerts.html (an toàn, tránh bỏ sót), hàm này chỉ dùng để
+     * đánh dấu/làm nổi bật riêng những ca đáng chú ý hơn theo từng bệnh nhân.
+     *
+     * Trước A.5: hàm cũ tên là checkAndCreateAlert(), chỉ làm đúng 1 việc là
+     * setIsAlertSent(false) — vốn đã là giá trị mặc định lúc khởi tạo, nên
+     * không hề có tác dụng gì dù được gọi hay không. PatientAlertThreshold
+     * (UC04) chưa từng thực sự ảnh hưởng tới alerts.html trước khi sửa.
+     */
+    public boolean exceedsPersonalThreshold(AIRiskPrediction prediction) {
+        if (prediction.getRecord() == null) {
+            return false;
+        }
+        PatientProfile patient = prediction.getRecord().getPatient();
+        DoctorProfile doctor = prediction.getRecord().getDoctor();
+        if (patient == null || doctor == null) {
+            return false;
+        }
+
+        PatientAlertThreshold threshold = thresholdRepository
+                .findByPatientAndDoctor(patient, doctor)
+                .orElse(null);
+        // Bác sĩ chưa cấu hình ngưỡng riêng cho bệnh nhân này → không có gì
+        // để so sánh, không đánh dấu nổi bật (khác với ngưỡng mặc định 40%
+        // hard-code, vì đó là quyết định CÓ CHỦ Ý của bác sĩ, không phải
+        // suy đoán thay họ).
+        if (threshold == null || prediction.getRiskScore() == null) {
+            return false;
+        }
+
+        double riskScore = prediction.getRiskScore().doubleValue();
+        return riskScore >= threshold.getRiskScoreThreshold();
     }
 }

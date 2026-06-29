@@ -82,7 +82,6 @@ CREATE UNIQUE INDEX UNIQUE_Patient_Slot_Active
 ON Appointment (PatientID, ScheduledDate, TimeSlot) 
 WHERE Status <> 'Cancelled';
 GO
-
 -- 5. Tạo bảng Hồ sơ Tư vấn & Khám bệnh
 CREATE TABLE Consultation_Record (
     RecordID INT IDENTITY(1,1) PRIMARY KEY,
@@ -174,5 +173,20 @@ CREATE TABLE System_Log (
     Action VARCHAR(255) NOT NULL,
     Details NVARCHAR(MAX),
     Timestamp DATETIME NOT NULL DEFAULT GETDATE()
+);
+GO
+
+-- 12. Tạo bảng Ngưỡng cảnh báo Bệnh nhân (Patient Alert Threshold)
+CREATE TABLE Patient_Alert_Threshold (
+    ThresholdID INT IDENTITY(1,1) PRIMARY KEY,
+    PatientID INT NOT NULL,
+    DoctorID INT NOT NULL,
+    RiskScoreThreshold DECIMAL(5,2) DEFAULT 40.0,
+    MaxBpm INT DEFAULT 100,
+    MaxSystolicBp INT DEFAULT 140,
+    Notes NVARCHAR(MAX),
+    FOREIGN KEY (PatientID) REFERENCES Patient_Profile(PatientID),
+    FOREIGN KEY (DoctorID) REFERENCES Doctor_Profile(DoctorID),
+    CONSTRAINT UNIQUE_Patient_Doctor UNIQUE (PatientID, DoctorID)
 );
 GO

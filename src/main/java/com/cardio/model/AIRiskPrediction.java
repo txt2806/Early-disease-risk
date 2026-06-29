@@ -30,6 +30,23 @@ public class AIRiskPrediction {
     @Column(name = "HealthAdvice", columnDefinition = "TEXT")
     private String healthAdvice;
 
+    @Column(name = "DietaryAdvice", columnDefinition = "TEXT")
+    private String dietaryAdvice;
+
+    // [A.4] JSON array của 3 yếu tố SHAP ảnh hưởng nhiều nhất tại thời điểm
+    // khám. Lưu lại để bác sĩ xem được giải thích chi tiết khi mở lại hồ sơ
+    // cũ, không chỉ riskExplanation chung chung. Parse bằng ObjectMapper khi
+    // hiển thị — xem ConsultationService.parseTopFactors().
+    @Column(name = "TopFactorsJson", columnDefinition = "TEXT")
+    private String topFactorsJson;
+
+    // [A.4] JSON object gộp {trend, trend_message, history} của lần khám đó.
+    @Column(name = "TrendInfoJson", columnDefinition = "TEXT")
+    private String trendInfoJson;
+
     @Column(name = "IsAlertSent")
     private Boolean isAlertSent;
+
+    @Column(name = "AlertCreatedAt")
+    private java.time.LocalDateTime alertCreatedAt;
 }

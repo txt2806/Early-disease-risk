@@ -6,6 +6,7 @@ import com.cardio.model.*;
 import com.cardio.repository.DoctorRepository;
 import com.cardio.repository.StaffRepository;
 import com.cardio.service.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -29,6 +30,11 @@ import java.util.List;
 import com.cardio.model.IcdCatalog;
 import com.cardio.model.RecordIcd;
 import com.cardio.model.HeartClinicalMetrics;
+import com.cardio.model.DoctorProfile;
+import java.util.Map;
+import java.util.HashMap;
+import com.cardio.model.PatientAlertThreshold;
+import com.cardio.repository.PatientAlertThresholdRepository;
 
 // ── CONTROLLER (C trong MVC) ─────────────────────────
 @Controller
@@ -46,6 +52,8 @@ public class DoctorController {
     private final ConsultationRepository consultationRepository;
     private final HeartClinicalMetricsRepository heartClinicalMetricsRepository;
     private final AuditLogService auditLogService;
+    private final ObjectMapper objectMapper; // [A.4] serialize top_factors/trend cho hidden input
+    private final PatientAlertThresholdRepository thresholdRepository;
 
     // Helper lấy doctor hoặc staff đang đăng nhập
     private DoctorProfile getCurrentDoctor(UserDetails userDetails) {
@@ -217,10 +225,8 @@ public class DoctorController {
         if (dateStr != null && !dateStr.isBlank()) {
             date = LocalDate.parse(dateStr);
         }
-        
         Pageable pageable = PageRequest.of(page, size, Sort.by("fullName").ascending());
         Page<PatientProfile> patientPage = patientService.searchAssignedPatients(doctor.getDoctorId(), search, date, pageable);
-        
         // Gắn mức nguy cơ AI mới nhất cho từng bệnh nhân
         List<AIRiskPrediction> allAlerts = consultationService.getAlertsByDoctor(doctor.getDoctorId());
         java.util.Map<Integer, String> patientRiskMap = new java.util.HashMap<>();
@@ -410,17 +416,36 @@ public class DoctorController {
     public String alerts(@AuthenticationPrincipal UserDetails userDetails, Model model) {
         DoctorProfile doctor = getCurrentDoctor(userDetails);
         List<AIRiskPrediction> alerts;
+
         if (doctor.getDoctorId() != null) {
-            alerts = consultationService.getAlertsByDoctor(doctor.getDoctorId());
+            alerts = consultationService.getAlertsByDoctorSorted(doctor.getDoctorId());
         } else {
-            alerts = consultationService.getUnhandledHighAlerts(); // Hiện các cảnh báo chung cho nhân viên
+            alerts = consultationService.getUnhandledHighAlerts();
         }
+
+        // Truyền urgencyScore vào model để hiển thị badge "🔥 Khẩn cấp"
+        Map<Integer, Double> urgencyMap = new HashMap<>();
+        alerts.forEach(a -> urgencyMap.put(a.getPredictionId(),
+                consultationService.calcUrgencyScore(a)));
+
+        // [A.5] Đánh dấu riêng các ca VƯỢT ngưỡng cá nhân hoá (cấu hình theo
+        // từng bệnh nhân ở thresholds.html) — không lọc bớt alerts, chỉ để
+        // làm nổi bật thêm những ca bác sĩ đã chủ động đặt ngưỡng thấp hơn.
+        Map<Integer, Boolean> thresholdExceededMap = new HashMap<>();
+        alerts.forEach(a -> thresholdExceededMap.put(a.getPredictionId(),
+                consultationService.exceedsPersonalThreshold(a)));
+
+        // Filter counts (chỉ đếm chưa xử lý)
+        List<AIRiskPrediction> unhandled = alerts.stream()
+                .filter(a -> !a.getIsAlertSent()).toList();
 
         model.addAttribute("doctor", doctor);
         model.addAttribute("alerts", alerts);
-        model.addAttribute("highCount", alerts.stream().filter(a -> "HIGH".equals(a.getRiskLevel())).count());
-        model.addAttribute("medCount", alerts.stream().filter(a -> "MEDIUM".equals(a.getRiskLevel())).count());
-        model.addAttribute("lowCount", alerts.stream().filter(a -> "LOW".equals(a.getRiskLevel())).count());
+        model.addAttribute("urgencyMap", urgencyMap);
+        model.addAttribute("thresholdExceededMap", thresholdExceededMap);
+        model.addAttribute("highCount", unhandled.stream().filter(a -> "HIGH".equals(a.getRiskLevel())).count());
+        model.addAttribute("medCount", unhandled.stream().filter(a -> "MEDIUM".equals(a.getRiskLevel())).count());
+        model.addAttribute("lowCount", unhandled.stream().filter(a -> "LOW".equals(a.getRiskLevel())).count());
         return "doctor/alerts";
     }
 
@@ -460,35 +485,42 @@ public class DoctorController {
                 .orElseThrow(() -> new RuntimeException("Patient not found"));
 
         // Lấy lịch sử các lần khám trước của bệnh nhân để phân tích trend
-        List<ConsultationRecord> pastRecords = consultationService.getByPatient(patient);
+        List<ConsultationRecord> pastRecords = consultationService.getByPatientChronological(patient);
 
         com.cardio.dto.AIResponse aiResponse;
 
         if (pastRecords.size() >= 1) {
             // Có lịch sử → gọi /predict/trend để phân tích xu hướng
             List<AIRequest> visitHistory = pastRecords.stream()
-                    .filter(r -> r.getClinicalMetrics() != null)
-                    .map(r -> {
-                        // Chuyển Heart_Clinical_Metrics → AIRequest
-                        var m = r.getClinicalMetrics();
-                        AIRequest req = new AIRequest();
-                        req.setAge(m.getAge() != null ? m.getAge().doubleValue() : aiRequest.getAge());
-                        req.setSex(m.getSex() != null ? m.getSex() : aiRequest.getSex());
-                        req.setCp(m.getChestPainType() != null ? mapCpInt(m.getChestPainType()) : aiRequest.getCp());
-                        req.setTrestbps(m.getRestingBP() != null ? m.getRestingBP().doubleValue() : null);
-                        req.setChol(m.getCholesterol() != null ? m.getCholesterol().doubleValue() : null);
-                        req.setFbs(m.getFastingBloodSugar() != null ? (m.getFastingBloodSugar() ? "TRUE" : "FALSE") : null);
-                        req.setThalch(m.getMaxHeartRate() != null ? m.getMaxHeartRate().doubleValue() : null);
-                        req.setExang(m.getExerciseAngina() != null ? (m.getExerciseAngina() ? "TRUE" : "FALSE") : null);
-                        req.setOldpeak(m.getOldpeak() != null ? m.getOldpeak().doubleValue() : null);
-                        req.setCa(m.getCa() != null ? m.getCa().doubleValue() : null);
-                        // req.setSlope(m.getSlope() != null ? mapSlopeInt(m.getSlope()) : null);
-                        // req.setThal(m.getThal() != null ? mapThalInt(m.getThal()) : null);
-                        req.setSlope(m.getSlope() != null ? m.getSlope() : null);
-                        req.setThal(m.getThal() != null ? m.getThal() : null);
-                        return req;
-                    })
-                    .collect(java.util.stream.Collectors.toList());
+                .filter(r -> r.getClinicalMetrics() != null)
+                .filter(r -> {
+                    // Chỉ giữ những bản ghi có ĐỦ field cần cho AI model
+                    var m = r.getClinicalMetrics();
+                    return m.getChestPainType() != null
+                        && m.getOldpeak() != null
+                        && m.getSlope() != null
+                        && m.getThal() != null
+                        && m.getCa() != null;
+                })
+                .map(r -> {
+                    var m = r.getClinicalMetrics();
+                    AIRequest req = new AIRequest();
+                    req.setAge(m.getAge() != null ? m.getAge().doubleValue() : aiRequest.getAge());
+                    req.setSex(m.getSex() != null ? m.getSex() : aiRequest.getSex());
+                    req.setCp(mapCpInt(m.getChestPainType()));
+                    req.setTrestbps(m.getRestingBP() != null ? m.getRestingBP().doubleValue() : null);
+                    req.setChol(m.getCholesterol() != null ? m.getCholesterol().doubleValue() : null);
+                    req.setFbs(m.getFastingBloodSugar() != null ? (m.getFastingBloodSugar() ? "1.0" : "0.0") : null);
+                    req.setThalch(m.getMaxHeartRate() != null ? m.getMaxHeartRate().doubleValue() : null);
+                    req.setExang(m.getExerciseAngina() != null ? (m.getExerciseAngina() ? "1.0" : "0.0") : null);
+                    req.setRestecg(mapRestecgInt(m.getRestingECG()));
+                    req.setOldpeak(m.getOldpeak().doubleValue());
+                    req.setCa(m.getCa().doubleValue());
+                    req.setSlope(m.getSlope());
+                    req.setThal(m.getThal());
+                    return req;
+                })
+                .collect(java.util.stream.Collectors.toList());
 
             // Thêm lần khám hiện tại vào cuối
             visitHistory.add(aiRequest);
@@ -497,6 +529,15 @@ public class DoctorController {
             aiResponse = visitHistory.size() >= 2
                     ? aiService.predictWithTrend(visitHistory)
                     : aiService.predict(aiRequest);
+                    System.out.println("====== DEBUG AI RESPONSE ======");
+                    System.out.println("history: " + aiResponse.getHistory());
+                    System.out.println("probability: " + aiResponse.getProbability());
+                    System.out.println("trend_message: " + aiResponse.getTrend_message());
+                    System.out.println("================================");
+                    System.out.println("====== DEBUG D.2/D.4 ======");
+                    System.out.println("age_confidence_warning: " + aiResponse.getAge_confidence_warning());
+                    System.out.println("physiological_warnings: " + aiResponse.getPhysiological_warnings());
+                    System.out.println("============================");
         } else {
             aiResponse = aiService.predict(aiRequest);
         }
@@ -507,6 +548,25 @@ public class DoctorController {
         prediction.setRiskLevel(aiResponse.getRisk_level());
         prediction.setRiskExplanation(aiResponse.getMessage());
 
+        // [A.4] Serialize sẵn ra JSON string để truyền qua hidden input khi
+        // bác sĩ bấm "Lưu vào hồ sơ" (request POST riêng biệt tới /ai-predict/save,
+        // không còn truy cập được object aiResponse gốc của request này nữa).
+        String topFactorsJsonForForm = null;
+        String trendInfoJsonForForm = null;
+        try {
+            if (aiResponse.getTop_factors() != null && !aiResponse.getTop_factors().isEmpty()) {
+                topFactorsJsonForForm = objectMapper.writeValueAsString(aiResponse.getTop_factors());
+            }
+            if (aiResponse.getTrend() != null && !"UNKNOWN".equals(aiResponse.getTrend())) {
+                Map<String, Object> trendInfo = new HashMap<>();
+                trendInfo.put("trend", aiResponse.getTrend());
+                trendInfo.put("trend_message", aiResponse.getTrend_message());
+                trendInfo.put("history", aiResponse.getHistory());
+                trendInfoJsonForForm = objectMapper.writeValueAsString(trendInfo);
+            }
+        } catch (Exception e) {
+            log.warn("Không serialize được top_factors/trend cho form: {}", e.getMessage());
+        }
         // Audit log
         auditLogService.logAIPrediction(
                 userDetails.getUsername(), patientId,
@@ -523,6 +583,8 @@ public class DoctorController {
         model.addAttribute("aiRequest", aiRequest);
         model.addAttribute("prediction", prediction);
         model.addAttribute("aiResponse", aiResponse);   // Truyền full response cho SHAP + trend
+        model.addAttribute("topFactorsJsonForForm", topFactorsJsonForForm);
+        model.addAttribute("trendInfoJsonForForm", trendInfoJsonForForm);
         model.addAttribute("selectedPatient", patient);
         model.addAttribute("isSaved", false);
         return "doctor/ai-predict";
@@ -542,6 +604,23 @@ public class DoctorController {
         };
     }
 
+    // Helper: map int → string cho RestingECG, đối xứng với restecgValue
+    // trong ConsultationService (0=normal, 1=st-t abnormality, 2=lv hypertrophy)
+    private String mapRestecgInt(Integer restecg) {
+        if (restecg == null) {
+            return null;
+        }
+        return switch (restecg) {
+            case 0 ->
+                "normal";
+            case 1 ->
+                "st-t abnormality";
+            case 2 ->
+                "lv hypertrophy";
+            default ->
+                null;
+        };
+    }
     private String mapSlopeInt(Integer slope) {
         return switch (slope) {
             case 0 ->
@@ -572,6 +651,8 @@ public class DoctorController {
             @RequestParam java.math.BigDecimal riskScore,
             @RequestParam String riskLevel,
             @RequestParam String riskExplanation,
+            @RequestParam(required = false) String topFactorsJson,
+            @RequestParam(required = false) String trendInfoJson,
             @AuthenticationPrincipal UserDetails userDetails,
             Model model) {
         DoctorProfile doctor = getCurrentDoctor(userDetails);
@@ -582,11 +663,27 @@ public class DoctorController {
             model.addAttribute("aiRequest", aiRequest);
             return "doctor/ai-predict";
         }
+        // Phòng vệ tầng server: KHÔNG lưu kết quả UNKNOWN/INVALID_DATA như một
+        // chẩn đoán thật, kể cả khi request được gửi thẳng (bỏ qua UI đã ẩn nút).
+        // Đây là dữ liệu y tế — sai sót ở đây không thể chấp nhận được.
+        if (!"HIGH".equals(riskLevel) && !"MEDIUM".equals(riskLevel) && !"LOW".equals(riskLevel)) {
+            model.addAttribute("error", "Không thể lưu: AI chưa trả về kết quả hợp lệ (risk_level=" + riskLevel + "). "
+                    + "Vui lòng chạy lại phân tích AI trước khi lưu hồ sơ.");
+            model.addAttribute("doctor", doctor);
+            if (doctor.getDoctorId() != null) {
+                model.addAttribute("patients", patientService.getPatientsAssignedToDoctor(doctor.getDoctorId()));
+            } else {
+                model.addAttribute("patients", patientService.getAllPatients());
+            }
+            model.addAttribute("aiRequest", aiRequest);
+            return "doctor/ai-predict";
+        }
         PatientProfile patient = patientService.findById(patientId)
                 .orElseThrow(() -> new RuntimeException("Patient not found"));
         // Save records and prediction to database
         AIRiskPrediction prediction = consultationService.saveRecordAfterPrediction(
-                patient, doctor, doctorNotes, treatmentPlan, riskScore, riskLevel, riskExplanation, aiRequest);
+                patient, doctor, doctorNotes, treatmentPlan, riskScore, riskLevel, riskExplanation,
+                aiRequest, topFactorsJson, trendInfoJson);
         model.addAttribute("doctor", doctor);
         if (doctor.getDoctorId() != null) {
             model.addAttribute("patients", patientService.getPatientsAssignedToDoctor(doctor.getDoctorId()));
@@ -596,7 +693,7 @@ public class DoctorController {
         model.addAttribute("aiRequest", aiRequest);
         model.addAttribute("prediction", prediction);
         model.addAttribute("selectedPatient", patient);
-        model.addAttribute("isSaved", false); // Record is now saved
+        model.addAttribute("isSaved", true); // Record is now saved
         return "doctor/ai-predict";
     }
 
@@ -672,13 +769,11 @@ public class DoctorController {
         java.util.Map<Integer, Long> workloads = new java.util.HashMap<>();
         java.util.Map<Integer, Boolean> doctorHasInProgress = new java.util.HashMap<>();
         java.util.Map<Integer, List<Appointment>> appointmentsByDoctor = new java.util.HashMap<>();
-
         for (DoctorProfile doc : doctors) {
             long count = appointments.stream()
                     .filter(a -> a.getDoctor() != null && a.getDoctor().getDoctorId().equals(doc.getDoctorId()) && !"Cancelled".equalsIgnoreCase(a.getStatus()))
                     .count();
             workloads.put(doc.getDoctorId(), count);
-
             List<Appointment> docApps = appointments.stream()
                     .filter(a -> a.getDoctor() != null && a.getDoctor().getDoctorId().equals(doc.getDoctorId()))
                     .collect(java.util.stream.Collectors.toList());
@@ -743,7 +838,6 @@ public class DoctorController {
 
         return org.springframework.http.ResponseEntity.ok(response);
     }
-
     @PostMapping("/appointments/save")
     public String saveAppointment(@RequestParam Integer patientId,
             @RequestParam Integer doctorId,
@@ -1018,36 +1112,69 @@ public class DoctorController {
 
     // ── CẤU HÌNH NGƯỠNG CẢNH BÁO ──────────────────────────
     @GetMapping("/thresholds")
-    public String thresholds(@AuthenticationPrincipal UserDetails userDetails, Model model, RedirectAttributes ra) {
+    public String thresholds(@AuthenticationPrincipal UserDetails userDetails, Model model) {
         DoctorProfile doctor = getCurrentDoctor(userDetails);
-        if (doctor.getDoctorId() == null) {
-            ra.addFlashAttribute("error", "Chỉ bác sĩ mới có quyền cấu hình ngưỡng cảnh báo!");
-            return "redirect:/doctor/dashboard";
-        }
+        // Truyền danh sách bệnh nhân phụ trách của bác sĩ
+        List<PatientProfile> patients = patientService.getPatientsAssignedToDoctor(doctor.getDoctorId());
         model.addAttribute("doctor", doctor);
+        model.addAttribute("patients", patients);
         return "doctor/thresholds";
     }
 
-    @PostMapping("/thresholds/save")
-    public String saveThresholds(@AuthenticationPrincipal UserDetails userDetails,
-            @RequestParam Integer alertThresholdBpm,
-            @RequestParam String alertThresholdBp,
+// API lấy ngưỡng hiện tại của 1 bệnh nhân (dùng cho JS fetch)
+    @GetMapping("/thresholds/patient/{patientId}")
+    @ResponseBody
+    public java.util.Map<String, Object> getPatientThreshold(
+            @PathVariable Integer patientId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        DoctorProfile doctor = getCurrentDoctor(userDetails);
+        PatientProfile patient = patientService.findById(patientId).orElse(null);
+        if (patient == null) {
+            return java.util.Map.of();
+        }
+
+        return thresholdRepository.findByPatientAndDoctor(patient, doctor)
+                .map(t -> java.util.Map.<String, Object>of(
+                "riskScoreThreshold", t.getRiskScoreThreshold(),
+                "maxBpm", t.getMaxBpm(),
+                "maxSystolicBp", t.getMaxSystolicBp(),
+                "notes", t.getNotes() != null ? t.getNotes() : ""
+        ))
+                .orElse(java.util.Map.of(
+                        "riskScoreThreshold", 40.0,
+                        "maxBpm", 100,
+                        "maxSystolicBp", 140,
+                        "notes", ""
+                ));
+    }
+
+// Lưu ngưỡng theo từng bệnh nhân
+    @PostMapping("/thresholds/save-patient")
+    public String savePatientThreshold(
+            @RequestParam Integer patientId,
+            @RequestParam Double riskScoreThreshold,
+            @RequestParam Integer maxBpm,
+            @RequestParam Integer maxSystolicBp,
+            @RequestParam(required = false) String notes,
+            @AuthenticationPrincipal UserDetails userDetails,
             RedirectAttributes ra) {
         DoctorProfile doctor = getCurrentDoctor(userDetails);
-        if (doctor.getDoctorId() == null) {
-            ra.addFlashAttribute("error", "Chỉ bác sĩ mới có quyền cấu hình ngưỡng cảnh báo!");
-            return "redirect:/doctor/dashboard";
-        }
-        // BR12: Validate giới hạn lâm sàng
-        if (alertThresholdBpm < 60 || alertThresholdBpm > 250) {
-            ra.addFlashAttribute("error", "Ngưỡng nhịp tim phải từ 60–250 bpm!");
+        PatientProfile patient = patientService.findById(patientId).orElse(null);
+        if (patient == null) {
+            ra.addFlashAttribute("error", "Không tìm thấy bệnh nhân!");
             return "redirect:/doctor/thresholds";
         }
-        // BR13: Lưu audit log + cập nhật ngưỡng
-        doctor.setAlertThresholdBpm(alertThresholdBpm);
-        doctor.setAlertThresholdBp(alertThresholdBp);
-        doctorRepository.save(doctor);
-        ra.addFlashAttribute("success", "Đã lưu ngưỡng cảnh báo! BPM: " + alertThresholdBpm + ", BP: " + alertThresholdBp);
+        PatientAlertThreshold threshold = thresholdRepository
+                .findByPatientAndDoctor(patient, doctor)
+                .orElse(new PatientAlertThreshold());
+        threshold.setPatient(patient);
+        threshold.setDoctor(doctor);
+        threshold.setRiskScoreThreshold(riskScoreThreshold);
+        threshold.setMaxBpm(maxBpm);
+        threshold.setMaxSystolicBp(maxSystolicBp);
+        threshold.setNotes(notes);
+        thresholdRepository.save(threshold);
+        ra.addFlashAttribute("success", "Đã lưu ngưỡng cho bệnh nhân!");
         return "redirect:/doctor/thresholds";
     }
 
@@ -1107,7 +1234,6 @@ public class DoctorController {
         }
         return "redirect:/doctor/appointments";
     }
-
     private List<Appointment> sortAppointmentsForQueue(List<Appointment> list) {
         if (list == null) return java.util.Collections.emptyList();
         return list.stream().sorted((a1, a2) -> {

@@ -40,7 +40,6 @@ public class PatientProfile {
 
     @Column(name = "is_alert")
     private Integer isAlert = 0;
-
     @Column(name = "created_at")
     private java.time.LocalDateTime createdAt = java.time.LocalDateTime.now();
 }

@@ -36,7 +36,6 @@ public class DatabaseInitializer implements CommandLineRunner {
             } catch (Exception e) {
                 // ignore if already exists
             }
-
             if (datasourceUrl != null && datasourceUrl.startsWith("jdbc:h2")) {
                 createMissingTables();
             } else {
@@ -94,7 +93,6 @@ public class DatabaseInitializer implements CommandLineRunner {
 
             log.info("Seeding medical records...");
             seedMedicalRecordsIfMissing();
-
             log.info("Database seeding and Firebase sync completed successfully.");
         } catch (Exception e) {
             log.error("Error during database initialization: ", e);
@@ -264,7 +262,6 @@ public class DatabaseInitializer implements CommandLineRunner {
         } catch (Exception e) {
             // Ignore
         }
-
         for (String[] logData : sampleLogs) {
             String username = logData[0];
             String action = logData[1];
@@ -406,7 +403,6 @@ public class DatabaseInitializer implements CommandLineRunner {
             log.warn("Failed to create Record_ICD: {}", e.getMessage());
         }
     }
-
     private void seedMedicalRecordsIfMissing() {
         try {
             // 1. Seed ICD_Catalog

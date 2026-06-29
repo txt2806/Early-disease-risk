@@ -33,7 +33,7 @@ INSERT INTO Staff_Profile (Username, PasswordHash, FullName, Role, Status) VALUE
 ('medicalstaff01@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'Điều dưỡng Lê Thị Bình', 'STAFF', 'ACTIVE'),
 ('medicalstaff02@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'Điều dưỡng Hoàng Văn Giang', 'STAFF', 'ACTIVE'),
 ('medicalstaff03@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'Điều dưỡng Vũ Thị Hương', 'STAFF', 'ACTIVE'),
-('medicalstaff04@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'Điều dưỡng Phạm Thị Nhung', 'STAFF', 'ACTIVE'),
+('medicalstaff04@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'Điều dưỡng Phạm Thị Nhung', 'STAFF', 'ACTIVE',
 ('recep1@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'Lễ tân Trần Văn Cường', 'RECEPTIONIST', 'ACTIVE'),
 ('recep2@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'Lễ tân Ngô Thị Khánh', 'RECEPTIONIST', 'ACTIVE'),
 ('recep3@cardio.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', N'Lễ tân Bùi Văn Long', 'RECEPTIONIST', 'ACTIVE');

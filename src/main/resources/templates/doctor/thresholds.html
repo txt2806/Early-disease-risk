@@ -7,100 +7,172 @@
   <header th:replace="~{fragments :: topbar('Cấu hình ngưỡng cảnh báo')}"></header>
   <div class="content">
 
-    <div class="alert-success" th:if="${success}" th:text="${success}"></div>
-    <div style="background:rgba(224,90,90,0.12);border:1px solid rgba(224,90,90,0.3);color:#ff7b7b;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;"
-         th:if="${error}" th:text="${error}"></div>
+    <div th:if="${success}"
+         style="background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.3);
+                color:#34d399;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;"
+         th:text="${success}"></div>
+    <div th:if="${error}"
+         style="background:rgba(224,90,90,0.12);border:1px solid rgba(224,90,90,0.3);
+                color:#ff7b7b;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;"
+         th:text="${error}"></div>
 
-    <div style="max-width:680px;">
+    <div style="max-width:720px;">
       <div style="font-size:14px;color:#8a96b0;margin-bottom:20px;">
-        Thiết lập ngưỡng cảnh báo cá nhân — hệ thống sẽ tự động kích hoạt cảnh báo
-        khi chỉ số bệnh nhân vượt ngưỡng. Ngưỡng phải nằm trong giới hạn lâm sàng an toàn.
+        Thiết lập ngưỡng cảnh báo riêng cho từng bệnh nhân —
+        AI sẽ tự động cảnh báo khi chỉ số vượt ngưỡng đã đặt.
       </div>
 
-      <form th:action="@{/doctor/thresholds/save}" method="post">
-        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-
-        <!-- Ngưỡng hiện tại của bác sĩ -->
-        <div class="card" style="margin-bottom:20px;">
-          <div class="card-header">
-            <div class="card-title"><i class="ti ti-heart-rate-monitor"></i> Ngưỡng cảnh báo của bạn</div>
+      <!-- Bước 1: Chọn bệnh nhân -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="ti ti-user-search"></i> Chọn bệnh nhân cần thiết lập ngưỡng
           </div>
-          <div style="padding:20px;">
-            <div class="form-grid">
-              <div class="form-group">
-                <label class="form-label">Nhịp tim tối đa (bpm)</label>
-                <input class="form-input" type="number"
-                       name="alertThresholdBpm"
-                       th:value="${doctor.alertThresholdBpm ?: 100}"
-                       min="60" max="250"
-                       required>
-                <div style="font-size:11px;color:#8a96b0;margin-top:4px;">Giới hạn an toàn: 60–250 bpm</div>
+        </div>
+        <div style="padding:20px;">
+          <select class="form-input" id="patientSelector" onchange="loadThreshold(this.value)">
+            <option value="">-- Chọn bệnh nhân --</option>
+            <option th:each="p : ${patients}"
+                    th:value="${p.patientId}"
+                    th:text="${p.fullName + ' (#BN' + p.patientId + ')'}">
+            </option>
+          </select>
+          <div th:if="${#lists.isEmpty(patients)}"
+               style="margin-top:10px;font-size:13px;color:#f59e0b;">
+            ⚠️ Bạn chưa có bệnh nhân phụ trách nào.
+          </div>
+        </div>
+      </div>
+
+      <!-- Bước 2: Form nhập ngưỡng (ẩn cho đến khi chọn bệnh nhân) -->
+      <div id="thresholdForm" style="display:none;">
+        <form th:action="@{/doctor/thresholds/save-patient}" method="post">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+          <input type="hidden" name="patientId" id="thresholdPatientId">
+
+          <div class="card" style="margin-bottom:20px;">
+            <div class="card-header">
+              <div class="card-title">
+                <i class="ti ti-heart-rate-monitor"></i>
+                Ngưỡng cảnh báo cho: <span id="selectedPatientName" style="color:#60a5fa;"></span>
               </div>
-              <div class="form-group">
-                <label class="form-label">Huyết áp ngưỡng (mmHg)</label>
-                <input class="form-input" type="text"
-                       name="alertThresholdBp"
-                       th:value="${doctor.alertThresholdBp ?: '140/90'}"
-                       placeholder="140/90"
-                       pattern="\d{2,3}/\d{2,3}"
-                       required>
-                <div style="font-size:11px;color:#8a96b0;margin-top:4px;">Định dạng: tâm thu/tâm trương (VD: 140/90)</div>
+            </div>
+            <div style="padding:20px;">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Ngưỡng nguy cơ AI (%)</label>
+                  <input class="form-input" type="number" name="riskScoreThreshold"
+                         id="thRisk" min="20" max="90" step="5" value="40" required>
+                  <div style="font-size:11px;color:#8a96b0;margin-top:4px;">
+                    AI cảnh báo khi xác suất bệnh nhân vượt mức này
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Nhịp tim tối đa (bpm)</label>
+                  <input class="form-input" type="number" name="maxBpm"
+                         id="thBpm" min="60" max="200" value="100" required>
+                  <div style="font-size:11px;color:#8a96b0;margin-top:4px;">
+                    Giới hạn an toàn: 60–200 bpm
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Huyết áp tâm thu tối đa (mmHg)</label>
+                  <input class="form-input" type="number" name="maxSystolicBp"
+                         id="thBp" min="100" max="200" value="140" required>
+                  <div style="font-size:11px;color:#8a96b0;margin-top:4px;">
+                    Giới hạn an toàn: 100–200 mmHg
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Ghi chú lâm sàng</label>
+                  <textarea class="form-input" name="notes" id="thNotes" rows="2"
+                            placeholder="VD: Bệnh nhân có tiền sử tăng huyết áp..."></textarea>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Bảng tham chiếu lâm sàng -->
-        <div class="card" style="margin-bottom:20px;">
-          <div class="card-header">
-            <div class="card-title"><i class="ti ti-info-circle"></i> Tham chiếu lâm sàng (ACC/AHA Guidelines)</div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <a th:href="@{/doctor/dashboard}" class="btn btn-ghost">Hủy</a>
+            <button type="submit" class="btn btn-primary">
+              <i class="ti ti-device-floppy"></i> Lưu ngưỡng cảnh báo
+            </button>
           </div>
-          <div style="padding:16px;">
-            <table class="patient-table">
-              <thead>
-                <tr><th>Chỉ số</th><th>Bình thường</th><th>Cảnh báo MEDIUM</th><th>Cảnh báo HIGH</th></tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td style="font-weight:500;">Nhịp tim</td>
-                  <td style="color:#34d399;">60–100 bpm</td>
-                  <td style="color:#fbbf24;">100–150 bpm</td>
-                  <td style="color:#ff7b7b;">&gt;150 hoặc &lt;40 bpm</td>
-                </tr>
-                <tr>
-                  <td style="font-weight:500;">Huyết áp tâm thu</td>
-                  <td style="color:#34d399;">&lt;130 mmHg</td>
-                  <td style="color:#fbbf24;">130–160 mmHg</td>
-                  <td style="color:#ff7b7b;">&gt;180 mmHg</td>
-                </tr>
-                <tr>
-                  <td style="font-weight:500;">SpO2</td>
-                  <td style="color:#34d399;">≥95%</td>
-                  <td style="color:#fbbf24;">90–94%</td>
-                  <td style="color:#ff7b7b;">&lt;90%</td>
-                </tr>
-                <tr>
-                  <td style="font-weight:500;">Cholesterol</td>
-                  <td style="color:#34d399;">&lt;5.2 mmol/L</td>
-                  <td style="color:#fbbf24;">5.2–6.2 mmol/L</td>
-                  <td style="color:#ff7b7b;">&gt;6.2 mmol/L</td>
-                </tr>
-              </tbody>
-            </table>
+        </form>
+      </div>
+
+      <!-- Bảng tham chiếu lâm sàng -->
+      <div class="card" style="margin-top:24px;">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="ti ti-info-circle"></i> Tham chiếu lâm sàng (ACC/AHA Guidelines)
           </div>
         </div>
-
-        <div style="display:flex;gap:10px;justify-content:flex-end;">
-          <a th:href="@{/doctor/dashboard}" class="btn btn-ghost">Hủy</a>
-          <button type="submit" class="btn btn-primary">
-            <i class="ti ti-device-floppy"></i> Lưu ngưỡng cảnh báo
-          </button>
+        <div style="padding:16px;">
+          <table class="patient-table">
+            <thead>
+              <tr><th>Chỉ số</th><th>Bình thường</th><th>Cảnh báo MEDIUM</th><th>Cảnh báo HIGH</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-weight:500;">Nhịp tim</td>
+                <td style="color:#34d399;">60–100 bpm</td>
+                <td style="color:#fbbf24;">100–150 bpm</td>
+                <td style="color:#ff7b7b;">&gt;150 hoặc &lt;40 bpm</td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">Huyết áp tâm thu</td>
+                <td style="color:#34d399;">&lt;130 mmHg</td>
+                <td style="color:#fbbf24;">130–160 mmHg</td>
+                <td style="color:#ff7b7b;">&gt;180 mmHg</td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">Nguy cơ AI</td>
+                <td style="color:#34d399;">&lt;40%</td>
+                <td style="color:#fbbf24;">40–70%</td>
+                <td style="color:#ff7b7b;">&gt;70%</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-      </form>
+      </div>
     </div>
-
   </div>
 </main>
+
 <script th:src="@{/js/main.js}"></script>
+<script>
+async function loadThreshold(patientId) {
+  const form = document.getElementById('thresholdForm');
+  if (!patientId) {
+    form.style.display = 'none';
+    return;
+  }
+
+  // Hiển thị tên bệnh nhân đã chọn
+  const selector = document.getElementById('patientSelector');
+  const selectedText = selector.options[selector.selectedIndex].text;
+  document.getElementById('selectedPatientName').textContent = selectedText;
+  document.getElementById('thresholdPatientId').value = patientId;
+
+  // Tải ngưỡng hiện tại từ server
+  try {
+    const res  = await fetch(`/doctor/thresholds/patient/${patientId}`);
+    const data = await res.json();
+    document.getElementById('thRisk').value  = data.riskScoreThreshold ?? 40;
+    document.getElementById('thBpm').value   = data.maxBpm ?? 100;
+    document.getElementById('thBp').value    = data.maxSystolicBp ?? 140;
+    document.getElementById('thNotes').value = data.notes ?? '';
+  } catch (e) {
+    // Không load được → dùng giá trị mặc định
+    document.getElementById('thRisk').value  = 40;
+    document.getElementById('thBpm').value   = 100;
+    document.getElementById('thBp').value    = 140;
+    document.getElementById('thNotes').value = '';
+  }
+
+  form.style.display = 'block';
+}
+</script>
 </body>
 </html>

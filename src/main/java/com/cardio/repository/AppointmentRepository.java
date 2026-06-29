@@ -18,7 +18,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     long countByDoctorAndScheduledDateAndStatusNot(DoctorProfile doctor, java.time.LocalDate scheduledDate, String status);
 
     List<Appointment> findAllByOrderByScheduledDateDescTimeSlotAsc();
-
     @Query("SELECT a FROM Appointment a WHERE " +
            "(:date IS NULL OR a.scheduledDate = :date) AND " +
            "(:search IS NULL OR :search = '' OR " +
