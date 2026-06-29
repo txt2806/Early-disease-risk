@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.HashMap;
 import com.cardio.model.PatientAlertThreshold;
 import com.cardio.repository.PatientAlertThresholdRepository;
+import com.cardio.repository.LabRequestRepository;
 
 // ── CONTROLLER (C trong MVC) ─────────────────────────
 @Controller
@@ -54,6 +55,7 @@ public class DoctorController {
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper; // [A.4] serialize top_factors/trend cho hidden input
     private final PatientAlertThresholdRepository thresholdRepository;
+    private final LabRequestRepository labRequestRepository;
 
     // Helper lấy doctor hoặc staff đang đăng nhập
     private DoctorProfile getCurrentDoctor(UserDetails userDetails) {
@@ -302,12 +304,20 @@ public class DoctorController {
             );
         }
 
+        List<DoctorProfile> specialists = doctorRepository.findAll().stream()
+                .filter(d -> "Chuyên khoa".equalsIgnoreCase(d.getSpecialty()))
+                .toList();
+
+        List<LabRequest> labRequests = labRequestRepository.findByPatientOrderByCreatedAtDesc(patient);
+
         model.addAttribute("doctor", doctor);
         model.addAttribute("patient", patient);
         model.addAttribute("records", records);
         model.addAttribute("recordDiagnosesMap", recordDiagnosesMap);
         model.addAttribute("highAlertCount", 0L);
         model.addAttribute("hasActiveAppointment", hasActiveAppointment);
+        model.addAttribute("specialists", specialists);
+        model.addAttribute("labRequests", labRequests);
         return "doctor/patient-detail";
     }
 
@@ -1004,6 +1014,7 @@ public class DoctorController {
     // ── GHI NHẬN CHỈ SỐ SINH TỒN & XÉT NGHIỆM (MEDICAL STAFF) ────
     @GetMapping("/patients/{id}/vitals")
     public String vitalsForm(@PathVariable Integer id,
+            @RequestParam(required = false) Integer requestId,
             @AuthenticationPrincipal UserDetails userDetails,
             RedirectAttributes ra,
             Model model) {
@@ -1018,6 +1029,7 @@ public class DoctorController {
         model.addAttribute("doctor", doctor);
         model.addAttribute("patient", patient);
         model.addAttribute("vitals", new HeartClinicalMetrics());
+        model.addAttribute("requestId", requestId);
         return "doctor/vitals-form";
     }
 
@@ -1027,6 +1039,7 @@ public class DoctorController {
             @RequestParam(required = false) String consultationNotes,
             @RequestParam(required = false) String treatmentPlan,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) Integer requestId,
             @RequestParam(value = "bloodTestFile", required = false) MultipartFile bloodTestFile,
             @RequestParam(value = "urineTestFile", required = false) MultipartFile urineTestFile,
             @RequestParam(value = "xrayFile", required = false) MultipartFile xrayFile,
@@ -1094,6 +1107,11 @@ public class DoctorController {
         }
         vitals.setRecordedAt(LocalDateTime.now());
         heartClinicalMetricsRepository.save(vitals);
+
+        // 3. Hoàn thành yêu cầu xét nghiệm nếu có
+        if (requestId != null) {
+            consultationService.completeLabRequest(requestId, vitals, consultationNotes);
+        }
 
         ra.addFlashAttribute("success", "Đã ghi nhận bệnh án và các chỉ số sức khỏe của bệnh nhân!");
         return "redirect:/doctor/patients/" + id;
@@ -1308,5 +1326,76 @@ public class DoctorController {
             e.printStackTrace();
             return null;
         }
+    }
+
+    @PostMapping("/patients/{id}/transfer")
+    public String transferPatient(@PathVariable Integer id,
+                                  @RequestParam("targetDoctorId") Integer targetDoctorId,
+                                  @RequestParam("notes") String notes,
+                                  @AuthenticationPrincipal UserDetails userDetails,
+                                  RedirectAttributes ra) {
+        try {
+            PatientProfile patient = patientService.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Patient not found"));
+            DoctorProfile targetDoctor = doctorRepository.findById(targetDoctorId)
+                    .orElseThrow(() -> new RuntimeException("Target doctor not found"));
+
+            consultationService.createReferral(patient, targetDoctor, notes);
+            
+            // Log action
+            auditLogService.log(userDetails.getUsername(), "REFER_PATIENT", 
+                    "Chuyển bệnh nhân PatientID=" + id + " sang BS Chuyên khoa " + targetDoctor.getFullName() + ". Lý do: " + notes);
+
+            ra.addFlashAttribute("success", "Đã chuyển bệnh nhân sang chuyên khoa và tạo lịch hẹn thành công!");
+        } catch (Exception e) {
+            log.error("Error transferring patient: ", e);
+            ra.addFlashAttribute("error", "Lỗi chuyển chuyên khoa: " + e.getMessage());
+        }
+        return "redirect:/doctor/patients/" + id;
+    }
+
+    @PostMapping("/patients/{id}/lab-request")
+    public String requestLabTest(@PathVariable Integer id,
+                                 @RequestParam("requestNotes") String requestNotes,
+                                 @AuthenticationPrincipal UserDetails userDetails,
+                                 RedirectAttributes ra) {
+        try {
+            PatientProfile patient = patientService.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Patient not found"));
+            DoctorProfile doctor = getCurrentDoctor(userDetails);
+
+            consultationService.createLabRequest(patient, doctor, requestNotes);
+            
+            // Log action
+            auditLogService.log(userDetails.getUsername(), "CREATE_LAB_REQUEST", 
+                    "Yêu cầu xét nghiệm cho PatientID=" + id + ". Ghi chú: " + requestNotes);
+
+            ra.addFlashAttribute("success", "Đã gửi yêu cầu xét nghiệm cho điều dưỡng!");
+        } catch (Exception e) {
+            log.error("Error creating lab request: ", e);
+            ra.addFlashAttribute("error", "Lỗi tạo yêu cầu xét nghiệm: " + e.getMessage());
+        }
+        return "redirect:/doctor/patients/" + id;
+    }
+
+    @GetMapping("/lab-requests")
+    public String listLabRequests(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        String username = userDetails.getUsername();
+        boolean isStaff = userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_STAFF") || a.getAuthority().equals("ROLE_RECEPTIONIST"));
+        
+        List<LabRequest> requests;
+        if (isStaff) {
+            // Staff sees all requests
+            requests = labRequestRepository.findAllByOrderByCreatedAtDesc();
+        } else {
+            // Doctors see requests they created
+            DoctorProfile doctor = getCurrentDoctor(userDetails);
+            requests = labRequestRepository.findByDoctorOrderByCreatedAtDesc(doctor);
+        }
+        
+        model.addAttribute("requests", requests);
+        model.addAttribute("isStaff", isStaff);
+        return "doctor/lab-requests";
     }
 }

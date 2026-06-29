@@ -103,6 +103,9 @@
                       <span th:if="${a.queueNumber != null}" class="risk-badge risk-LOW" 
                             style="background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); font-size:10px; padding: 1px 5px; font-weight:700;" 
                             th:text="'STT: ' + ${a.queueNumber}">STT: 1</span>
+                      <span th:if="${a.activeQueueNumber != null}" class="risk-badge" 
+                            style="background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); font-size:10px; padding: 1px 5px; font-weight:700;" 
+                            th:text="'STT Khám: ' + ${a.activeQueueNumber}">STT Khám: 1</span>
                     </div>
                     <div class="patient-id" th:text="${a.patient.phone != null ? a.patient.phone : 'Không có SĐT'}">0912345678</div>
                   </div>
@@ -111,8 +114,8 @@
               <td>
                 <div style="font-weight:600; color:#e8edf5;"
                   th:text="${#temporals.format(a.scheduledDate, 'dd/MM/yyyy')}">--</div>
-                <div style="font-size:11px; color:#8a96b0;" th:text="${a.timeSlot != null ? 'Vào: ' + a.timeSlot : 'Chưa Check-In'}">--</div>
-                <div th:if="${a.endTime != null}" style="font-size:11px; color:#a3b3cc;" th:text="${'Ra: ' + a.endTime}">--</div>
+                <div style="font-size:11px; color:#8a96b0;" th:text="${a.timeSlot != null ? 'Vào: ' + #temporals.format(a.timeSlot, 'HH:mm') : 'Chưa Check-In'}">--</div>
+                <div th:if="${a.endTime != null}" style="font-size:11px; color:#a3b3cc;" th:text="${'Ra: ' + #temporals.format(a.endTime, 'HH:mm')}">--</div>
               </td>
               <td>
                 <span
@@ -136,8 +139,8 @@
               </td>
               <td>
                 <span class="risk-badge"
-                  th:classappend="${a.status == 'Pending'} ? 'risk-MEDIUM' : (${a.status == 'Confirmed' || a.status == 'CheckedIn'} ? 'risk-LOW' : (${a.status == 'Completed'} ? 'risk-LOW' : 'risk-HIGH'))"
-                  th:text="${a.status == 'Pending' ? 'Chờ duyệt' : (a.status == 'Confirmed' ? 'Đã xác nhận' : (a.status == 'CheckedIn' ? 'Đã đến' : (a.status == 'Completed' ? 'Đã khám' : 'Đã hủy')))}">Pending</span>
+                  th:classappend="${a.status == 'Pending'} ? 'risk-MEDIUM' : (${a.status == 'Confirmed' || a.status == 'CheckedIn' || a.status == 'InProgress'} ? 'risk-LOW' : (${a.status == 'Completed'} ? 'risk-LOW' : 'risk-HIGH'))"
+                  th:text="${a.status == 'Pending' ? 'Chờ duyệt' : (a.status == 'Confirmed' ? 'Đã xác nhận' : (a.status == 'CheckedIn' ? 'Đã đến' : (a.status == 'InProgress' ? 'Đang khám' : (a.status == 'Completed' ? 'Đã khám' : 'Đã hủy'))))}">Pending</span>
               </td>
               <td>
                 <div style="display:flex; flex-direction:column; gap:4px;">
@@ -146,7 +149,8 @@
                     th:data-id="${a.appointmentId}" th:data-patient-name="${a.patient.fullName}"
                     th:data-doctor-id="${a.doctor != null ? a.doctor.doctorId : ''}"
                     th:data-room-number="${a.roomNumber != null ? a.roomNumber : ''}" th:data-date="${a.scheduledDate}"
-                    th:data-time="${a.timeSlot}" th:data-end-time="${a.endTime}" th:data-status="${a.status}" onclick="openAssignModal(this)">
+                    th:data-time="${a.timeSlot}" th:data-end-time="${a.endTime}" th:data-status="${a.status}" 
+                    th:data-bookingtype="${a.bookingType}" onclick="openAssignModal(this)">
                     ⚙️ Xếp lịch & Phòng
                   </button>
                 </div>
@@ -208,14 +212,24 @@
           <div id="modalPatientName" style="font-size:15px; font-weight:700; color:#cbd5e1; margin-top:4px;">--</div>
         </div>
 
+        <!-- Loại hình khám -->
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label>Loại hình khám</label>
+          <select name="bookingType" id="modalBookingType" required
+            style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 14px; outline: none; cursor: pointer;">
+            <option value="General">Khám tổng quát (Bác sĩ Đa khoa)</option>
+            <option value="Specialist">Khám chuyên khoa (Bác sĩ Chuyên khoa)</option>
+          </select>
+        </div>
+
         <!-- Phân bác sĩ -->
         <div class="form-group" style="margin-bottom: 14px;">
           <label>Phân công Bác sĩ</label>
           <select name="doctorId" id="modalDoctorId"
             style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 14px; outline: none;">
             <option value="">-- Chưa phân công --</option>
-            <option th:each="doc : ${doctors}" th:value="${doc.doctorId}" th:data-room="${doc.roomNumber}"
-              th:text="${doc.fullName + ' - Tim mạch'}"></option>
+            <option th:each="doc : ${doctors}" th:value="${doc.doctorId}" th:data-room="${doc.roomNumber}" th:data-specialty="${doc.specialty}"
+              th:text="${doc.fullName + ' - Chuyên khoa: ' + doc.specialty}"></option>
           </select>
         </div>
 
@@ -276,6 +290,8 @@
   </div>
 
   <script>
+    let allModalDoctorOptions = [];
+
     function openAssignModal(btn) {
       const id = btn.getAttribute("data-id");
       const name = btn.getAttribute("data-patient-name");
@@ -285,9 +301,18 @@
       const time = btn.getAttribute("data-time");
       const endTime = btn.getAttribute("data-end-time");
       const status = btn.getAttribute("data-status");
+      const bookingType = btn.getAttribute("data-bookingtype") || "General";
 
       document.getElementById("modalAppointmentId").value = id;
       document.getElementById("modalPatientName").textContent = name;
+
+      // Set booking type and trigger filtering
+      const modalBookingType = document.getElementById("modalBookingType");
+      if (modalBookingType) {
+        modalBookingType.value = bookingType;
+        modalBookingType.dispatchEvent(new Event('change'));
+      }
+
       document.getElementById("modalDoctorId").value = doctorId;
       document.getElementById("modalRoomNumber").value = room;
       document.getElementById("modalDate").value = date;
@@ -303,10 +328,43 @@
     document.addEventListener("DOMContentLoaded", function () {
       const docSelect = document.getElementById("modalDoctorId");
       if (docSelect) {
+        allModalDoctorOptions = Array.from(docSelect.options);
         docSelect.addEventListener("change", function () {
           const selectedOption = this.options[this.selectedIndex];
-          const room = selectedOption.getAttribute("data-room") || "";
+          const room = selectedOption ? (selectedOption.getAttribute("data-room") || "") : "";
           document.getElementById("modalRoomNumber").value = room;
+        });
+      }
+
+      const modalBookingType = document.getElementById("modalBookingType");
+      if (modalBookingType && docSelect) {
+        modalBookingType.addEventListener("change", function() {
+          const selectedType = this.value;
+          const expectedSpecialty = (selectedType === "General") ? "Đa khoa" : "Chuyên khoa";
+          
+          docSelect.innerHTML = "";
+          allModalDoctorOptions.forEach(opt => {
+            if (!opt.value || opt.getAttribute("data-specialty") === expectedSpecialty) {
+              docSelect.appendChild(opt.cloneNode(true));
+            }
+          });
+        });
+      }
+
+      const modalStatus = document.getElementById("modalStatus");
+      if (modalStatus) {
+        modalStatus.addEventListener("change", function () {
+          if (this.value === "CheckedIn") {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById("modalTimeSlot").value = `${hh}:${mm}`;
+          } else if (this.value === "Completed") {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById("modalEndTime").value = `${hh}:${mm}`;
+          }
         });
       }
     });

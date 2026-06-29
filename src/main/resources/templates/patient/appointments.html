@@ -285,7 +285,7 @@
               </td>
               <td style="vertical-align: middle; text-align: center;">
                 <span class="risk-badge" 
-                      th:classappend="${a.status == 'Pending'} ? 'risk-MEDIUM' : (${a.status == 'Confirmed' || a.status == 'CheckedIn'} ? 'risk-LOW' : (${a.status == 'Completed'} ? 'risk-LOW' : 'risk-HIGH'))"
+                      th:classappend="${a.status == 'Pending'} ? 'risk-MEDIUM' : (${a.status == 'Confirmed' || a.status == 'CheckedIn' || a.status == 'InProgress'} ? 'risk-LOW' : (${a.status == 'Completed'} ? 'risk-LOW' : 'risk-HIGH'))"
                       th:text="${a.status == 'Pending' ? 'Chờ duyệt' : (a.status == 'Confirmed' ? 'Đã duyệt' : (a.status == 'CheckedIn' ? 'Đã đến' : (a.status == 'InProgress' ? 'Đang khám' : (a.status == 'Completed' ? 'Hoàn thành' : 'Đã hủy'))))}">Pending</span>
               </td>
               <td style="vertical-align: middle; text-align: center;">

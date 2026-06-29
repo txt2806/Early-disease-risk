@@ -25,6 +25,34 @@ import java.util.Optional;
 @Slf4j
 public class PatientController {
 
+    private static final String SQL_SELECT_LATEST_SELF_MONITORING = 
+        "SELECT CurrentHeartRate, TriggeredAlert, LogDate, Symptoms FROM Patient_Self_Monitoring WHERE PatientID = ? ORDER BY LogDate DESC LIMIT 5";
+    
+    private static final String SQL_SELECT_ALL_SELF_MONITORING = 
+        "SELECT LogID AS \"LogID\", LogDate AS \"LogDate\", CurrentHeartRate AS \"CurrentHeartRate\", Symptoms AS \"Symptoms\", TriggeredAlert AS \"TriggeredAlert\" FROM Patient_Self_Monitoring WHERE PatientID = ? ORDER BY LogDate DESC";
+
+    private static final String SQL_INSERT_SELF_MONITORING = 
+        "INSERT INTO Patient_Self_Monitoring (PatientID, LogDate, CurrentHeartRate, Symptoms, TriggeredAlert) VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?)";
+
+    private static final String SQL_SELECT_CONSULTATION_RECORDS = 
+        "SELECT r.RecordID, r.VisitDate, r.ConsultationNotes, r.TreatmentPlan, r.Status, " +
+        "d.FullName AS DoctorName, d.Specialty AS DoctorSpecialty, " +
+        "p.RiskScore, p.RiskLevel, p.RiskExplanation, p.HealthAdvice, " +
+        "m.ChestPainType, m.RestingBP, m.Cholesterol, m.FastingBloodSugar, " +
+        "m.RestingECG, m.MaxHeartRate, m.ExerciseAngina, m.Oldpeak, m.Slope, m.Ca, m.Thal, " +
+        "m.Temperature, m.SpO2, m.BloodTest, m.UrineTest, m.Xray, m.Ultrasound, m.Mri, m.Ct " +
+        "FROM Consultation_Record r " +
+        "LEFT JOIN Doctor_Profile d ON r.DoctorID = d.DoctorID " +
+        "LEFT JOIN AI_Risk_Prediction p ON r.RecordID = p.RecordID " +
+        "LEFT JOIN Heart_Clinical_Metrics m ON r.RecordID = m.RecordID " +
+        "WHERE r.PatientID = ? ORDER BY r.VisitDate DESC";
+
+    private static final String ACTION_SELF_MONITORING = "PATIENT_SELF_MONITORING";
+    private static final String ACTION_BOOK_APPOINTMENT = "PATIENT_BOOK_APPOINTMENT";
+    private static final String APPOINTMENT_STATUS_PENDING = "Pending";
+    private static final String APPOINTMENT_STATUS_CONFIRMED = "Confirmed";
+    private static final String APPOINTMENT_STATUS_CANCELLED = "Cancelled";
+
     private final PatientRepository patientRepository;
     private final AppointmentRepository appointmentRepository;
     private final DoctorRepository doctorRepository;
@@ -48,7 +76,7 @@ public class PatientController {
         
         // Fetch latest heart rate and alerts from self monitoring
         List<Map<String, Object>> selfLogs = jdbcTemplate.queryForList(
-                "SELECT CurrentHeartRate, TriggeredAlert, LogDate, Symptoms FROM Patient_Self_Monitoring WHERE PatientID = ? ORDER BY LogDate DESC LIMIT 5",
+                SQL_SELECT_LATEST_SELF_MONITORING,
                 patient.getPatientId()
         );
 
@@ -83,7 +111,7 @@ public class PatientController {
         PatientProfile patient = getCurrentPatient(userDetails);
         
         List<Map<String, Object>> monitoringLogs = jdbcTemplate.queryForList(
-                "SELECT LogID AS \"LogID\", LogDate AS \"LogDate\", CurrentHeartRate AS \"CurrentHeartRate\", Symptoms AS \"Symptoms\", TriggeredAlert AS \"TriggeredAlert\" FROM Patient_Self_Monitoring WHERE PatientID = ? ORDER BY LogDate DESC",
+                SQL_SELECT_ALL_SELF_MONITORING,
                 patient.getPatientId()
         );
 
@@ -108,14 +136,14 @@ public class PatientController {
 
         try {
             jdbcTemplate.update(
-                    "INSERT INTO Patient_Self_Monitoring (PatientID, LogDate, CurrentHeartRate, Symptoms, TriggeredAlert) VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?)",
+                    SQL_INSERT_SELF_MONITORING,
                     patient.getPatientId(), heartRate, symptoms, triggeredAlert
             );
 
             // Log action
             SystemLog sysLog = new SystemLog();
             sysLog.setUsername(patient.getUsername());
-            sysLog.setAction("PATIENT_SELF_MONITORING");
+            sysLog.setAction(ACTION_SELF_MONITORING);
             sysLog.setDetails("Bệnh nhân tự khai báo: Nhịp tim " + heartRate + " BPM, Triệu chứng: " + symptoms + " (Cảnh báo: " + (triggeredAlert ? "Có" : "Không") + ")");
             sysLog.setTimestamp(LocalDateTime.now());
             systemLogRepository.save(sysLog);
@@ -134,17 +162,7 @@ public class PatientController {
         
         // Fetch all ConsultationRecords for the patient
         List<Map<String, Object>> records = jdbcTemplate.queryForList(
-                "SELECT r.RecordID, r.VisitDate, r.ConsultationNotes, r.TreatmentPlan, r.Status, " +
-                "d.FullName AS DoctorName, d.Specialty AS DoctorSpecialty, " +
-                "p.RiskScore, p.RiskLevel, p.RiskExplanation, p.HealthAdvice, " +
-                "m.ChestPainType, m.RestingBP, m.Cholesterol, m.FastingBloodSugar, " +
-                "m.RestingECG, m.MaxHeartRate, m.ExerciseAngina, m.Oldpeak, m.Slope, m.Ca, m.Thal, " +
-                "m.Temperature, m.SpO2, m.BloodTest, m.UrineTest, m.Xray, m.Ultrasound, m.Mri, m.Ct " +
-                "FROM Consultation_Record r " +
-                "LEFT JOIN Doctor_Profile d ON r.DoctorID = d.DoctorID " +
-                "LEFT JOIN AI_Risk_Prediction p ON r.RecordID = p.RecordID " +
-                "LEFT JOIN Heart_Clinical_Metrics m ON r.RecordID = m.RecordID " +
-                "WHERE r.PatientID = ? ORDER BY r.VisitDate DESC",
+                SQL_SELECT_CONSULTATION_RECORDS,
                 patient.getPatientId()
         );
 
@@ -168,6 +186,8 @@ public class PatientController {
                                   @RequestParam("doctorId") Integer doctorId,
                                   @RequestParam("scheduledDate") String scheduledDateStr,
                                   @RequestParam("preliminaryStatus") String preliminaryStatus,
+                                  @RequestParam(value = "bookingType", required = false, defaultValue = "General") String bookingType,
+                                  @RequestParam(value = "timeSlot", required = false) String timeSlotStr,
                                   RedirectAttributes ra) {
         PatientProfile patient = getCurrentPatient(userDetails);
         
@@ -180,7 +200,7 @@ public class PatientController {
             // Auto-overflow logic: find next consecutive day where doctor has < 8 appointments
             LocalDate targetDate = scheduledDate;
             boolean wasShifted = false;
-            while (appointmentRepository.countByDoctorAndScheduledDateAndStatusNot(doctor, targetDate, "Cancelled") >= 8) {
+            while (appointmentRepository.countByDoctorAndScheduledDateAndStatusNot(doctor, targetDate, APPOINTMENT_STATUS_CANCELLED) >= 8) {
                 targetDate = targetDate.plusDays(1);
                 wasShifted = true;
             }
@@ -191,7 +211,7 @@ public class PatientController {
                 .anyMatch(a -> a.getPatient().getPatientId().equals(patient.getPatientId())
                         && a.getDoctor() != null && a.getDoctor().getDoctorId().equals(doctor.getDoctorId())
                         && a.getScheduledDate().equals(finalDate)
-                        && !"Cancelled".equalsIgnoreCase(a.getStatus()));
+                        && !APPOINTMENT_STATUS_CANCELLED.equalsIgnoreCase(a.getStatus()));
             if (alreadyBooked) {
                 ra.addFlashAttribute("error", "Bạn đã đăng ký lịch hẹn khám với bác sĩ " + doctor.getFullName() + " vào ngày này rồi.");
                 return "redirect:/patient/book-appointment";
@@ -201,16 +221,19 @@ public class PatientController {
             appointment.setPatient(patient);
             appointment.setDoctor(doctor);
             appointment.setScheduledDate(targetDate);
-            appointment.setTimeSlot(null); // No time slot until physical check-in
+            if (timeSlotStr != null && !timeSlotStr.isBlank()) {
+                appointment.setTimeSlot(java.time.LocalTime.parse(timeSlotStr));
+            }
+            appointment.setBookingType(bookingType);
             appointment.setPreliminaryStatus(preliminaryStatus);
-            appointment.setStatus("Pending");
+            appointment.setStatus(APPOINTMENT_STATUS_CONFIRMED);
 
             appointmentRepository.save(appointment);
 
             // Save system log
             SystemLog sysLog = new SystemLog();
             sysLog.setUsername(patient.getUsername());
-            sysLog.setAction("PATIENT_BOOK_APPOINTMENT");
+            sysLog.setAction(ACTION_BOOK_APPOINTMENT);
             sysLog.setDetails("Bệnh nhân đặt lịch hẹn khám với bác sĩ: " + doctor.getFullName() + " vào ngày " + targetDate.toString());
             sysLog.setTimestamp(LocalDateTime.now());
             systemLogRepository.save(sysLog);

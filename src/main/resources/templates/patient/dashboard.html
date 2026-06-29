@@ -77,8 +77,8 @@
               </td>
               <td>
                 <span class="risk-badge" 
-                      th:classappend="${a.status == 'Pending'} ? 'risk-MEDIUM' : (${a.status == 'Confirmed' || a.status == 'CheckedIn'} ? 'risk-LOW' : (${a.status == 'Completed'} ? 'risk-LOW' : 'risk-HIGH'))" 
-                      th:text="${a.status == 'Pending' ? 'Chờ duyệt' : (a.status == 'Confirmed' ? 'Đã xác nhận' : (a.status == 'CheckedIn' ? 'Đã đến' : (a.status == 'Completed' ? 'Đã khám' : 'Đã hủy')))}">Pending</span>
+                      th:classappend="${a.status == 'Pending'} ? 'risk-MEDIUM' : (${a.status == 'Confirmed' || a.status == 'CheckedIn' || a.status == 'InProgress'} ? 'risk-LOW' : (${a.status == 'Completed'} ? 'risk-LOW' : 'risk-HIGH'))" 
+                      th:text="${a.status == 'Pending' ? 'Chờ duyệt' : (a.status == 'Confirmed' ? 'Đã xác nhận' : (a.status == 'CheckedIn' ? 'Đã đến' : (a.status == 'InProgress' ? 'Đang khám' : (a.status == 'Completed' ? 'Đã khám' : 'Đã hủy'))))}">Pending</span>
               </td>
             </tr>
             <tr th:if="${#lists.isEmpty(appointments)}">

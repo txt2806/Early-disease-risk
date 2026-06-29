@@ -17,6 +17,7 @@
     </div>
 
     <form th:action="@{/doctor/patients/{id}/vitals/save(id=${patient.patientId})}" th:object="${vitals}" method="post" enctype="multipart/form-data">
+      <input type="hidden" name="requestId" th:value="${requestId}">
       <div class="two-col" style="grid-template-columns: 1fr 1fr; gap: 20px;">
         
         <!-- Bên trái: Chỉ số sinh tồn -->

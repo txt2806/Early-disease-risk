@@ -53,6 +53,11 @@
       <span class="nav-badge" th:text="${highAlertCount}" th:if="${highAlertCount != null && highAlertCount > 0}">0</span>
     </a>
 
+    <a th:href="@{/doctor/lab-requests}" sec:authorize="hasAnyRole('DOCTOR', 'STAFF', 'ADMIN')"
+       th:classappend="${page == 'lab-requests'} ? ' active'" class="nav-item">
+      <i class="ti ti-file-analytics"></i> Yêu cầu xét nghiệm
+    </a>
+
     <div class="nav-label" sec:authorize="hasAnyRole('DOCTOR', 'ADMIN')">Công cụ</div>
     <a th:href="@{/doctor/ai-predict}" sec:authorize="hasAnyRole('DOCTOR', 'ADMIN')"
        th:classappend="${page == 'ai-predict'} ? ' active'" class="nav-item">

@@ -92,12 +92,7 @@
             <version>9.2.0</version>
         </dependency>
 
-        <!-- In-memory H2 Database for offline mock testing -->
-        <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
-            <scope>runtime</scope>
-        </dependency>
+
         <!-- Test dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

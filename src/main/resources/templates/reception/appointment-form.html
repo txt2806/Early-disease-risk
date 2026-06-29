@@ -104,13 +104,24 @@
           </div>
         </div>
 
-        <!-- Chọn bác sĩ -->
+        <!-- Chọn loại hình khám -->
         <div class="form-group" style="margin-bottom: 16px;">
+          <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Chọn Loại hình khám</label>
+          <select name="bookingType" id="bookingType" required 
+                  style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none; cursor:pointer;">
+            <option value="" disabled selected>-- Chọn Loại hình khám --</option>
+            <option value="General">Khám tổng quát (Bác sĩ Đa khoa)</option>
+            <option value="Specialist">Khám chuyên khoa (Bác sĩ Chuyên khoa)</option>
+          </select>
+        </div>
+
+        <!-- Chọn bác sĩ -->
+        <div class="form-group" style="margin-bottom: 16px; display: none;" id="doctorContainer">
           <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Bác sĩ phụ trách</label>
           <select name="doctorId" id="doctorIdSelect" required 
                   style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none; cursor:pointer;">
-            <option value="" disabled selected>-- Chọn Bác sĩ Tim mạch --</option>
-            <option th:each="doc : ${doctors}" th:value="${doc.doctorId}" th:data-room="${doc.roomNumber}" th:text="${doc.fullName + ' - Chuyên khoa: ' + doc.specialty}"></option>
+            <option value="" disabled selected>-- Chọn Bác sĩ --</option>
+            <option th:each="doc : ${doctors}" th:value="${doc.doctorId}" th:data-room="${doc.roomNumber}" th:data-specialty="${doc.specialty}" th:text="${doc.fullName + ' - Chuyên khoa: ' + doc.specialty}"></option>
           </select>
         </div>
 
@@ -121,12 +132,28 @@
                  style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none;">
         </div>
 
-        <div style="margin-bottom:16px;">
+        <div style="margin-bottom:16px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
           <!-- Chọn ngày -->
           <div class="form-group">
             <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Ngày khám</label>
             <input type="date" name="scheduledDate" id="scheduledDate" required 
                    style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none;">
+          </div>
+          <!-- Chọn khung giờ khám -->
+          <div class="form-group">
+            <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Chọn Khung giờ khám (1 tiếng / ca)</label>
+            <select name="timeSlot" id="timeSlot" required 
+                    style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none; cursor:pointer;">
+              <option value="" disabled selected>-- Chọn Khung giờ --</option>
+              <option value="08:00">08:00 - 09:00</option>
+              <option value="09:00">09:00 - 10:00</option>
+              <option value="10:00">10:00 - 11:00</option>
+              <option value="11:00">11:00 - 12:00</option>
+              <option value="13:00">13:00 - 14:00</option>
+              <option value="14:00">14:00 - 15:00</option>
+              <option value="15:00">15:00 - 16:00</option>
+              <option value="16:00">16:00 - 17:00</option>
+            </select>
           </div>
         </div>
 
@@ -230,14 +257,42 @@ document.addEventListener('DOMContentLoaded', function() {
   const noPatientFound = document.getElementById('noPatientFound');
   const patientIdInput = document.getElementById('patientId');
   
-  // Doctor/Room auto-completion
+  // Doctor filtering based on Booking Type & Room auto-completion
+  const bookingTypeSelect = document.getElementById('bookingType');
+  const doctorContainer = document.getElementById('doctorContainer');
   const doctorIdSelect = document.getElementById('doctorIdSelect');
   const roomNumberInput = document.getElementById('roomNumberInput');
-  if (doctorIdSelect && roomNumberInput) {
+  const allDoctorOptions = Array.from(doctorIdSelect.options);
+
+  if (bookingTypeSelect && doctorContainer && doctorIdSelect) {
+    bookingTypeSelect.addEventListener('change', function() {
+      const selectedType = this.value; // 'General' or 'Specialist'
+      const expectedSpecialty = (selectedType === 'General') ? 'Đa khoa' : 'Chuyên khoa';
+      
+      doctorContainer.style.display = 'block';
+      doctorIdSelect.innerHTML = '';
+      
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.disabled = true;
+      defaultOpt.selected = true;
+      defaultOpt.text = '-- Chọn Bác sĩ --';
+      doctorIdSelect.appendChild(defaultOpt);
+      
+      allDoctorOptions.forEach(opt => {
+        if (opt.getAttribute('data-specialty') === expectedSpecialty) {
+          doctorIdSelect.appendChild(opt.cloneNode(true));
+        }
+      });
+      roomNumberInput.value = '';
+    });
+    
     doctorIdSelect.addEventListener('change', function() {
       const selectedOption = this.options[this.selectedIndex];
-      const room = selectedOption.getAttribute('data-room') || '';
-      roomNumberInput.value = room;
+      if (selectedOption) {
+        const room = selectedOption.getAttribute('data-room') || '';
+        roomNumberInput.value = room;
+      }
     });
   }
 

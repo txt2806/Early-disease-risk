@@ -114,6 +114,7 @@ public class ReceptionController {
             @RequestParam(value = "timeSlot", required = false) String timeSlotStr,
             @RequestParam(value = "endTime", required = false) String endTimeStr,
             @RequestParam("status") String status,
+            @RequestParam(value = "bookingType", required = false) String bookingType,
             @RequestParam(value = "redirectSource", required = false, defaultValue = "dashboard") String redirectSource,
             @RequestParam(value = "redirectDate", required = false) String redirectDate,
             RedirectAttributes ra) {
@@ -164,14 +165,15 @@ public class ReceptionController {
             }
             appointment.setScheduledDate(targetDate);
             appointment.setStatus(status);
+            if (bookingType != null) {
+                appointment.setBookingType(bookingType);
+            }
 
             // Handle Check-in arrival time
             if (timeSlotStr != null && !timeSlotStr.isBlank()) {
                 appointment.setTimeSlot(LocalTime.parse(timeSlotStr));
             } else if ("CheckedIn".equalsIgnoreCase(status) && appointment.getTimeSlot() == null) {
                 appointment.setTimeSlot(LocalTime.now());
-            } else if (!"CheckedIn".equalsIgnoreCase(status) && !"InProgress".equalsIgnoreCase(status) && !"Completed".equalsIgnoreCase(status)) {
-                appointment.setTimeSlot(null); // Reset arrival time if moved back to Pending/Confirmed/Cancelled
             }
 
             // Handle Completed end time
@@ -248,6 +250,7 @@ public class ReceptionController {
             @RequestParam(value = "roomNumber", required = false) String roomNumber,
             @RequestParam("preliminaryStatus") String preliminaryStatus,
             @RequestParam("status") String status,
+            @RequestParam(value = "bookingType", required = false, defaultValue = "General") String bookingType,
             RedirectAttributes ra) {
         StaffProfile staff = getCurrentStaff(userDetails);
 
@@ -333,12 +336,13 @@ public class ReceptionController {
 
             appointment.setScheduledDate(targetDate);
             
-            // Set Check-in arrival time if checked in
-            if ("CheckedIn".equalsIgnoreCase(status)) {
+            // Set timeSlot
+            if (timeSlotStr != null && !timeSlotStr.isBlank()) {
+                appointment.setTimeSlot(LocalTime.parse(timeSlotStr));
+            } else if ("CheckedIn".equalsIgnoreCase(status)) {
                 appointment.setTimeSlot(LocalTime.now());
-            } else {
-                appointment.setTimeSlot(null);
             }
+            appointment.setBookingType(bookingType);
 
             if (appointment.getDoctor() != null && (roomNumber == null || roomNumber.isBlank())) {
                 appointment.setRoomNumber(appointment.getDoctor().getRoomNumber());

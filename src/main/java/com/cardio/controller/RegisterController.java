@@ -26,6 +26,18 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class RegisterController {
 
+    private static final String SQL_SELECT_CLINICAL_METRICS = 
+        "SELECT m.* FROM Heart_Clinical_Metrics m JOIN Consultation_Record r ON m.RecordID = r.RecordID WHERE r.PatientID = ? ORDER BY r.VisitDate DESC";
+
+    private static final String SQL_SELECT_SELF_MONITORING = 
+        "SELECT LogID, LogDate, CurrentHeartRate, Symptoms, TriggeredAlert FROM Patient_Self_Monitoring WHERE PatientID = ? ORDER BY LogDate DESC";
+
+    private static final String SQL_INSERT_SELF_MONITORING = 
+        "INSERT INTO Patient_Self_Monitoring (PatientID, LogDate, CurrentHeartRate, Symptoms, TriggeredAlert) VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?)";
+
+    private static final String SQL_INSERT_SYSTEM_LOG = 
+        "INSERT INTO System_Log (Username, Action, Details, Timestamp) VALUES (?, 'PATIENT_SELF_MONITORING', ?, CURRENT_TIMESTAMP)";
+
     private final PatientRepository patientRepository;
     private final PasswordEncoder passwordEncoder;
     private final AIRiskRepository aiRiskRepository;
@@ -239,7 +251,7 @@ public class RegisterController {
                 // Lấy danh sách chỉ số lâm sàng (bác sĩ đo)
                 if (patient.getPatientId() != null) {
                     java.util.List<java.util.Map<String, Object>> clinicalMetrics = jdbcTemplate.queryForList(
-                            "SELECT m.* FROM Heart_Clinical_Metrics m JOIN Consultation_Record r ON m.RecordID = r.RecordID WHERE r.PatientID = ? ORDER BY r.VisitDate DESC",
+                            SQL_SELECT_CLINICAL_METRICS,
                             patient.getPatientId());
                     model.addAttribute("clinicalMetrics", clinicalMetrics);
                 } else {
@@ -254,7 +266,7 @@ public class RegisterController {
                 // Lấy danh sách tự theo dõi (bệnh nhân tự ghi nhận)
                 if (patient.getPatientId() != null) {
                     java.util.List<java.util.Map<String, Object>> monitoringLogs = jdbcTemplate.queryForList(
-                            "SELECT LogID, LogDate, CurrentHeartRate, Symptoms, TriggeredAlert FROM Patient_Self_Monitoring WHERE PatientID = ? ORDER BY LogDate DESC",
+                            SQL_SELECT_SELF_MONITORING,
                             patient.getPatientId());
                     model.addAttribute("monitoringLogs", monitoringLogs);
                 } else {
@@ -378,12 +390,12 @@ public class RegisterController {
                 }
 
                 jdbcTemplate.update(
-                        "INSERT INTO Patient_Self_Monitoring (PatientID, LogDate, CurrentHeartRate, Symptoms, TriggeredAlert) VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?)",
+                        SQL_INSERT_SELF_MONITORING,
                         patient.getPatientId(), heartRate, symptoms, triggeredAlert);
                 // Save to system audit log
                 try {
                     jdbcTemplate.update(
-                        "INSERT INTO System_Log (Username, Action, Details, Timestamp) VALUES (?, 'PATIENT_SELF_MONITORING', ?, CURRENT_TIMESTAMP)",
+                        SQL_INSERT_SYSTEM_LOG,
                         email, "Bệnh nhân tự ghi chỉ số sức khỏe: Nhịp tim " + heartRate + " bpm, Triệu chứng: " + (symptoms != null && !symptoms.trim().isEmpty() ? symptoms : "Không có") + " (Cảnh báo: " + (triggeredAlert ? "Có" : "Không") + ")");
                 } catch (Exception ex) {
                     System.err.println("Error saving self-monitoring system audit log: " + ex.getMessage());

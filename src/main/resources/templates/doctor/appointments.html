@@ -246,10 +246,10 @@
           <tbody>
             <tr th:each="a : ${docApps}" style="border-bottom: 1px solid rgba(255,255,255,0.04);">
               <td style="vertical-align: middle; text-align: center;">
-                <span th:if="${a.queueNumber != null}" class="risk-badge risk-LOW" 
-                      style="background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); font-size:11px; padding: 2px 6px; font-weight:700;" 
-                      th:text="${a.queueNumber}">1</span>
-                <span th:if="${a.queueNumber == null}">--</span>
+                <span th:if="${a.activeQueueNumber != null}" class="risk-badge" 
+                      style="background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); font-size:11px; padding: 2px 6px; font-weight:700;" 
+                      th:text="${a.activeQueueNumber}">1</span>
+                <span th:if="${a.activeQueueNumber == null}" style="color: #6b7280; font-size: 12px;">--</span>
               </td>
               <td style="vertical-align: middle; text-align: center;">
                 <span th:text="${a.timeSlot != null ? #temporals.format(a.timeSlot, 'HH:mm') : '--'}" style="font-weight: 600; color: #e8edf5;">--</span>
@@ -271,7 +271,7 @@
               </td>
               <td style="vertical-align: middle; text-align: center;">
                 <span class="risk-badge" 
-                      th:classappend="${a.status == 'Pending'} ? 'risk-MEDIUM' : (${a.status == 'Confirmed' || a.status == 'CheckedIn'} ? 'risk-LOW' : (${a.status == 'Completed'} ? 'risk-LOW' : 'risk-HIGH'))"
+                      th:classappend="${a.status == 'Pending'} ? 'risk-MEDIUM' : (${a.status == 'Confirmed' || a.status == 'CheckedIn' || a.status == 'InProgress'} ? 'risk-LOW' : (${a.status == 'Completed'} ? 'risk-LOW' : 'risk-HIGH'))"
                       th:text="${a.status == 'Pending' ? 'Chờ duyệt' : (a.status == 'Confirmed' ? 'Đã duyệt' : (a.status == 'CheckedIn' ? 'Đã đến' : (a.status == 'InProgress' ? 'Đang khám' : (a.status == 'Completed' ? 'Hoàn thành' : 'Đã hủy'))))}">Pending</span>
               </td>
               <td style="vertical-align: middle; text-align: center;">

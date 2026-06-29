@@ -442,6 +442,23 @@
           document.getElementById("modalRoomNumber").value = room;
         });
       }
+
+      const modalStatus = document.getElementById("modalStatus");
+      if (modalStatus) {
+        modalStatus.addEventListener("change", function () {
+          if (this.value === "CheckedIn") {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById("modalTimeSlot").value = `${hh}:${mm}`;
+          } else if (this.value === "Completed") {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById("modalEndTime").value = `${hh}:${mm}`;
+          }
+        });
+      }
     });
 
     function closeAssignModal() {

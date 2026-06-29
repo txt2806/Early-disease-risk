@@ -24,6 +24,27 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 public class ConsultationService {
 
+    public static final String STATUS_COMPLETED = "Completed";
+    public static final String STATUS_PENDING = "Pending";
+    public static final String TREND_UNKNOWN = "UNKNOWN";
+
+    public static final String FBS_EXANG_TRUE_1 = "1.0";
+    public static final String FBS_EXANG_TRUE_2 = "1";
+    public static final String FBS_EXANG_TRUE_3 = "true";
+
+    public static final String CP_TYPICAL = "typical angina";
+    public static final String CP_ATYPICAL = "atypical angina";
+    public static final String CP_NON_ANGINAL = "non-anginal";
+    public static final String CP_ASYMPTOMATIC = "asymptomatic";
+
+    public static final String ECG_NORMAL = "normal";
+    public static final String ECG_ABNORMALITY = "st-t abnormality";
+    public static final String ECG_HYPERTROPHY = "lv hypertrophy";
+
+    public static final String GENDER_MALE_VN = "Nam";
+    public static final String GENDER_MALE_EN = "Male";
+    public static final String GENDER_FEMALE_EN = "Female";
+
     private final ConsultationRepository consultationRepository;
     private final AIRiskRepository aiRiskRepository;
     private final AIService aiService;
@@ -32,6 +53,8 @@ public class ConsultationService {
     private final RecordIcdRepository recordIcdRepository;
     private final PatientAlertThresholdRepository thresholdRepository;
     private final ObjectMapper objectMapper;
+    private final LabRequestRepository labRequestRepository;
+    private final AppointmentRepository appointmentRepository;
 
     public List<ConsultationRecord> getByPatient(PatientProfile patient) {
         return consultationRepository.findByPatientOrderByVisitDateDesc(patient);
@@ -58,7 +81,7 @@ public class ConsultationService {
         record.setVisitDate(LocalDateTime.now());
         record.setConsultationNotes(notes);
         record.setTreatmentPlan(treatmentPlan);
-        record.setStatus("Completed");
+        record.setStatus(STATUS_COMPLETED);
         consultationRepository.save(record);
 
         // 2. Gọi AI
@@ -83,20 +106,16 @@ public class ConsultationService {
 
             Integer cpValue = null;
             if (aiRequest.getCp() != null) {
-                switch (aiRequest.getCp()) {
-                    case "typical angina" -> cpValue = 1;
-                    case "atypical angina" -> cpValue = 2;
-                    case "non-anginal" -> cpValue = 3;
-                    case "asymptomatic" -> cpValue = 4;
-                }
+                if (CP_TYPICAL.equals(aiRequest.getCp())) cpValue = 1;
+                else if (CP_ATYPICAL.equals(aiRequest.getCp())) cpValue = 2;
+                else if (CP_NON_ANGINAL.equals(aiRequest.getCp())) cpValue = 3;
+                else if (CP_ASYMPTOMATIC.equals(aiRequest.getCp())) cpValue = 4;
             }
             Integer restecgValue = null;
             if (aiRequest.getRestecg() != null) {
-                switch (aiRequest.getRestecg()) {
-                    case "normal" -> restecgValue = 0;
-                    case "st-t abnormality" -> restecgValue = 1;
-                    case "lv hypertrophy" -> restecgValue = 2;
-                }
+                if (ECG_NORMAL.equals(aiRequest.getRestecg())) restecgValue = 0;
+                else if (ECG_ABNORMALITY.equals(aiRequest.getRestecg())) restecgValue = 1;
+                else if (ECG_HYPERTROPHY.equals(aiRequest.getRestecg())) restecgValue = 2;
             }
 
             HeartClinicalMetrics metrics = new HeartClinicalMetrics();
@@ -137,7 +156,7 @@ public class ConsultationService {
             return false;
         }
         String v = raw.trim();
-        return "1.0".equals(v) || "1".equals(v) || "true".equalsIgnoreCase(v);
+        return FBS_EXANG_TRUE_1.equals(v) || FBS_EXANG_TRUE_2.equals(v) || FBS_EXANG_TRUE_3.equalsIgnoreCase(v);
     }
 
     /**
@@ -197,7 +216,7 @@ public class ConsultationService {
         record.setVisitDate(LocalDateTime.now());
         record.setConsultationNotes(doctorNotes);
         record.setTreatmentPlan(treatmentPlan);
-        record.setStatus("Completed");
+        record.setStatus(STATUS_COMPLETED);
         consultationRepository.save(record);
 
         // 2. Lưu kết quả AI (đã phân tích trước đó)
@@ -220,20 +239,16 @@ public class ConsultationService {
 
             Integer cpValue = null;
             if (aiRequest.getCp() != null) {
-                switch (aiRequest.getCp()) {
-                    case "typical angina" -> cpValue = 1;
-                    case "atypical angina" -> cpValue = 2;
-                    case "non-anginal" -> cpValue = 3;
-                    case "asymptomatic" -> cpValue = 4;
-                }
+                if (CP_TYPICAL.equals(aiRequest.getCp())) cpValue = 1;
+                else if (CP_ATYPICAL.equals(aiRequest.getCp())) cpValue = 2;
+                else if (CP_NON_ANGINAL.equals(aiRequest.getCp())) cpValue = 3;
+                else if (CP_ASYMPTOMATIC.equals(aiRequest.getCp())) cpValue = 4;
             }
             Integer restecgValue = null;
             if (aiRequest.getRestecg() != null) {
-                switch (aiRequest.getRestecg()) {
-                    case "normal" -> restecgValue = 0;
-                    case "st-t abnormality" -> restecgValue = 1;
-                    case "lv hypertrophy" -> restecgValue = 2;
-                }
+                if (ECG_NORMAL.equals(aiRequest.getRestecg())) restecgValue = 0;
+                else if (ECG_ABNORMALITY.equals(aiRequest.getRestecg())) restecgValue = 1;
+                else if (ECG_HYPERTROPHY.equals(aiRequest.getRestecg())) restecgValue = 2;
             }
 
             HeartClinicalMetrics metrics = new HeartClinicalMetrics();
@@ -336,7 +351,7 @@ public class ConsultationService {
             metrics.setAge(java.time.Period.between(record.getPatient().getDob(), java.time.LocalDate.now()).getYears());
         }
         if (metrics.getSex() == null && record.getPatient().getGender() != null) {
-            metrics.setSex("Nam".equalsIgnoreCase(record.getPatient().getGender()) || "Male".equalsIgnoreCase(record.getPatient().getGender()) ? "Male" : "Female");
+            metrics.setSex(GENDER_MALE_VN.equalsIgnoreCase(record.getPatient().getGender()) || GENDER_MALE_EN.equalsIgnoreCase(record.getPatient().getGender()) ? GENDER_MALE_EN : GENDER_FEMALE_EN);
         }
 
         metrics.setRestingBP(restingBP);
@@ -485,5 +500,40 @@ public class ConsultationService {
 
         double riskScore = prediction.getRiskScore().doubleValue();
         return riskScore >= threshold.getRiskScoreThreshold();
+    }
+
+    @Transactional
+    public Appointment createReferral(PatientProfile patient, DoctorProfile targetDoctor, String notes) {
+        Appointment app = new Appointment();
+        app.setPatient(patient);
+        app.setDoctor(targetDoctor);
+        app.setScheduledDate(java.time.LocalDate.now()); // Hẹn khám chuyên khoa hôm nay/ngay lập tức
+        app.setStatus(STATUS_PENDING);
+        app.setBookingType("Specialist");
+        app.setPreliminaryStatus(notes);
+        app.setRequestTime(LocalDateTime.now());
+        return appointmentRepository.save(app);
+    }
+
+    @Transactional
+    public LabRequest createLabRequest(PatientProfile patient, DoctorProfile doctor, String requestNotes) {
+        LabRequest req = new LabRequest();
+        req.setPatient(patient);
+        req.setDoctor(doctor);
+        req.setRequestNotes(requestNotes);
+        req.setStatus(STATUS_PENDING);
+        req.setCreatedAt(LocalDateTime.now());
+        return labRequestRepository.save(req);
+    }
+
+    @Transactional
+    public void completeLabRequest(Integer requestId, HeartClinicalMetrics clinicalMetrics, String resultNotes) {
+        labRequestRepository.findById(requestId).ifPresent(req -> {
+            req.setStatus(STATUS_COMPLETED);
+            req.setCompletedAt(LocalDateTime.now());
+            req.setClinicalMetrics(clinicalMetrics);
+            req.setResultNotes(resultNotes);
+            labRequestRepository.save(req);
+        });
     }
 }

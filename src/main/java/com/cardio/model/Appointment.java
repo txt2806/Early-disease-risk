@@ -43,8 +43,14 @@ public class Appointment {
 
     @Column(name = "PreliminaryStatus")
     private String preliminaryStatus;
+    @Column(name = "bookingtype")
+    private String bookingType = "General"; // General or Specialist
+
     @Transient
     private Integer queueNumber;
+
+    @Transient
+    private Integer activeQueueNumber;
 
     public static void calculateQueueNumbers(java.util.List<Appointment> list) {
         if (list == null) return;
@@ -56,53 +62,80 @@ public class Appointment {
             }
         }
         for (java.util.List<Appointment> group : groups.values()) {
-            group.sort((a1, a2) -> {
-                int p1 = getStatusPriority(a1.getStatus());
-                int p2 = getStatusPriority(a2.getStatus());
-                if (p1 != p2) return Integer.compare(p1, p2);
-                if (p1 == 1) { // CheckedIn FIFO by arrival time slot
-                    if (a1.getTimeSlot() != null && a2.getTimeSlot() != null) {
-                        return a1.getTimeSlot().compareTo(a2.getTimeSlot());
+            // Sort all non-cancelled appointments by slot (timeSlot) then booking time (requestTime)
+            java.util.List<Appointment> nonCancelled = group.stream()
+                .filter(a -> !"Cancelled".equalsIgnoreCase(a.getStatus()))
+                .sorted((a1, a2) -> {
+                    LocalTime t1 = a1.getTimeSlot();
+                    LocalTime t2 = a2.getTimeSlot();
+                    if (t1 != null && t2 != null) {
+                        int comp = t1.compareTo(t2);
+                        if (comp != 0) return comp;
+                    } else if (t1 != null) {
+                        return -1;
+                    } else if (t2 != null) {
+                        return 1;
                     }
-                    if (a1.getTimeSlot() != null) return -1;
-                    if (a2.getTimeSlot() != null) return 1;
-                }
-                // Fallback to id
-                if (a1.getAppointmentId() != null && a2.getAppointmentId() != null) {
-                    return a1.getAppointmentId().compareTo(a2.getAppointmentId());
-                }
-                return 0;
-            });
-            int q = 1;
-            for (Appointment a : group) {
-                if (!"Cancelled".equalsIgnoreCase(a.getStatus())) {
-                    a.setQueueNumber(q++);
-                } else {
-                    a.setQueueNumber(null);
-                }
-            }
-        }
-    }
+                    LocalDateTime r1 = a1.getRequestTime();
+                    LocalDateTime r2 = a2.getRequestTime();
+                    if (r1 != null && r2 != null) {
+                        int comp = r1.compareTo(r2);
+                        if (comp != 0) return comp;
+                    } else if (r1 != null) {
+                        return -1;
+                    } else if (r2 != null) {
+                        return 1;
+                    }
+                    if (a1.getAppointmentId() != null && a2.getAppointmentId() != null) {
+                        return a1.getAppointmentId().compareTo(a2.getAppointmentId());
+                    }
+                    return 0;
+                })
+                .collect(java.util.stream.Collectors.toList());
 
-    private static int getStatusPriority(String status) {
-        if ("InProgress".equalsIgnoreCase(status)) return 0;
-        if ("CheckedIn".equalsIgnoreCase(status)) return 1;
-        if ("Confirmed".equalsIgnoreCase(status)) return 2;
-        if ("Pending".equalsIgnoreCase(status)) return 3;
-        if ("Completed".equalsIgnoreCase(status)) return 4;
-        return 5; // Cancelled
+            int q = 1;
+            for (Appointment a : nonCancelled) {
+                a.setQueueNumber(q++);
+            }
+
+            // Set cancelled queueNumber to null
+            group.stream()
+                .filter(a -> "Cancelled".equalsIgnoreCase(a.getStatus()))
+                .forEach(a -> a.setQueueNumber(null));
+
+            // Calculate active queue numbers for InProgress and CheckedIn
+            java.util.List<Appointment> activeList = nonCancelled.stream()
+                .filter(a -> "InProgress".equalsIgnoreCase(a.getStatus()) || "CheckedIn".equalsIgnoreCase(a.getStatus()))
+                .sorted(java.util.Comparator.comparing(Appointment::getQueueNumber))
+                .collect(java.util.stream.Collectors.toList());
+
+            int aq = 1;
+            for (Appointment a : activeList) {
+                a.setActiveQueueNumber(aq++);
+            }
+
+            // For other appointments, set activeQueueNumber to null
+            group.stream()
+                .filter(a -> !"InProgress".equalsIgnoreCase(a.getStatus()) && !"CheckedIn".equalsIgnoreCase(a.getStatus()))
+                .forEach(a -> a.setActiveQueueNumber(null));
+        }
     }
 
     public static void populateQueueNumbers(java.util.List<Appointment> targetList, java.util.List<Appointment> referenceList) {
         calculateQueueNumbers(referenceList);
         java.util.Map<Integer, Integer> queueMap = new java.util.HashMap<>();
+        java.util.Map<Integer, Integer> activeQueueMap = new java.util.HashMap<>();
         for (Appointment a : referenceList) {
             if (a.getQueueNumber() != null) {
                 queueMap.put(a.getAppointmentId(), a.getQueueNumber());
             }
+            if (a.getActiveQueueNumber() != null) {
+                activeQueueMap.put(a.getAppointmentId(), a.getActiveQueueNumber());
+            }
         }
         for (Appointment a : targetList) {
             a.setQueueNumber(queueMap.get(a.getAppointmentId()));
+            a.setActiveQueueNumber(activeQueueMap.get(a.getAppointmentId()));
         }
     }
 }
