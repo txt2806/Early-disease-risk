@@ -11,5 +11,6 @@ WORKDIR /app
 COPY --from=build /app/target/cardio-doctor-portal-1.0.0.jar app.jar
 EXPOSE 8080
 
+# Cấu hình ưu tiên kết nối IPv4 để sửa lỗi kết nối Supabase trên Render
 # Giới hạn bộ nhớ tối đa 350MB RAM để phù hợp với gói Free của Render
-ENTRYPOINT ["java", "-Xmx350m", "-Xms350m", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Djava.net.preferIPv4Stack=true", "-Xmx350m", "-Xms350m", "-jar", "app.jar"]
