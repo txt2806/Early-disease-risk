@@ -4,6 +4,7 @@ import com.cardio.model.*;
 import com.cardio.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -17,6 +18,9 @@ import java.time.LocalTime;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import java.util.Optional;
 
 @Controller
@@ -58,7 +62,17 @@ public class PatientController {
     private final DoctorRepository doctorRepository;
     private final AIRiskRepository aiRiskRepository;
     private final SystemLogRepository systemLogRepository;
+    private final InvoiceRepository invoiceRepository;
     private final JdbcTemplate jdbcTemplate;
+
+    @Value("${sepay.bank.id:}")
+    private String bankId;
+
+    @Value("${sepay.bank.account:}")
+    private String bankAccount;
+
+    @Value("${sepay.bank.owner:}")
+    private String bankOwner;
 
     private PatientProfile getCurrentPatient(UserDetails userDetails) {
         return patientRepository.findByUsernameIgnoreCase(userDetails.getUsername())
@@ -230,6 +244,21 @@ public class PatientController {
 
             appointmentRepository.save(appointment);
 
+            // Tự động tạo hóa đơn tương ứng với lịch khám
+            Long fee = "Specialist".equalsIgnoreCase(bookingType) ? 300000L : 150000L;
+            Invoice invoice = new Invoice();
+            invoice.setAppointment(appointment);
+            invoice.setPatient(patient);
+            invoice.setAmount(fee);
+            invoice.setPaidAmount(0L);
+            invoice.setStatus("Unpaid");
+            invoice.setCreatedDate(LocalDateTime.now());
+            invoice = invoiceRepository.save(invoice);
+            
+            // Cập nhật mã nội dung chuyển khoản bảo mật dạng TT{id}
+            invoice.setReferenceCode("TT" + invoice.getInvoiceId());
+            invoiceRepository.save(invoice);
+
             // Save system log
             SystemLog sysLog = new SystemLog();
             sysLog.setUsername(patient.getUsername());
@@ -253,5 +282,98 @@ public class PatientController {
             }
         }
         return "redirect:/patient/dashboard";
+    }
+
+    @GetMapping("/invoices")
+    public String viewInvoices(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        PatientProfile patient = getCurrentPatient(userDetails);
+        
+        // Tự động khởi tạo hóa đơn chưa tồn tại cho các lịch khám của patient này (để tránh dữ liệu cũ không có hóa đơn)
+        List<Appointment> appointments = appointmentRepository.findByPatientOrderByScheduledDateDescTimeSlotDesc(patient);
+        for (Appointment app : appointments) {
+            Optional<Invoice> invOpt = invoiceRepository.findByAppointment(app);
+            if (!invOpt.isPresent() && !"Cancelled".equalsIgnoreCase(app.getStatus())) {
+                Long fee = "Specialist".equalsIgnoreCase(app.getBookingType()) ? 300000L : 150000L;
+                Invoice invoice = new Invoice();
+                invoice.setAppointment(app);
+                invoice.setPatient(patient);
+                invoice.setAmount(fee);
+                invoice.setPaidAmount(0L);
+                invoice.setStatus("Unpaid");
+                invoice.setCreatedDate(LocalDateTime.now());
+                invoice = invoiceRepository.save(invoice);
+                invoice.setReferenceCode("TT" + invoice.getInvoiceId());
+                invoiceRepository.save(invoice);
+            }
+        }
+
+        List<Invoice> invoices = invoiceRepository.findByPatientOrderByCreatedDateDesc(patient);
+        model.addAttribute("patient", patient);
+        model.addAttribute("invoices", invoices);
+        return "patient/invoices";
+    }
+
+    @GetMapping("/invoices/pay/{id}")
+    public String payInvoice(
+            @PathVariable("id") Integer id,
+            @AuthenticationPrincipal UserDetails userDetails,
+            Model model,
+            RedirectAttributes ra) {
+        PatientProfile patient = getCurrentPatient(userDetails);
+        
+        Optional<Invoice> invOpt = invoiceRepository.findById(id);
+        if (!invOpt.isPresent()) {
+            ra.addFlashAttribute("error", "Không tìm thấy hóa đơn cần thanh toán.");
+            return "redirect:/patient/invoices";
+        }
+        
+        Invoice invoice = invOpt.get();
+        // Bảo vệ: Chỉ cho phép bệnh nhân thanh toán hóa đơn của chính mình
+        if (!invoice.getPatient().getPatientId().equals(patient.getPatientId())) {
+            ra.addFlashAttribute("error", "Bạn không có quyền truy cập hóa đơn này.");
+            return "redirect:/patient/invoices";
+        }
+        
+        model.addAttribute("patient", patient);
+        model.addAttribute("invoice", invoice);
+        model.addAttribute("bankId", bankId);
+        model.addAttribute("bankAccount", bankAccount);
+        model.addAttribute("bankOwner", bankOwner);
+        
+        return "patient/pay-invoice";
+    }
+
+    @GetMapping("/invoices/{id}/check-status")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> checkInvoiceStatusPatient(
+            @PathVariable("id") Integer id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            PatientProfile patient = getCurrentPatient(userDetails);
+            Optional<Invoice> invOpt = invoiceRepository.findById(id);
+            if (invOpt.isPresent()) {
+                Invoice invoice = invOpt.get();
+                if (!invoice.getPatient().getPatientId().equals(patient.getPatientId())) {
+                    result.put("success", false);
+                    result.put("error", "Unauthorized access");
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).body(result);
+                }
+                result.put("success", true);
+                result.put("status", invoice.getStatus());
+                result.put("amount", invoice.getAmount());
+                result.put("paidAmount", invoice.getPaidAmount());
+                result.put("missingAmount", Math.max(0, invoice.getAmount() - invoice.getPaidAmount()));
+                return ResponseEntity.ok(result);
+            } else {
+                result.put("success", false);
+                result.put("error", "Hóa đơn không tồn tại");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(result);
+            }
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(result);
+        }
     }
 }

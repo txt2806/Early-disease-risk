@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Quản lý Hóa đơn')}"></head>
+<body>
+<div th:replace="~{fragments :: receptionSidebar('invoices')}"></div>
+
+<main class="main">
+  <header th:replace="~{fragments :: simpleTopbar('Quản lý Hóa đơn & Thu phí')}"></header>
+  <div class="content">
+
+    <div class="alert-success" th:if="${success}" th:text="${success}" style="padding: 12px; margin-bottom: 20px; border-radius: 8px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);"></div>
+    <div class="alert-danger" th:if="${error}" th:text="${error}" style="padding: 12px; margin-bottom: 20px; border-radius: 8px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);"></div>
+
+    <!-- Thanh lọc & tìm kiếm -->
+    <div class="card" style="margin-bottom: 24px; padding: 16px;">
+      <form method="get" th:action="@{/reception/invoices}" style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center;">
+        <div style="flex: 1; min-width: 250px;">
+          <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px; font-weight:600;">Tìm kiếm bệnh nhân</label>
+          <input type="text" name="search" th:value="${search}" placeholder="Tên hoặc Số điện thoại bệnh nhân..." 
+                 style="width:100%; background:#1a2440; border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none;">
+        </div>
+        
+        <div style="width: 200px;">
+          <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px; font-weight:600;">Trạng thái thanh toán</label>
+          <select name="status" style="width:100%; background:#1a2440; border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none; cursor:pointer;">
+            <option value="ALL" th:selected="${selectedStatus == 'ALL'}">Tất cả hóa đơn</option>
+            <option value="Unpaid" th:selected="${selectedStatus == 'Unpaid'}">Chưa thanh toán</option>
+            <option value="PartiallyPaid" th:selected="${selectedStatus == 'PartiallyPaid'}">Thanh toán thiếu</option>
+            <option value="Paid" th:selected="${selectedStatus == 'Paid'}">Đã thanh toán</option>
+          </select>
+        </div>
+
+        <div style="margin-top: 20px;">
+          <button type="submit" class="btn" style="background:#3b82f6; padding: 10px 20px; border-radius:8px; font-weight:600; color:white; border:none; cursor:pointer;">
+            <i class="ti ti-filter"></i> Lọc kết quả
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Bảng danh sách hóa đơn -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🧾 Nhật ký Hóa đơn Bệnh viện</div>
+      </div>
+      <div style="overflow-x: auto; margin-top: 15px;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 800px;">
+          <thead>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.08); background: #1e293b;">
+              <th style="padding: 14px; color: #8a96b0; font-weight: 600; font-size: 13px;">Mã hóa đơn</th>
+              <th style="padding: 14px; color: #8a96b0; font-weight: 600; font-size: 13px;">Bệnh nhân</th>
+              <th style="padding: 14px; color: #8a96b0; font-weight: 600; font-size: 13px;">Số điện thoại</th>
+              <th style="padding: 14px; color: #8a96b0; font-weight: 600; font-size: 13px;">Ngày khám</th>
+              <th style="padding: 14px; color: #8a96b0; font-weight: 600; font-size: 13px;">Loại hình khám</th>
+              <th style="padding: 14px; color: #8a96b0; font-weight: 600; font-size: 13px;">Tổng tiền</th>
+              <th style="padding: 14px; color: #8a96b0; font-weight: 600; font-size: 13px;">Đã trả</th>
+              <th style="padding: 14px; color: #8a96b0; font-weight: 600; font-size: 13px;">Phương thức</th>
+              <th style="padding: 14px; color: #8a96b0; font-weight: 600; font-size: 13px;">Trạng thái</th>
+              <th style="padding: 14px; color: #8a96b0; font-weight: 600; font-size: 13px; text-align: center;">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr th:each="inv : ${invoices}" style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+              <td style="padding: 14px; color: #e8edf5; font-weight: 600;" th:text="'#' + ${inv.invoiceId}">#1001</td>
+              <td style="padding: 14px; color: #e8edf5; font-weight: 600;" th:text="${inv.patient != null ? inv.patient.fullName : 'N/A'}">Nguyễn Văn A</td>
+              <td style="padding: 14px; color: #8a96b0; font-family: monospace;" th:text="${inv.patient != null ? inv.patient.phone : 'N/A'}">0987654321</td>
+              <td style="padding: 14px; color: #8a96b0;" th:text="${inv.appointment != null ? inv.appointment.scheduledDate : 'N/A'}">2026-07-01</td>
+              <td style="padding: 14px;">
+                <span th:if="${inv.appointment != null && 'Specialist'.equalsIgnoreCase(inv.appointment.bookingType)}" class="badge" style="background: rgba(139, 92, 246, 0.15); color: #c084fc; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Chuyên khoa</span>
+                <span th:if="${inv.appointment == null || !'Specialist'.equalsIgnoreCase(inv.appointment.bookingType)}" class="badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Tổng quát</span>
+              </td>
+              <td style="padding: 14px; color: #34d399; font-weight: 700;" th:text="${#numbers.formatDecimal(inv.amount, 0, 'COMMA', 0, 'POINT')} + ' đ'">150,000 đ</td>
+              <td style="padding: 14px; color: #e8edf5;" th:text="${#numbers.formatDecimal(inv.paidAmount, 0, 'COMMA', 0, 'POINT')} + ' đ'">0 đ</td>
+              <td style="padding: 14px; color: #8a96b0;" th:text="${inv.paymentMethod != null ? inv.paymentMethod : '—'}">Chuyển khoản</td>
+              <td style="padding: 14px;">
+                <span th:if="${'Paid'.equalsIgnoreCase(inv.status)}" style="background: rgba(16, 185, 129, 0.15); color: #34d399; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600;">Đã thanh toán</span>
+                <span th:if="${'PartiallyPaid'.equalsIgnoreCase(inv.status)}" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600;">Thanh toán thiếu</span>
+                <span th:if="${'Unpaid'.equalsIgnoreCase(inv.status)}" style="background: rgba(239, 68, 68, 0.15); color: #f87171; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600;">Chưa thanh toán</span>
+              </td>
+              <td style="padding: 14px; text-align: center;">
+                <button th:if="${!'Paid'.equalsIgnoreCase(inv.status)}" 
+                        th:onclick="openCollectModal([[${inv.invoiceId}]], [[${inv.patient.fullName}]], [[${inv.amount}]], [[${inv.paidAmount}]], [[${inv.referenceCode}]])"
+                        class="btn" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; border:none; cursor:pointer;">
+                  Thu phí
+                </button>
+                <span th:if="${'Paid'.equalsIgnoreCase(inv.status)}" style="color: #34d399; font-size: 12px; font-weight: 600;"><i class="ti ti-circle-check"></i> Đã đóng</span>
+              </td>
+            </tr>
+            <tr th:if="${invoices.isEmpty()}">
+              <td colspan="10" style="padding: 30px; text-align: center; color: #8a96b0;">Không tìm thấy hóa đơn phù hợp.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- MODAL THU PHÍ (LỄ TÂN) -->
+<div id="collectModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(10,15,30,0.85); backdrop-filter:blur(4px); align-items:center; justify-content:center; z-index:1000;">
+  <div class="modal-content" style="background:#111827; border:1px solid rgba(255,255,255,0.1); border-radius:16px; padding:24px; max-width:500px; width:90%; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5); color:#e8edf5;">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:12px; margin-bottom:16px;">
+      <h3 style="font-size:16px; font-weight:700; color:#e8edf5;"><i class="ti ti-wallet" style="color:#3b82f6;"></i> Thu tiền Hóa đơn</h3>
+      <span onclick="closeCollectModal()" style="font-size:24px; cursor:pointer; color:#8a96b0; line-height:1;">&times;</span>
+    </div>
+
+    <!-- Thông tin hóa đơn trên Modal -->
+    <div style="background:#1f2937; border-radius:8px; padding:12px; margin-bottom:16px; font-size:13px; line-height:1.6;">
+      <p><strong>Bệnh nhân:</strong> <span id="modalPatientName">Nguyễn Văn A</span></p>
+      <p><strong>Cần thu:</strong> <span id="modalTotalAmount" style="color:#34d399; font-weight:700;">150,000 đ</span></p>
+      <p id="modalPaidContainer" style="display:none;"><strong>Đã thu trước đó:</strong> <span id="modalPaidAmount" style="color:#fbbf24; font-weight:700;">50,000 đ</span></p>
+    </div>
+
+    <!-- Lựa chọn phương thức thanh toán -->
+    <div style="margin-bottom: 20px;">
+      <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:8px; font-weight:600;">Chọn phương thức thanh toán</label>
+      <div style="display:flex; gap:16px;">
+        <label style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px; background:#1e293b; border:1px solid rgba(255,255,255,0.08); padding:12px; border-radius:8px; cursor:pointer; font-weight:600;">
+          <input type="radio" name="payMethodRadio" value="Cash" checked onclick="togglePaymentUI('Cash')"> Tiền mặt
+        </label>
+        <label style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px; background:#1e293b; border:1px solid rgba(255,255,255,0.08); padding:12px; border-radius:8px; cursor:pointer; font-weight:600;">
+          <input type="radio" name="payMethodRadio" value="Transfer" onclick="togglePaymentUI('Transfer')"> Chuyển khoản (VietQR)
+        </label>
+      </div>
+    </div>
+
+    <!-- KHU VỰC THU TIỀN MẶT -->
+    <form id="cashForm" th:action="@{/reception/invoices/collect}" method="post" style="display:block;">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+      <input type="hidden" name="invoiceId" id="cashInvoiceId">
+      <input type="hidden" name="paymentMethod" value="Cash">
+      <p style="font-size: 13px; color:#8a96b0; margin-bottom:20px;">Xác nhận thu trực tiếp tiền mặt từ bệnh nhân và bàn giao biên lai.</p>
+      
+      <div style="display:flex; justify-content:flex-end; gap:10px; border-top:1px solid rgba(255,255,255,0.08); padding-top:16px;">
+        <button type="button" onclick="closeCollectModal()" class="btn btn-ghost" style="padding:8px 20px; cursor:pointer; background:transparent; border:none; color:#8a96b0;">Đóng</button>
+        <button type="submit" class="btn" style="background:#10b981; color:white; padding:8px 20px; border-radius:8px; border:none; cursor:pointer; font-weight:600;">Xác nhận thu tiền</button>
+      </div>
+    </form>
+
+    <!-- KHU VỰC CHUYỂN KHOẢN (QR) -->
+    <div id="transferUI" style="display:none; text-align:center;">
+      <div style="margin-bottom: 16px;">
+        <img id="qrImage" src="" alt="Mã QR Chuyển khoản" style="max-width: 200px; border: 1px solid rgba(255, 255, 255, 0.08); padding: 8px; border-radius: 12px; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+      </div>
+      
+      <div style="background:#1e293b; border-radius:8px; padding:10px; margin-bottom:16px; font-size:12px; text-align:left; line-height:1.5;">
+        <p><strong>Chủ tài khoản:</strong> <span th:text="${bankOwner}">TRAN XUAN THANH</span></p>
+        <p><strong>Nội dung bắt buộc:</strong> <span id="transferMemo" style="color:#f87171; font-weight:bold; font-family:monospace; background:rgba(239, 68, 68, 0.1); padding:2px 6px; border-radius:4px;">TT1001</span></p>
+      </div>
+
+      <div id="reception-status-box" style="font-size:13px; color:#fbbf24; font-weight:600; margin-bottom:16px;">
+        <div class="spinner" style="display:inline-block; width: 14px; height: 14px; border: 2px solid rgba(251, 191, 36, 0.3); border-top-color: #fbbf24; border-radius: 50%; animation: spin 1s linear infinite; vertical-align: middle; margin-right:4px;"></div>
+        <span>Đang chờ chuyển khoản...</span>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px; border-top:1px solid rgba(255,255,255,0.08); padding-top:16px;">
+        <button type="button" onclick="closeCollectModal()" class="btn btn-ghost" style="padding:8px 20px; cursor:pointer; background:transparent; border:none; color:#8a96b0;">Đóng</button>
+        <button type="button" onclick="checkTransferStatus()" class="btn" style="background:#3b82f6; color:white; padding:8px 20px; border-radius:8px; border:none; cursor:pointer; font-weight:600;">
+          <i class="ti ti-refresh"></i> Kiểm tra giao dịch
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<style>
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>
+
+<script th:inline="javascript">
+  const bankId = [[${bankId}]];
+  const bankAccount = [[${bankAccount}]];
+  
+  let activeInvoiceId = null;
+
+  function openCollectModal(invoiceId, patientName, totalAmount, paidAmount, refCode) {
+    activeInvoiceId = invoiceId;
+    
+    // Set form invoice ID
+    document.getElementById('cashInvoiceId').value = invoiceId;
+    
+    // Set modal info
+    document.getElementById('modalPatientName').innerText = patientName;
+    document.getElementById('modalTotalAmount').innerText = totalAmount.toLocaleString() + ' đ';
+    
+    const paidContainer = document.getElementById('modalPaidContainer');
+    if (paidAmount > 0) {
+      paidContainer.style.display = 'block';
+      document.getElementById('modalPaidAmount').innerText = paidAmount.toLocaleString() + ' đ';
+    } else {
+      paidContainer.style.display = 'none';
+    }
+
+    // Set VietQR Image URL
+    const finalAmount = totalAmount - paidAmount;
+    document.getElementById('qrImage').src = `https://img.vietqr.io/image/${bankId}-${bankAccount}-compact2.png?amount=${finalAmount}&addInfo=${refCode}`;
+    document.getElementById('transferMemo').innerText = refCode;
+
+    // Reset UI to Cash selection
+    document.querySelector('input[name="payMethodRadio"][value="Cash"]').checked = true;
+    togglePaymentUI('Cash');
+
+    // Show modal
+    document.getElementById('collectModal').style.display = 'flex';
+  }
+
+  function closeCollectModal() {
+    document.getElementById('collectModal').style.display = 'none';
+    activeInvoiceId = null;
+  }
+
+  function togglePaymentUI(type) {
+    if (type === 'Cash') {
+      document.getElementById('cashForm').style.display = 'block';
+      document.getElementById('transferUI').style.display = 'none';
+    } else {
+      document.getElementById('cashForm').style.display = 'none';
+      document.getElementById('transferUI').style.display = 'block';
+      
+      // Reset status box
+      const statusBox = document.getElementById('reception-status-box');
+      statusBox.style.color = '#fbbf24';
+      statusBox.innerHTML = '<div class="spinner" style="display:inline-block; width: 14px; height: 14px; border: 2px solid rgba(251, 191, 36, 0.3); border-top-color: #fbbf24; border-radius: 50%; animation: spin 1s linear infinite; vertical-align: middle; margin-right:4px;"></div> <span>Đang chờ chuyển khoản...</span>';
+    }
+  }
+
+  function checkTransferStatus() {
+    if (!activeInvoiceId) return;
+
+    const statusBox = document.getElementById('reception-status-box');
+    statusBox.innerHTML = '<span>Đang kiểm tra kết nối...</span>';
+
+    fetch(`/reception/invoices/${activeInvoiceId}/check-status`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          if (data.status === 'Paid') {
+            statusBox.style.color = '#34d399';
+            statusBox.innerHTML = '<i class="ti ti-circle-check" style="font-size: 16px; vertical-align: middle;"></i> Bệnh nhân đã thanh toán đủ! Đang làm mới...';
+            setTimeout(() => {
+              window.location.reload();
+            }, 1500);
+          } else if (data.status === 'PartiallyPaid') {
+            statusBox.style.color = '#fbbf24';
+            statusBox.innerHTML = `<i class="ti ti-alert-triangle" style="font-size: 16px; vertical-align: middle;"></i> Bệnh nhân đã chuyển thiếu! Đã nhận: ${data.paidAmount.toLocaleString()}đ, thiếu: ${data.missingAmount.toLocaleString()}đ.`;
+          } else {
+            statusBox.style.color = '#f87171';
+            statusBox.innerHTML = '<i class="ti ti-circle-x" style="font-size: 16px; vertical-align: middle;"></i> Chưa nhận được giao dịch chuyển khoản!';
+          }
+        } else {
+          statusBox.style.color = '#f87171';
+          statusBox.innerHTML = 'Lỗi: ' + data.error;
+        }
+      })
+      .catch(err => {
+        console.error("Lỗi kiểm tra trạng thái thanh toán:", err);
+        statusBox.style.color = '#f87171';
+        statusBox.innerHTML = 'Lỗi kết nối cơ sở dữ liệu.';
+      });
+  }
+</script>
+</body>
+</html>

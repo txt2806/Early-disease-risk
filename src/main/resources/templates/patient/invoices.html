@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Thanh toán & Hóa đơn')}"></head>
+<body>
+<div th:replace="~{fragments :: patientSidebar('invoices')}"></div>
+
+<main class="main">
+  <header th:replace="~{fragments :: simpleTopbar('Thanh toán & Hóa đơn')}"></header>
+  <div class="content">
+
+    <div class="alert-success" th:if="${success}" th:text="${success}" style="padding: 12px; margin-bottom: 20px; border-radius: 8px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);"></div>
+    <div class="alert-danger" th:if="${error}" th:text="${error}" style="padding: 12px; margin-bottom: 20px; border-radius: 8px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);"></div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">💳 Danh sách Hóa đơn khám bệnh</div>
+      </div>
+      
+      <div style="overflow-x: auto; margin-top: 15px;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 600px;">
+          <thead>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.08); background: #1e293b;">
+              <th style="padding: 14px; color: #8a96b0; font-weight: 600; font-size: 13px;">Mã hóa đơn</th>
+              <th style="padding: 14px; color: #8a96b0; font-weight: 600; font-size: 13px;">Ngày tạo</th>
+              <th style="padding: 14px; color: #8a96b0; font-weight: 600; font-size: 13px;">Loại hình khám</th>
+              <th style="padding: 14px; color: #8a96b0; font-weight: 600; font-size: 13px;">Bác sĩ khám</th>
+              <th style="padding: 14px; color: #8a96b0; font-weight: 600; font-size: 13px;">Tổng tiền</th>
+              <th style="padding: 14px; color: #8a96b0; font-weight: 600; font-size: 13px;">Đã trả</th>
+              <th style="padding: 14px; color: #8a96b0; font-weight: 600; font-size: 13px;">Phương thức</th>
+              <th style="padding: 14px; color: #8a96b0; font-weight: 600; font-size: 13px;">Trạng thái</th>
+              <th style="padding: 14px; color: #8a96b0; font-weight: 600; font-size: 13px; text-align: center;">Hành động</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr th:each="inv : ${invoices}" style="border-bottom: 1px solid rgba(255, 255, 255, 0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+              <td style="padding: 14px; color: #e8edf5; font-weight: 600;" th:text="'#' + ${inv.invoiceId}">#1001</td>
+              <td style="padding: 14px; color: #8a96b0;" th:text="${#temporals.format(inv.createdDate, 'dd/MM/yyyy HH:mm')}">01/07/2026 12:00</td>
+              <td style="padding: 14px; color: #e8edf5;">
+                <span th:if="${inv.appointment != null && 'Specialist'.equalsIgnoreCase(inv.appointment.bookingType)}" class="badge" style="background: rgba(139, 92, 246, 0.15); color: #c084fc; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Chuyên khoa</span>
+                <span th:if="${inv.appointment == null || !'Specialist'.equalsIgnoreCase(inv.appointment.bookingType)}" class="badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Tổng quát</span>
+              </td>
+              <td style="padding: 14px; color: #e8edf5;" th:text="${inv.appointment != null && inv.appointment.doctor != null ? inv.appointment.doctor.fullName : 'Chưa phân công'}">Bác sĩ A</td>
+              <td style="padding: 14px; color: #34d399; font-weight: 700;" th:text="${#numbers.formatDecimal(inv.amount, 0, 'COMMA', 0, 'POINT')} + ' đ'">150,000 đ</td>
+              <td style="padding: 14px; color: #e8edf5;" th:text="${#numbers.formatDecimal(inv.paidAmount, 0, 'COMMA', 0, 'POINT')} + ' đ'">0 đ</td>
+              <td style="padding: 14px; color: #8a96b0;" th:text="${inv.paymentMethod != null ? inv.paymentMethod : '—'}">Chuyển khoản</td>
+              <td style="padding: 14px;">
+                <span th:if="${'Paid'.equalsIgnoreCase(inv.status)}" style="background: rgba(16, 185, 129, 0.15); color: #34d399; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600;">Đã thanh toán</span>
+                <span th:if="${'PartiallyPaid'.equalsIgnoreCase(inv.status)}" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600;">Thanh toán thiếu</span>
+                <span th:if="${'Unpaid'.equalsIgnoreCase(inv.status)}" style="background: rgba(239, 68, 68, 0.15); color: #f87171; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600;">Chưa thanh toán</span>
+              </td>
+              <td style="padding: 14px; text-align: center;">
+                <a th:if="${!'Paid'.equalsIgnoreCase(inv.status)}" th:href="@{/patient/invoices/pay/{id}(id=${inv.invoiceId})}" class="btn" style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; text-decoration: none; display: inline-block;">Thanh toán ngay</a>
+                <span th:if="${'Paid'.equalsIgnoreCase(inv.status)}" style="color: #8a96b0; font-size: 12px;"><i class="ti ti-circle-check" style="color: #34d399; font-size: 16px; vertical-align: middle;"></i> Đã duyệt</span>
+              </td>
+            </tr>
+            <tr th:if="${invoices.isEmpty()}">
+              <td colspan="9" style="padding: 30px; text-align: center; color: #8a96b0;">Không có hóa đơn nào cần thanh toán.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
+<script th:src="@{/js/main.js}"></script>
+</body>
+</html>

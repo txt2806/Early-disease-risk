@@ -4,6 +4,7 @@ import com.cardio.model.*;
 import com.cardio.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -18,6 +19,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.Optional;
+import java.util.Map;
+import java.util.HashMap;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -34,7 +39,17 @@ public class ReceptionController {
     private final PatientRepository patientRepository;
     private final DoctorRepository doctorRepository;
     private final SystemLogRepository systemLogRepository;
+    private final InvoiceRepository invoiceRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @Value("${sepay.bank.id:}")
+    private String bankId;
+
+    @Value("${sepay.bank.account:}")
+    private String bankAccount;
+
+    @Value("${sepay.bank.owner:}")
+    private String bankOwner;
 
     private StaffProfile getCurrentStaff(UserDetails userDetails) {
         return staffRepository.findByUsernameIgnoreCase(userDetails.getUsername())
@@ -355,6 +370,21 @@ public class ReceptionController {
 
             appointmentRepository.save(appointment);
 
+            // Tự động tạo hóa đơn tương ứng với lịch khám
+            Long fee = "Specialist".equalsIgnoreCase(bookingType) ? 300000L : 150000L;
+            Invoice invoice = new Invoice();
+            invoice.setAppointment(appointment);
+            invoice.setPatient(patient);
+            invoice.setAmount(fee);
+            invoice.setPaidAmount(0L);
+            invoice.setStatus("Unpaid");
+            invoice.setCreatedDate(LocalDateTime.now());
+            invoice = invoiceRepository.save(invoice);
+            
+            // Cập nhật mã nội dung chuyển khoản bảo mật dạng TT{id}
+            invoice.setReferenceCode("TT" + invoice.getInvoiceId());
+            invoiceRepository.save(invoice);
+
             // Save system log
             SystemLog sysLog = new SystemLog();
             sysLog.setUsername(staff.getUsername());
@@ -500,11 +530,137 @@ public class ReceptionController {
             int n2 = "Cancelled".equalsIgnoreCase(a2.getStatus()) ? 0 : 1;
             if (n1 != n2) return Integer.compare(n1, n2);
 
-            // Fallback: ID
-            if (a1.getAppointmentId() != null && a2.getAppointmentId() != null) {
-                return a1.getAppointmentId().compareTo(a2.getAppointmentId());
+             // Fallback: ID
+             if (a1.getAppointmentId() != null && a2.getAppointmentId() != null) {
+                 return a1.getAppointmentId().compareTo(a2.getAppointmentId());
+             }
+             return 0;
+         }).collect(Collectors.toList());
+     }
+
+    @GetMapping("/invoices")
+    public String viewInvoices(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam(value = "status", required = false) String filterStatus,
+            @RequestParam(value = "search", required = false) String search,
+            Model model) {
+        StaffProfile staff = getCurrentStaff(userDetails);
+
+        // Tự động khởi tạo hóa đơn chưa tồn tại cho tất cả lịch khám (để tránh dữ liệu cũ không có hóa đơn)
+        List<Appointment> appointments = appointmentRepository.findAll();
+        for (Appointment app : appointments) {
+            Optional<Invoice> invOpt = invoiceRepository.findByAppointment(app);
+            if (!invOpt.isPresent() && !"Cancelled".equalsIgnoreCase(app.getStatus())) {
+                Long fee = "Specialist".equalsIgnoreCase(app.getBookingType()) ? 300000L : 150000L;
+                Invoice invoice = new Invoice();
+                invoice.setAppointment(app);
+                invoice.setPatient(app.getPatient());
+                invoice.setAmount(fee);
+                invoice.setPaidAmount(0L);
+                invoice.setStatus("Unpaid");
+                invoice.setCreatedDate(LocalDateTime.now());
+                invoice = invoiceRepository.save(invoice);
+                invoice.setReferenceCode("TT" + invoice.getInvoiceId());
+                invoiceRepository.save(invoice);
             }
-            return 0;
-        }).collect(Collectors.toList());
+        }
+
+        List<Invoice> allInvoices = invoiceRepository.findAll();
+        
+        // Lọc theo trạng thái
+        if (filterStatus != null && !filterStatus.isBlank() && !"ALL".equalsIgnoreCase(filterStatus)) {
+            allInvoices = allInvoices.stream()
+                    .filter(i -> filterStatus.equalsIgnoreCase(i.getStatus()))
+                    .collect(Collectors.toList());
+        }
+
+        // Lọc theo tìm kiếm tên hoặc số điện thoại bệnh nhân
+        if (search != null && !search.isBlank()) {
+            final String searchClean = search.trim().toLowerCase();
+            allInvoices = allInvoices.stream()
+                    .filter(i -> (i.getPatient() != null && 
+                            ((i.getPatient().getFullName() != null && i.getPatient().getFullName().toLowerCase().contains(searchClean)) ||
+                             (i.getPatient().getPhone() != null && i.getPatient().getPhone().contains(searchClean)))))
+                    .collect(Collectors.toList());
+        }
+
+        // Sắp xếp giảm dần theo ngày tạo
+        allInvoices.sort((i1, i2) -> i2.getCreatedDate().compareTo(i1.getCreatedDate()));
+
+        model.addAttribute("staff", staff);
+        model.addAttribute("invoices", allInvoices);
+        model.addAttribute("selectedStatus", filterStatus != null ? filterStatus : "ALL");
+        model.addAttribute("search", search);
+        
+        // Gửi thông tin ngân hàng để vẽ QR cho lễ tân hiển thị
+        model.addAttribute("bankId", bankId);
+        model.addAttribute("bankAccount", bankAccount);
+        model.addAttribute("bankOwner", bankOwner);
+
+        return "reception/invoices";
+    }
+
+    @PostMapping("/invoices/collect")
+    public String collectPayment(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam("invoiceId") Integer invoiceId,
+            @RequestParam("paymentMethod") String paymentMethod,
+            RedirectAttributes ra) {
+        StaffProfile staff = getCurrentStaff(userDetails);
+
+        try {
+            Invoice invoice = invoiceRepository.findById(invoiceId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn"));
+
+            if ("Cash".equalsIgnoreCase(paymentMethod)) {
+                invoice.setPaidAmount(invoice.getAmount());
+                invoice.setStatus("Paid");
+                invoice.setPaymentMethod("Tiền mặt");
+                invoice.setPaymentDate(LocalDateTime.now());
+                invoiceRepository.save(invoice);
+
+                // Lưu system log
+                SystemLog sysLog = new SystemLog();
+                sysLog.setUsername(staff.getUsername());
+                sysLog.setAction("RECEPTION_COLLECT_CASH");
+                sysLog.setDetails("Lễ tân " + staff.getFullName() + " đã thu tiền mặt trực tiếp cho hóa đơn #" + invoice.getInvoiceId() + " (Số tiền: " + invoice.getAmount() + " VND, Bệnh nhân: " + (invoice.getPatient() != null ? invoice.getPatient().getFullName() : "N/A") + ")");
+                sysLog.setTimestamp(LocalDateTime.now());
+                systemLogRepository.save(sysLog);
+
+                ra.addFlashAttribute("success", "Đã thu tiền mặt thành công cho hóa đơn #" + invoice.getInvoiceId());
+            } else {
+                ra.addFlashAttribute("error", "Phương thức thanh toán không hợp lệ.");
+            }
+        } catch (Exception e) {
+            log.error("Error collecting payment: ", e);
+            ra.addFlashAttribute("error", "Lỗi thu tiền: " + e.getMessage());
+        }
+        return "redirect:/reception/invoices";
+    }
+
+    @GetMapping("/invoices/{id}/check-status")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> checkInvoiceStatus(@PathVariable("id") Integer id) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            Optional<Invoice> invOpt = invoiceRepository.findById(id);
+            if (invOpt.isPresent()) {
+                Invoice invoice = invOpt.get();
+                result.put("success", true);
+                result.put("status", invoice.getStatus());
+                result.put("amount", invoice.getAmount());
+                result.put("paidAmount", invoice.getPaidAmount());
+                result.put("missingAmount", Math.max(0, invoice.getAmount() - invoice.getPaidAmount()));
+                return ResponseEntity.ok(result);
+            } else {
+                result.put("success", false);
+                result.put("error", "Hóa đơn không tồn tại");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(result);
+            }
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(result);
+        }
     }
 }

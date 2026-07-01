@@ -111,6 +111,10 @@
        th:classappend="${page == 'book-appointment'} ? ' active'" class="nav-item">
       <i class="ti ti-calendar-plus"></i> Đặt lịch khám
     </a>
+    <a th:href="@{/patient/invoices}"
+       th:classappend="${page == 'invoices'} ? ' active'" class="nav-item">
+      <i class="ti ti-credit-card"></i> Thanh toán & Hóa đơn
+    </a>
   </nav>
 
   <div class="sidebar-footer">
@@ -156,6 +160,10 @@
     <a th:href="@{/reception/appointments/new}"
        th:classappend="${page == 'book-appointment'} ? ' active'" class="nav-item">
       <i class="ti ti-calendar-plus"></i> Tiếp đón & Đăng ký
+    </a>
+    <a th:href="@{/reception/invoices}"
+       th:classappend="${page == 'invoices'} ? ' active'" class="nav-item">
+      <i class="ti ti-credit-card"></i> Quản lý Hóa đơn
     </a>
   </nav>
 
