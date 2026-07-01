@@ -268,10 +268,10 @@ public class AdminController {
         jdbcTemplate.update("DELETE FROM invoice WHERE appointmentid IN (SELECT appointmentid FROM appointment WHERE patientid = ?)", id);
         jdbcTemplate.update("DELETE FROM record_icd WHERE recordid IN (SELECT recordid FROM consultation_record WHERE patientid = ?)", id);
         jdbcTemplate.update("DELETE FROM ai_risk_prediction WHERE recordid IN (SELECT recordid FROM consultation_record WHERE patientid = ?)", id);
+        jdbcTemplate.update("DELETE FROM heart_clinical_metrics WHERE recordid IN (SELECT recordid FROM consultation_record WHERE patientid = ?)", id);
         jdbcTemplate.update("DELETE FROM consultation_record WHERE patientid = ?", id);
         jdbcTemplate.update("DELETE FROM lab_request WHERE patientid = ?", id);
         jdbcTemplate.update("DELETE FROM patient_alert_threshold WHERE patientid = ?", id);
-        jdbcTemplate.update("DELETE FROM heart_clinical_metrics WHERE patientid = ?", id);
         jdbcTemplate.update("DELETE FROM appointment WHERE patientid = ?", id);
         
         patientRepository.deleteById(id);
