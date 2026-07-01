@@ -4,8 +4,7 @@ import com.cardio.model.SystemLog;
 import com.cardio.model.Invoice;
 import com.cardio.model.Appointment;
 import com.cardio.repository.SystemLogRepository;
-import com.cardio.repository.InvoiceRepository;
-import com.cardio.repository.AppointmentRepository;
+import com.cardio.service.SePayWebhookService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,8 +28,7 @@ import java.util.regex.Pattern;
 public class SePayWebhookController {
 
     private final SystemLogRepository systemLogRepository;
-    private final InvoiceRepository invoiceRepository;
-    private final AppointmentRepository appointmentRepository;
+    private final SePayWebhookService sePayWebhookService;
 
     @Value("${sepay.api.key:}")
     private String sepayApiKey;
@@ -111,44 +109,8 @@ public class SePayWebhookController {
             systemLogRepository.save(transactionLog);
             log.info("SePay Webhook: Successfully processed transaction ID: {}", payload.getId());
 
-            // 4.5 Cập nhật trạng thái Hóa đơn trong hệ thống
-            String codeText = payload.getCode();
-            if (codeText == null || codeText.isBlank()) {
-                codeText = payload.getContent();
-            }
-            if (codeText != null) {
-                Pattern pattern = Pattern.compile("TT\\d+", Pattern.CASE_INSENSITIVE);
-                Matcher matcher = pattern.matcher(codeText);
-                if (matcher.find()) {
-                    String refCode = matcher.group().toUpperCase(); // Ví dụ: TT1005
-                    Optional<Invoice> invOpt = invoiceRepository.findByReferenceCode(refCode);
-                    if (invOpt.isPresent()) {
-                        Invoice invoice = invOpt.get();
-                        
-                        Long transferAmount = payload.getTransferAmount();
-                        invoice.setPaidAmount(invoice.getPaidAmount() + transferAmount);
-                        invoice.setPaymentMethod("Chuyển khoản");
-                        
-                        if (invoice.getPaidAmount() >= invoice.getAmount()) {
-                            invoice.setStatus("Paid");
-                            invoice.setPaymentDate(LocalDateTime.now());
-                            
-                            // Cập nhật trạng thái Appointment tương ứng thành Confirmed
-                            Appointment app = invoice.getAppointment();
-                            if (app != null && !"Cancelled".equalsIgnoreCase(app.getStatus())) {
-                                app.setStatus("Confirmed");
-                                appointmentRepository.save(app);
-                            }
-                        } else {
-                            invoice.setStatus("PartiallyPaid");
-                        }
-                        
-                        invoiceRepository.save(invoice);
-                        log.info("SePay Webhook: Updated invoice {} state to {} (PaidAmount: {})", 
-                                invoice.getInvoiceId(), invoice.getStatus(), invoice.getPaidAmount());
-                    }
-                }
-            }
+            // 4.5 Cập nhật trạng thái Hóa đơn chạy ngầm (Asynchronously)
+            sePayWebhookService.processWebhookAsync(payload);
 
             // 5. Trả về đúng định dạng SePay yêu cầu
             response.put("success", true);
@@ -240,49 +202,8 @@ public class SePayWebhookController {
             systemLogRepository.save(transactionLog);
             log.info("SePay IPN: Successfully processed transaction ID: {}", payload.getTransaction().getTransaction_id());
 
-            // 4.5 Cập nhật trạng thái Hóa đơn trong hệ thống
-            if (payload.getOrder() != null) {
-                String codeText = payload.getOrder().getOrder_id();
-                if (codeText == null || codeText.isBlank()) {
-                    codeText = payload.getOrder().getOrder_description();
-                }
-                
-                if (codeText != null) {
-                    Pattern pattern = Pattern.compile("TT\\d+", Pattern.CASE_INSENSITIVE);
-                    Matcher matcher = pattern.matcher(codeText);
-                    if (matcher.find()) {
-                        String refCode = matcher.group().toUpperCase(); // Ví dụ: TT1005
-                        Optional<Invoice> invOpt = invoiceRepository.findByReferenceCode(refCode);
-                        if (invOpt.isPresent()) {
-                            Invoice invoice = invOpt.get();
-                            
-                            Double amtDouble = Double.parseDouble(payload.getOrder().getOrder_amount());
-                            Long transferAmount = amtDouble.longValue();
-                            
-                            invoice.setPaidAmount(invoice.getPaidAmount() + transferAmount);
-                            invoice.setPaymentMethod("Chuyển khoản (IPN)");
-                            
-                            if (invoice.getPaidAmount() >= invoice.getAmount()) {
-                                invoice.setStatus("Paid");
-                                invoice.setPaymentDate(LocalDateTime.now());
-                                
-                                // Cập nhật trạng thái Appointment tương ứng thành Confirmed
-                                Appointment app = invoice.getAppointment();
-                                if (app != null && !"Cancelled".equalsIgnoreCase(app.getStatus())) {
-                                    app.setStatus("Confirmed");
-                                    appointmentRepository.save(app);
-                                }
-                            } else {
-                                invoice.setStatus("PartiallyPaid");
-                            }
-                            
-                            invoiceRepository.save(invoice);
-                            log.info("SePay IPN: Updated invoice {} state to {} (PaidAmount: {})", 
-                                    invoice.getInvoiceId(), invoice.getStatus(), invoice.getPaidAmount());
-                        }
-                    }
-                }
-            }
+            // 4.5 Cập nhật trạng thái Hóa đơn chạy ngầm (Asynchronously)
+            sePayWebhookService.processIpnAsync(payload);
 
             // 5. Trả về đúng định dạng
             response.put("success", true);

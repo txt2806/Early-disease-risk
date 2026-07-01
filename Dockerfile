@@ -2,6 +2,8 @@
 FROM maven:3.8.5-openjdk-17 AS build
 WORKDIR /app
 COPY pom.xml .
+# Tải trước các dependencies để lưu cache lớp Docker (tăng tốc độ build)
+RUN mvn dependency:go-offline -B
 COPY src ./src
 RUN mvn clean package -DskipTests
 
@@ -11,6 +13,6 @@ WORKDIR /app
 COPY --from=build /app/target/cardio-doctor-portal-1.0.0.jar app.jar
 EXPOSE 8080
 
-# Cấu hình tối ưu hóa DNS (không lưu cache DNS lỗi) và mạng IPv4 để tránh UnknownHostException
-# Giới hạn bộ nhớ tối đa 350MB RAM để phù hợp với gói Free của Render
-ENTRYPOINT ["java", "-Djava.net.preferIPv4Stack=true", "-Dsun.net.inetaddr.ttl=30", "-Dsun.net.inetaddr.negative.ttl=0", "-Xmx350m", "-Xms350m", "-jar", "app.jar"]
+# Cấu hình tối ưu hóa DNS và mạng IPv4
+# Sử dụng SerialGC và TieredStopAtLevel=1 để tối ưu bộ nhớ & CPU trên container nhỏ (giảm RAM và giảm độ trễ phản hồi)
+ENTRYPOINT ["java", "-XX:+UseSerialGC", "-XX:TieredStopAtLevel=1", "-Djava.net.preferIPv4Stack=true", "-Dsun.net.inetaddr.ttl=30", "-Dsun.net.inetaddr.negative.ttl=0", "-Xmx350m", "-Xms350m", "-jar", "app.jar"]
