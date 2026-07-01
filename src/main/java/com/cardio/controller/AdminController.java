@@ -11,6 +11,7 @@ import com.cardio.repository.PatientRepository;
 import com.cardio.repository.SystemLogRepository;
 import com.cardio.repository.AIRiskRepository;
 import com.cardio.repository.StaffRepository;
+import com.cardio.repository.InvoiceRepository;
 import com.cardio.service.SystemSettingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -36,6 +37,8 @@ public class AdminController {
     private final AIRiskRepository aiRiskRepository;
     private final StaffRepository staffRepository;
     private final SystemSettingService systemSettingService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    private final InvoiceRepository invoiceRepository;
     private final PasswordEncoder passwordEncoder;
 
     private void saveAuditLog(String actor, String action, String details) {
@@ -114,13 +117,15 @@ public class AdminController {
 
     @PostMapping("/user/edit")
     public String editUser(@ModelAttribute DoctorProfile user, 
+                           @RequestParam("role") String role,
                            @RequestParam(value = "newPassword", required = false) String newPassword,
                            Principal principal) {
         String actor = principal != null ? principal.getName() : "admin";
+        Integer id = user.getDoctorId();
         
-        // Find user by ID in both repositories
-        if (doctorRepository.findById(user.getDoctorId()).isPresent()) {
-            DoctorProfile existing = doctorRepository.findById(user.getDoctorId()).get();
+        if ("DOCTOR".equalsIgnoreCase(role)) {
+            DoctorProfile existing = doctorRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid doctor ID: " + id));
             existing.setFullName(user.getFullName());
             existing.setAlertThresholdBpm(user.getAlertThresholdBpm());
             existing.setAlertThresholdBp(user.getAlertThresholdBp());
@@ -132,8 +137,9 @@ public class AdminController {
             }
             doctorRepository.save(existing);
             saveAuditLog(actor, "EDIT_USER_SUCCESS", "Cập nhật hồ sơ bác sĩ: " + existing.getUsername());
-        } else if (staffRepository.findById(user.getDoctorId()).isPresent()) {
-            StaffProfile existing = staffRepository.findById(user.getDoctorId()).get();
+        } else {
+            StaffProfile existing = staffRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid staff ID: " + id));
             existing.setFullName(user.getFullName());
             
             if (newPassword != null && !newPassword.trim().isEmpty()) {
@@ -141,11 +147,33 @@ public class AdminController {
             }
             staffRepository.save(existing);
             saveAuditLog(actor, "EDIT_USER_SUCCESS", "Cập nhật hồ sơ nhân sự: " + existing.getUsername());
-        } else {
-            throw new IllegalArgumentException("Invalid user ID: " + user.getDoctorId());
         }
 
         return "redirect:/admin/dashboard?success=ok_updated";
+    }
+
+    @PostMapping("/user/reset-password")
+    public String resetUserPassword(@RequestParam("userId") Integer userId, 
+                                     @RequestParam("role") String role,
+                                     @RequestParam("newPassword") String newPassword,
+                                     Principal principal) {
+        String actor = principal != null ? principal.getName() : "admin";
+        
+        if ("DOCTOR".equalsIgnoreCase(role)) {
+            DoctorProfile existing = doctorRepository.findById(userId)
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid doctor ID: " + userId));
+            existing.setPasswordHash(passwordEncoder.encode(newPassword.trim()));
+            doctorRepository.save(existing);
+            saveAuditLog(actor, "RESET_PASSWORD_DOCTOR", "Đổi mật khẩu bác sĩ: " + existing.getUsername());
+        } else {
+            StaffProfile existing = staffRepository.findById(userId)
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid staff ID: " + userId));
+            existing.setPasswordHash(passwordEncoder.encode(newPassword.trim()));
+            staffRepository.save(existing);
+            saveAuditLog(actor, "RESET_PASSWORD_STAFF", "Đổi mật khẩu nhân sự: " + existing.getUsername());
+        }
+        
+        return "redirect:/admin/dashboard?success=ok_reset_pw";
     }
 
     @PostMapping("/patient/reset-password")
@@ -209,6 +237,13 @@ public class AdminController {
         if ("DOCTOR".equalsIgnoreCase(role)) {
             DoctorProfile user = doctorRepository.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("Invalid doctor ID: " + id));
+            
+            // Clean up dependencies for Doctor to avoid foreign key violations
+            jdbcTemplate.update("UPDATE appointment SET doctorid = NULL WHERE doctorid = ?", id);
+            jdbcTemplate.update("UPDATE consultation_record SET doctorid = NULL WHERE doctorid = ?", id);
+            jdbcTemplate.update("DELETE FROM lab_request WHERE doctorid = ?", id);
+            jdbcTemplate.update("DELETE FROM patient_alert_threshold WHERE doctorid = ?", id);
+            
             doctorRepository.deleteById(id);
             saveAuditLog(actor, "DELETE_USER", "Xóa tài khoản bác sĩ: " + user.getUsername());
         } else {
@@ -227,6 +262,17 @@ public class AdminController {
         
         PatientProfile patient = patientRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid patient ID: " + id));
+        
+        // Clean up dependencies for Patient to avoid foreign key violations
+        jdbcTemplate.update("DELETE FROM invoice WHERE patientid = ?", id);
+        jdbcTemplate.update("DELETE FROM invoice WHERE appointmentid IN (SELECT appointmentid FROM appointment WHERE patientid = ?)", id);
+        jdbcTemplate.update("DELETE FROM record_icd WHERE recordid IN (SELECT recordid FROM consultation_record WHERE patientid = ?)", id);
+        jdbcTemplate.update("DELETE FROM ai_risk_prediction WHERE recordid IN (SELECT recordid FROM consultation_record WHERE patientid = ?)", id);
+        jdbcTemplate.update("DELETE FROM consultation_record WHERE patientid = ?", id);
+        jdbcTemplate.update("DELETE FROM lab_request WHERE patientid = ?", id);
+        jdbcTemplate.update("DELETE FROM patient_alert_threshold WHERE patientid = ?", id);
+        jdbcTemplate.update("DELETE FROM heart_clinical_metrics WHERE patientid = ?", id);
+        jdbcTemplate.update("DELETE FROM appointment WHERE patientid = ?", id);
         
         patientRepository.deleteById(id);
         saveAuditLog(actor, "DELETE_PATIENT", "Xóa hồ sơ bệnh nhân: " + patient.getFullName());
@@ -266,6 +312,10 @@ public class AdminController {
         long staffCount = 0;
         long receptionistCount = 0;
         long patientsCount = 0;
+        long totalRevenue = 0;
+        long cashRevenue = 0;
+        long transferRevenue = 0;
+        long unpaidRevenue = 0;
         List<SystemLog> allLogs = new java.util.ArrayList<>();
         Map<String, Long> staffActionsFrequency = new HashMap<>();
         
@@ -312,6 +362,33 @@ public class AdminController {
                 staffCount = staffRepository.findAll().stream().filter(d -> "STAFF".equalsIgnoreCase(d.getRole())).count();
                 receptionistCount = staffRepository.findAll().stream().filter(d -> "RECEPTIONIST".equalsIgnoreCase(d.getRole())).count();
                 patientsCount = patientRepository.count();
+
+                // Compute billing & revenue statistics
+                List<com.cardio.model.Invoice> invoices = invoiceRepository.findAll();
+                try {
+                    java.time.LocalDate startDate = java.time.LocalDate.parse(startDateStr.trim());
+                    LocalDateTime startDateTime = startDate.atStartOfDay();
+                    invoices = invoices.stream()
+                            .filter(i -> i.getCreatedDate() != null && !i.getCreatedDate().isBefore(startDateTime))
+                            .collect(Collectors.toList());
+                } catch (Exception e) {}
+                try {
+                    java.time.LocalDate endDate = java.time.LocalDate.parse(endDateStr.trim());
+                    LocalDateTime endDateTime = endDate.atTime(23, 59, 59, 999999999);
+                    invoices = invoices.stream()
+                            .filter(i -> i.getCreatedDate() != null && !i.getCreatedDate().isAfter(endDateTime))
+                            .collect(Collectors.toList());
+                } catch (Exception e) {}
+
+                totalRevenue = invoices.stream().mapToLong(com.cardio.model.Invoice::getPaidAmount).sum();
+                cashRevenue = invoices.stream()
+                        .filter(i -> i.getPaymentMethod() != null && i.getPaymentMethod().toLowerCase().contains("tiền mặt"))
+                        .mapToLong(com.cardio.model.Invoice::getPaidAmount).sum();
+                transferRevenue = invoices.stream()
+                        .filter(i -> i.getPaymentMethod() != null && (i.getPaymentMethod().toLowerCase().contains("chuyển khoản") || i.getPaymentMethod().toLowerCase().contains("sepay") || i.getPaymentMethod().toLowerCase().contains("bank")))
+                        .mapToLong(com.cardio.model.Invoice::getPaidAmount).sum();
+                unpaidRevenue = invoices.stream()
+                        .mapToLong(i -> i.getAmount() - i.getPaidAmount()).sum();
 
                 allLogs = systemLogRepository.findAllByOrderByTimestampDesc();
 
@@ -363,6 +440,10 @@ public class AdminController {
         model.addAttribute("staffCount", staffCount);
         model.addAttribute("receptionistCount", receptionistCount);
         model.addAttribute("patientsCount", patientsCount);
+        model.addAttribute("totalRevenue", totalRevenue);
+        model.addAttribute("cashRevenue", cashRevenue);
+        model.addAttribute("transferRevenue", transferRevenue);
+        model.addAttribute("unpaidRevenue", unpaidRevenue);
         model.addAttribute("staffActionsFrequency", staffActionsFrequency);
         model.addAttribute("logs", allLogs);
         model.addAttribute("search", search);
