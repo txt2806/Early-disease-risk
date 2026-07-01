@@ -263,9 +263,10 @@ public class AdminController {
         PatientProfile patient = patientRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid patient ID: " + id));
         
-        // Clean up dependencies for Patient to avoid foreign key violations
-        jdbcTemplate.update("DELETE FROM invoice WHERE patientid = ?", id);
-        jdbcTemplate.update("DELETE FROM invoice WHERE appointmentid IN (SELECT appointmentid FROM appointment WHERE patientid = ?)", id);
+        // Preserve invoices for financial auditing: nullify patient and appointment references instead of deleting the invoices
+        jdbcTemplate.update("UPDATE invoice SET patientid = NULL, appointmentid = NULL WHERE patientid = ?", id);
+        jdbcTemplate.update("UPDATE invoice SET appointmentid = NULL WHERE appointmentid IN (SELECT appointmentid FROM appointment WHERE patientid = ?)", id);
+        
         jdbcTemplate.update("DELETE FROM record_icd WHERE recordid IN (SELECT recordid FROM consultation_record WHERE patientid = ?)", id);
         jdbcTemplate.update("DELETE FROM ai_risk_prediction WHERE recordid IN (SELECT recordid FROM consultation_record WHERE patientid = ?)", id);
         jdbcTemplate.update("DELETE FROM heart_clinical_metrics WHERE recordid IN (SELECT recordid FROM consultation_record WHERE patientid = ?)", id);
