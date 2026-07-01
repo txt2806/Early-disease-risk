@@ -624,12 +624,9 @@ public class DoctorController {
 System.out.println("history: " + aiResponse.getHistory());
 System.out.println("probability: " + aiResponse.getProbability());
 System.out.println("trend_message: " + aiResponse.getTrend_message());
-System.out.println("================================");
-
 System.out.println("====== DEBUG D.2/D.4 ======");
 System.out.println("age_confidence_warning: " + aiResponse.getAge_confidence_warning());
 System.out.println("physiological_warnings: " + aiResponse.getPhysiological_warnings());
-System.out.println("============================");
         } else {
             aiResponse = aiService.predict(aiRequest);
         }

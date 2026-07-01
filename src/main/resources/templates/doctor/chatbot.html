@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Chatbot AI')}"></head>
+<body>
+<!-- [D.21][FIX] Token CSRF — Spring Security mặc định bật CSRF cho mọi POST,
+     nhưng fetch() KHÔNG tự gửi token như <form> Thymeleaf thường làm, nên
+     POST /doctor/chatbot/send bị chặn 403. Render token ra 1 input ẩn để
+     JS đọc và gửi kèm header X-CSRF-TOKEN ở mỗi lần gọi fetch(). -->
+<input type="hidden" id="csrfToken" th:value="${_csrf.token}">
+<input type="hidden" id="csrfHeaderName" th:value="${_csrf.headerName}">
+
+<!-- [D.22] Context gắn kèm khi bác sĩ bấm "Hỏi AI" từ trang chi tiết bệnh
+     nhân — chuỗi JSON đã serialize sẵn ở ChatController, rỗng nếu vào
+     thẳng /doctor/chatbot không qua nút đó. -->
+<input type="hidden" id="predictContextJson" th:value="${contextPredictContextJson != null ? contextPredictContextJson : ''}">
+
+<div th:replace="~{fragments :: sidebar('chatbot')}"></div>
+<main class="main">
+  <header th:replace="~{fragments :: topbar('Trợ lý AI')}"></header>
+  <div class="content">
+
+    <!-- [D.22] Banner context — chỉ hiện khi có bệnh nhân được gắn kèm -->
+    <div th:if="${contextPatient != null}" class="chat-context-banner">
+      <i class="ti ti-user-circle"></i>
+      Đang hỏi về bệnh nhân: <strong th:text="${contextPatient.fullName}">Tên bệnh nhân</strong>
+      — dữ liệu lần khám gần nhất đã được gắn kèm tự động.
+    </div>
+
+    <!-- [D.23] Nhóm điều hướng nhanh — giống quick-reply của My Viettel,
+         đưa thẳng tới trang chức năng (KHÔNG qua AI), luôn hiện cố định
+         phía trên khung chat, không biến mất khi đã chat. -->
+    <div class="quick-nav-grid">
+      <a th:href="@{/doctor/assigned-patients}" class="quick-nav-card">
+        <i class="ti ti-users-group"></i> Bệnh nhân phụ trách
+      </a>
+      <a th:href="@{/doctor/alerts}" class="quick-nav-card">
+        <i class="ti ti-bell-ringing"></i> Cảnh báo mới
+      </a>
+      <a th:href="@{/doctor/appointments}" class="quick-nav-card">
+        <i class="ti ti-calendar-event"></i> Lịch làm việc
+      </a>
+      <a th:href="@{/doctor/ai-predict}" class="quick-nav-card">
+        <i class="ti ti-brain"></i> Dự đoán AI
+      </a>
+    </div>
+
+    <!-- [D.21] Khung chatbot — style riêng, dùng lại CSS variables có sẵn
+         (--card, --border, --accent...) để khớp dark theme toàn hệ thống -->
+    <div class="chat-wrapper">
+      <div class="chat-header">
+        <div class="chat-header-icon"><i class="ti ti-robot"></i></div>
+        <div>
+          <div class="chat-header-title">Trợ lý AI CardioCare</div>
+          <div class="chat-header-sub">Hỏi đáp chuyên môn về dự đoán AI, chỉ số lâm sàng, hướng dẫn sử dụng hệ thống</div>
+        </div>
+      </div>
+
+      <div id="chatMessages" class="chat-messages">
+        <div class="chat-msg chat-msg-model">
+          <div class="chat-bubble" th:if="${contextPatient == null}">
+            Chào bác sĩ! Tôi có thể giúp giải thích kết quả dự đoán AI, ý nghĩa các chỉ số lâm sàng, hoặc trao đổi về giới hạn của mô hình. Bác sĩ cần hỗ trợ gì?
+          </div>
+          <div class="chat-bubble" th:if="${contextPatient != null}"
+               th:text="'Tôi đã có dữ liệu lần khám gần nhất của bệnh nhân ' + ${contextPatient.fullName} + '. Bác sĩ muốn hỏi gì về kết quả này?'">
+          </div>
+        </div>
+
+        <!-- [D.23] Nhóm gợi ý câu hỏi AI — render bằng JS (xem script cuối
+             trang) để có thể tự ẩn sau khi bác sĩ gửi tin đầu tiên, tránh
+             che khung chat khi hội thoại đã dài. -->
+        <div id="quickQuestions" class="quick-questions"></div>
+      </div>
+
+      <div id="chatTypingIndicator" class="chat-typing" style="display:none;">
+        <div class="chat-bubble chat-bubble-typing">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+
+      <form id="chatForm" class="chat-input-row">
+        <input type="text" id="chatInput" class="form-input chat-input"
+               placeholder="Nhập câu hỏi của bạn..." autocomplete="off" required>
+        <button type="submit" class="btn btn-ai" id="chatSendBtn">
+          <i class="ti ti-send"></i> Gửi
+        </button>
+      </form>
+
+      <div class="chat-disclaimer" id="chatDisclaimer"></div>
+    </div>
+
+  </div>
+</main>
+<script th:src="@{/js/main.js}"></script>
+
+<!-- [D.21] CSS riêng cho trang chatbot — đặt inline vì chỉ dùng ở đây,
+     theo đúng cách project đã làm với canvas vẽ biểu đồ trong ai-predict.html -->
+<style>
+  .chat-wrapper{max-width:820px;margin:0 auto;background:var(--card);border:1px solid var(--border);
+    border-radius:var(--radius);display:flex;flex-direction:column;height:calc(100vh - 160px);}
+  .chat-header{display:flex;align-items:center;gap:14px;padding:18px 22px;border-bottom:1px solid var(--border);}
+  .chat-context-banner{max-width:820px;margin:0 auto 14px;padding:10px 16px;background:rgba(59,130,246,0.1);
+    border:1px solid rgba(59,130,246,0.25);border-radius:var(--radius-sm);font-size:12.5px;color:var(--blue2);
+    display:flex;align-items:center;gap:8px;}
+
+  /* [D.23] Lưới điều hướng nhanh — giống quick-reply của My Viettel */
+  .quick-nav-grid{max-width:820px;margin:0 auto 16px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .quick-nav-card{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;
+    background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);
+    color:var(--text2);font-size:11.5px;text-align:center;text-decoration:none;transition:all 0.2s;}
+  .quick-nav-card:hover{border-color:var(--border2);color:var(--text);background:var(--card2);}
+  .quick-nav-card i{font-size:22px;color:var(--accent2);}
+
+  /* [D.23] Gợi ý câu hỏi AI — render bằng JS, tự ẩn sau tin đầu tiên */
+  .quick-questions{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;}
+  .quick-question-btn{padding:8px 14px;background:var(--bg3);border:1px solid var(--border);
+    border-radius:20px;color:var(--blue2);font-size:12.5px;cursor:pointer;transition:all 0.2s;
+    font-family:'Segoe UI',sans-serif;}
+  .quick-question-btn:hover{border-color:var(--blue);background:rgba(59,130,246,0.1);}
+  .chat-header-icon{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#c0392b);
+    display:flex;align-items:center;justify-content:center;font-size:20px;color:white;flex-shrink:0;}
+  .chat-header-title{font-size:15px;font-weight:600;}
+  .chat-header-sub{font-size:12px;color:var(--text2);margin-top:2px;}
+
+  .chat-messages{flex:1;overflow-y:auto;padding:20px 22px;display:flex;flex-direction:column;gap:14px;}
+  .chat-msg{display:flex;}
+  .chat-msg-user{justify-content:flex-end;}
+  .chat-msg-model{justify-content:flex-start;}
+  .chat-bubble{max-width:72%;padding:11px 15px;border-radius:14px;font-size:13.5px;line-height:1.55;
+    white-space:pre-wrap;word-wrap:break-word;}
+  .chat-msg-model .chat-bubble{background:var(--bg3);color:var(--text);border:1px solid var(--border);
+    border-bottom-left-radius:4px;}
+  .chat-msg-user .chat-bubble{background:linear-gradient(135deg,var(--blue),#2563eb);color:white;
+    border-bottom-right-radius:4px;}
+  .chat-msg-error .chat-bubble{background:rgba(224,90,90,0.12);border:1px solid rgba(224,90,90,0.3);color:var(--accent2);}
+
+  .chat-typing{padding:0 22px 6px;}
+  .chat-bubble-typing{display:inline-flex;gap:4px;padding:13px 16px;background:var(--bg3);
+    border:1px solid var(--border);border-radius:14px;border-bottom-left-radius:4px;}
+  .chat-bubble-typing span{width:6px;height:6px;border-radius:50%;background:var(--text2);
+    animation:chatTypingBlink 1.2s infinite ease-in-out;}
+  .chat-bubble-typing span:nth-child(2){animation-delay:0.2s;}
+  .chat-bubble-typing span:nth-child(3){animation-delay:0.4s;}
+  @keyframes chatTypingBlink{0%,80%,100%{opacity:0.25;}40%{opacity:1;}}
+
+  .chat-input-row{display:flex;gap:10px;padding:16px 22px;border-top:1px solid var(--border);}
+  .chat-input{flex:1;}
+  .chat-disclaimer{padding:0 22px 14px;font-size:11px;color:var(--text3);text-align:center;}
+</style>
+
+<script th:inline="javascript">
+  // [D.21] Lịch sử hội thoại lưu phía CLIENT (mảng JS), gửi kèm mỗi request
+  // sang Spring Boot -> FastAPI, vì server AI không tự lưu session giữa các
+  // request (đúng như thiết kế /chat/doctor ở api_v2.py).
+  const chatHistory = [];
+
+  const chatMessages = document.getElementById('chatMessages');
+  const chatForm = document.getElementById('chatForm');
+  const chatInput = document.getElementById('chatInput');
+  const chatSendBtn = document.getElementById('chatSendBtn');
+  const chatTypingIndicator = document.getElementById('chatTypingIndicator');
+  const chatDisclaimer = document.getElementById('chatDisclaimer');
+
+  // [D.21][FIX] Đọc CSRF token đã render sẵn từ Thymeleaf (xem 2 input ẩn
+  // ở đầu <body>) — bắt buộc phải gửi kèm, nếu không Spring Security sẽ
+  // trả 403 Forbidden cho mọi request POST gọi bằng fetch().
+  const csrfToken = document.getElementById('csrfToken').value;
+  const csrfHeaderName = document.getElementById('csrfHeaderName').value;
+
+  // [D.22] Context dự đoán AI (nếu bác sĩ vào từ nút "Hỏi AI" ở hồ sơ bệnh
+  // nhân) — chuỗi JSON đã serialize sẵn ở ChatController, parse 1 lần để
+  // gửi kèm mọi tin nhắn trong phiên chat này, không chỉ tin đầu tiên (để
+  // bác sĩ hỏi tiếp nhiều câu về cùng 1 bệnh nhân mà không mất context).
+  const predictContextRaw = document.getElementById('predictContextJson').value;
+  let predictContext = null;
+  if (predictContextRaw && predictContextRaw.trim() !== '') {
+    try {
+      predictContext = JSON.parse(predictContextRaw);
+    } catch (e) {
+      console.warn('Không parse được predict_context:', e);
+    }
+  }
+
+  function appendMessage(role, text) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'chat-msg chat-msg-' + role;
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble';
+    bubble.textContent = text;
+    wrapper.appendChild(bubble);
+    chatMessages.appendChild(wrapper);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  // [D.23] Gợi ý câu hỏi AI — khác nhau tùy có context bệnh nhân hay không.
+  // Khi có context (vào từ nút "Hỏi AI" ở hồ sơ), gợi ý xoay quanh CHÍNH
+  // bệnh nhân đó. Khi không có, gợi ý mang tính tổng quát về hệ thống/model.
+  const quickQuestionsEl = document.getElementById('quickQuestions');
+  const quickQuestionsList = predictContext
+    ? [
+        'Giải thích vì sao model dự đoán mức rủi ro này',
+        'Yếu tố nào ảnh hưởng nhiều nhất đến kết quả?',
+        'Xu hướng nguy cơ của bệnh nhân này qua các lần khám?',
+        'Tôi nên tư vấn gì cho bệnh nhân dựa trên kết quả này?'
+      ]
+    : [
+        'Độ chính xác của model hiện tại là bao nhiêu?',
+        'SHAP là gì và dùng để làm gì?',
+        'Model có giới hạn gì cần lưu ý?',
+        'Hướng dẫn cách dùng tính năng Dự đoán AI'
+      ];
+
+  function renderQuickQuestions() {
+    quickQuestionsEl.innerHTML = '';
+    quickQuestionsList.forEach(function (q) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'quick-question-btn';
+      btn.textContent = q;
+      btn.addEventListener('click', function () {
+        sendMessage(q);
+      });
+      quickQuestionsEl.appendChild(btn);
+    });
+  }
+  renderQuickQuestions();
+
+  async function sendMessage(message) {
+    if (!message) return;
+
+    // [D.23] Ẩn gợi ý sau khi đã gửi tin đầu tiên — giữ khung chat gọn,
+    // giống cách My Viettel thu nhỏ menu sau khi người dùng tương tác.
+    quickQuestionsEl.style.display = 'none';
+
+    appendMessage('user', message);
+    chatInput.value = '';
+    chatInput.disabled = true;
+    chatSendBtn.disabled = true;
+    chatTypingIndicator.style.display = 'block';
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    try {
+      const response = await fetch('/doctor/chatbot/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          [csrfHeaderName]: csrfToken
+        },
+        body: JSON.stringify({
+          message: message,
+          history: chatHistory,
+          predict_context: predictContext
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('HTTP ' + response.status);
+      }
+
+      const data = await response.json();
+
+      // Lưu lại lịch sử để gửi kèm lần sau (đúng schema ChatTurn: role/text)
+      chatHistory.push({ role: 'user', text: message });
+      chatHistory.push({ role: 'model', text: data.reply });
+
+      appendMessage('model', data.reply);
+      if (data.disclaimer) {
+        chatDisclaimer.textContent = data.disclaimer;
+      }
+    } catch (err) {
+      appendMessage('error', 'Không thể kết nối tới trợ lý AI. Vui lòng thử lại sau.');
+      console.error('Lỗi chatbot:', err);
+    } finally {
+      chatInput.disabled = false;
+      chatSendBtn.disabled = false;
+      chatTypingIndicator.style.display = 'none';
+      chatInput.focus();
+    }
+  }
+
+  chatForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const message = chatInput.value.trim();
+    sendMessage(message);
+  });
+</script>
+</body>
+</html>
