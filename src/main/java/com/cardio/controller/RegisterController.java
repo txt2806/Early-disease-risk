@@ -9,11 +9,16 @@ import com.google.firebase.auth.FirebaseToken;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -25,6 +30,8 @@ import java.util.Optional;
 @Controller
 @RequiredArgsConstructor
 public class RegisterController {
+
+    private final SecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
 
     private static final String SQL_SELECT_CLINICAL_METRICS = 
         "SELECT m.* FROM Heart_Clinical_Metrics m JOIN Consultation_Record r ON m.RecordID = r.RecordID WHERE r.PatientID = ? ORDER BY r.VisitDate DESC";
@@ -148,7 +155,9 @@ public class RegisterController {
             @RequestParam("firebaseToken") String firebaseToken,
             @RequestParam(value = "email", required = false) String clientEmail,
             @RequestParam(value = "fullName", required = false) String clientFullName,
-            Model model) {
+            Model model,
+            HttpServletRequest request,
+            HttpServletResponse response) {
         try {
             String email = (clientEmail != null && !clientEmail.trim().isEmpty()) ? clientEmail.trim()
                     : "patient@example.com";
@@ -187,7 +196,11 @@ public class RegisterController {
                         Collections.singletonList(new SimpleGrantedAuthority("ROLE_PATIENT")));
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         principal, null, principal.getAuthorities());
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                
+                SecurityContext context = SecurityContextHolder.createEmptyContext();
+                context.setAuthentication(authentication);
+                SecurityContextHolder.setContext(context);
+                securityContextRepository.saveContext(context, request, response);
 
                 return "redirect:/dashboard-redirect";
             } else {
@@ -297,7 +310,9 @@ public class RegisterController {
             @RequestParam("gender") String gender,
             @RequestParam("address") String address,
             @RequestParam("firebaseToken") String firebaseToken,
-            Model model) {
+            Model model,
+            HttpServletRequest request,
+            HttpServletResponse response) {
 
         try {
             String firebaseEmail = email; // Fallback default
@@ -335,7 +350,11 @@ public class RegisterController {
                     Collections.singletonList(new SimpleGrantedAuthority("ROLE_PATIENT")));
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                     principal, null, principal.getAuthorities());
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+            
+            SecurityContext context = SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(authentication);
+            SecurityContextHolder.setContext(context);
+            securityContextRepository.saveContext(context, request, response);
 
             return "redirect:/dashboard-redirect";
 
