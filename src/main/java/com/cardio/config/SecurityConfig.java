@@ -26,6 +26,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+            .csrf(csrf -> csrf.ignoringRequestMatchers("/api/sepay/webhook"))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/login", "/login/profile", "/register", "/register/**", "/css/**", "/js/**", "/api/sepay/webhook").permitAll()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
