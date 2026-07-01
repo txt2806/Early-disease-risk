@@ -46,11 +46,14 @@ public interface PatientRepository extends JpaRepository<PatientProfile, Integer
             @Param("endDateTime") java.time.LocalDateTime endDateTime, 
             Pageable pageable);
 
+    // [FIX] Bỏ filter status appointment — bác sĩ phải xem được hồ sơ bệnh nhân
+    // ngay khi có bất kỳ lịch hẹn nào (kể cả Pending/Scheduled chưa khám),
+    // không chỉ sau khi đã Completed. Trước đây bị redirect "không có quyền"
+    // vì bệnh nhân chỉ có appointment mới đặt, chưa có ConsultationRecord nào.
     @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM PatientProfile p " +
            "WHERE p.patientId = :patientId AND (" +
            "p.patientId IN (SELECT c.patient.patientId FROM ConsultationRecord c WHERE c.doctor.doctorId = :doctorId) " +
-           "OR p.patientId IN (SELECT a.patient.patientId FROM Appointment a WHERE a.doctor.doctorId = :doctorId AND a.status IN ('InProgress', 'Completed', 'Đã khám', 'Đã khám xong', 'Đang khám'))" +
+           "OR p.patientId IN (SELECT a.patient.patientId FROM Appointment a WHERE a.doctor.doctorId = :doctorId)" +
            ")")
     boolean isPatientAssignedToDoctor(@Param("patientId") Integer patientId, @Param("doctorId") Integer doctorId);
 }
-
