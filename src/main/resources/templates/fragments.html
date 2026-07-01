@@ -58,6 +58,10 @@
        th:classappend="${page == 'ai-predict'} ? ' active'" class="nav-item">
       <i class="ti ti-brain"></i> Dự đoán AI
     </a>
+    <a th:href="@{/doctor/chatbot}" sec:authorize="hasAnyRole('DOCTOR', 'ADMIN')"
+       th:classappend="${page == 'chatbot'} ? ' active'" class="nav-item">
+      <i class="ti ti-robot"></i> Chatbot AI
+    </a>
   </nav>
 
   <div class="sidebar-footer">

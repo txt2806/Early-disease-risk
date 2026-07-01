@@ -57,8 +57,6 @@
                   </div>
                 </div>
               </td>
-              <td th:text="${p.dob != null ? #temporals.format(p.dob, 'dd/MM/yyyy') : ''}">01/01/1990</td>
-              <td th:text="${p.gender}">Nam</td>
               <td>
                 <span th:if="${patientRiskMap[p.patientId] != null}"
                       class="risk-badge"

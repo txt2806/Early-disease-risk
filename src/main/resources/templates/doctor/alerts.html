@@ -26,7 +26,7 @@
 
       <!-- ── Thanh lọc + tìm kiếm ── -->
       <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
-        <div style="display:flex;gap:6px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button onclick="filterAlerts('all')" id="btn-all"
                   class="btn btn-primary" style="font-size:12px;padding:6px 14px;">
             Tất cả
@@ -39,6 +39,24 @@
                   class="btn btn-ghost" style="font-size:12px;padding:6px 14px;">
             ✅ Đã xử lý
           </button>
+          <!-- [FIX] Thêm lọc theo mức nguy cơ -->
+          <button onclick="filterAlerts('high')" id="btn-high"
+                  class="btn btn-ghost" style="font-size:12px;padding:6px 14px;color:#ff7b7b;">
+            🔴 HIGH
+          </button>
+          <button onclick="filterAlerts('medium')" id="btn-medium"
+                  class="btn btn-ghost" style="font-size:12px;padding:6px 14px;color:#fbbf24;">
+            🟡 MEDIUM
+          </button>
+          <button onclick="filterAlerts('low')" id="btn-low"
+                  class="btn btn-ghost" style="font-size:12px;padding:6px 14px;color:#34d399;">
+            🟢 LOW
+          </button>
+          <!-- [FIX] Lọc theo vượt ngưỡng riêng -->
+          <button onclick="filterAlerts('threshold')" id="btn-threshold"
+                  class="btn btn-ghost" style="font-size:12px;padding:6px 14px;color:#a78bfa;">
+            ⚡ Vượt ngưỡng riêng
+          </button>
         </div>
         <input type="text" id="alertSearch" class="form-input"
                placeholder="🔍 Tìm bệnh nhân..."
@@ -47,17 +65,19 @@
       </div>
 
       <!-- ── Danh sách cảnh báo ── -->
-      <!-- Mỗi item tính daysOld và urgency ngay trong th:with của chính nó -->
       <div th:each="a : ${alerts}"
            class="alert-full-item"
            th:classappend="${a.riskLevel}"
            th:attr="data-handled=${a.isAlertSent},
-                    data-patient=${a.record.patient.fullName}"
+                    data-patient=${a.record.patient.fullName},
+                    data-risk=${a.riskLevel},
+                    data-threshold=${thresholdExceededMap[a.predictionId]}"
            th:with="daysOld=${T(java.time.temporal.ChronoUnit).DAYS.between(
                         a.record.visitDate.toLocalDate(),
                         T(java.time.LocalDate).now())},
                     urgency=${urgencyMap[a.predictionId]},
-                    thresholdExceeded=${thresholdExceededMap[a.predictionId]}">
+                    thresholdExceeded=${thresholdExceededMap[a.predictionId]},
+                    thresholdValue=${thresholdValueMap[a.predictionId]}">
 
         <!-- Icon mức độ -->
         <div class="alert-severity"
@@ -69,7 +89,7 @@
         </div>
 
         <!-- Thông tin bệnh nhân -->
-        <div class="alert-full-body" style="flex:1;">
+        <div class="alert-full-body" style="flex:1;min-width:0;">
           <div class="alert-full-name">
             <span th:text="${a.record.patient.fullName}">Bệnh nhân</span>
             <span style="color:#8a96b0;font-size:12px;font-weight:400;"
@@ -82,35 +102,70 @@
                th:text="${#temporals.format(a.record.visitDate, 'dd/MM/yyyy HH:mm')}">
             Thời gian
           </div>
+
+          <!-- [FIX] Gợi ý tái khám dựa theo mức nguy cơ — hiện khi chưa xử lý -->
+          <div th:if="${!a.isAlertSent}"
+               style="margin-top:6px;font-size:11px;color:#94a3b8;font-style:italic;">
+            <span th:if="${a.riskLevel == 'HIGH'}">
+              📅 Khuyến nghị: Tái khám trong <strong style="color:#ff7b7b;">1–2 tuần</strong>
+            </span>
+            <span th:if="${a.riskLevel == 'MEDIUM'}">
+              📅 Khuyến nghị: Tái khám trong <strong style="color:#fbbf24;">1–3 tháng</strong>
+            </span>
+            <span th:if="${a.riskLevel == 'LOW'}">
+              📅 Khuyến nghị: Tái khám định kỳ <strong style="color:#34d399;">6 tháng/lần</strong>
+            </span>
+          </div>
         </div>
 
-        <!-- Badge nguy cơ + leo thang -->
-        <div style="flex-shrink:0;text-align:right;">
+        <!-- Badge nguy cơ + các cảnh báo bổ sung -->
+        <div style="flex-shrink:0;text-align:right;min-width:160px;">
           <div class="risk-badge"
                th:classappend="'risk-' + ${a.riskLevel}"
                th:text="${a.riskLevel + ' · ' + a.riskScore + '%'}">
             HIGH
           </div>
 
-          <!-- [A.5] Badge VƯỢT NGƯỠNG RIÊNG: bác sĩ đã chủ động đặt ngưỡng
-               cảnh báo thấp hơn cho bệnh nhân này (thresholds.html), và
-               riskScore lần khám này đã vượt qua ngưỡng đó. -->
+          <!-- [FIX] Badge vượt ngưỡng: hiển thị số ngưỡng cụ thể thay vì chỉ "đã đặt" -->
           <div th:if="${thresholdExceeded != null and thresholdExceeded}"
                style="font-size:11px;margin-top:4px;color:#a78bfa;font-weight:600;
                background:rgba(167,139,250,0.12);border:1px solid rgba(167,139,250,0.35);
-               border-radius:6px;padding:2px 6px;display:inline-block;">
-            ⚡ Vượt ngưỡng riêng đã đặt
+               border-radius:6px;padding:2px 8px;display:inline-block;">
+            <span th:if="${thresholdValue != null}">
+              ⚡ Vượt ngưỡng riêng
+              (<span th:text="${#numbers.formatDecimal(thresholdValue,1,1)}">40</span>%)
+            </span>
+            <span th:if="${thresholdValue == null}">⚡ Vượt ngưỡng riêng</span>
           </div>
 
-          <!-- Badge leo thang: hiện khi chưa xử lý VÀ đã quá 2 ngày -->
-          <div th:if="${!a.isAlertSent and daysOld >= 2}"
-               style="font-size:11px;margin-top:4px;color:#ff7b7b;font-weight:600;">
-            🔥 Chờ <span th:text="${daysOld}">0</span> ngày
-            <span th:if="${urgency != null and urgency >= 70}"> — CẦN XỬ LÝ NGAY</span>
+          <!-- [FIX] Logic leo thang đúng nghiệp vụ:
+               HIGH: cảnh báo sau 3 ngày chưa xử lý (nghiêm trọng)
+               MEDIUM: cảnh báo sau 7 ngày chưa xử lý
+               LOW: chỉ nhắc nhở, không dùng "CẦN XỬ LÝ NGAY" -->
+          <div th:if="${!a.isAlertSent}"
+               style="font-size:11px;margin-top:4px;font-weight:600;">
+            <span th:if="${a.riskLevel == 'HIGH' and daysOld >= 3}"
+                  style="color:#ff7b7b;">
+              🔥 Chờ <span th:text="${daysOld}">0</span> ngày — CẦN XỬ LÝ NGAY
+            </span>
+            <span th:if="${a.riskLevel == 'MEDIUM' and daysOld >= 7}"
+                  style="color:#fbbf24;">
+              ⚠️ Chờ <span th:text="${daysOld}">0</span> ngày — Cần theo dõi
+            </span>
+            <span th:if="${a.riskLevel == 'LOW' and daysOld >= 14}"
+                  style="color:#94a3b8;">
+              🕐 Chờ <span th:text="${daysOld}">0</span> ngày
+            </span>
+            <span th:if="${(a.riskLevel == 'HIGH' and daysOld < 3)
+                          or (a.riskLevel == 'MEDIUM' and daysOld < 7)
+                          or (a.riskLevel == 'LOW' and daysOld < 14)}"
+                  style="color:#64748b;">
+              Chờ <span th:text="${daysOld}">0</span> ngày
+            </span>
           </div>
 
           <!-- Trạng thái xử lý -->
-          <div style="font-size:11px;margin-top:2px;"
+          <div style="font-size:11px;margin-top:4px;"
                th:style="${a.isAlertSent} ? 'color:#34d399' : 'color:#f59e0b'"
                th:text="${a.isAlertSent} ? '✅ Đã xử lý' : '⏳ Chưa xử lý'">
           </div>
@@ -192,25 +247,37 @@
     function filterAlerts(filter) {
       if (filter) currentFilter = filter;
 
-      // Cập nhật style nút filter
-      ['all', 'unhandled', 'handled'].forEach(f => {
+      // Cập nhật style nút filter — chỉ highlight nút đang active
+      const allBtns = ['all','unhandled','handled','high','medium','low','threshold'];
+      allBtns.forEach(f => {
         const btn = document.getElementById('btn-' + f);
         if (!btn) return;
         btn.className = (f === currentFilter) ? 'btn btn-primary' : 'btn btn-ghost';
-        btn.style.cssText = 'font-size:12px; padding:6px 14px;';
+        btn.style.cssText = 'font-size:12px;padding:6px 14px;';
+        // Giữ màu chữ đặc trưng cho risk level buttons khi ở trạng thái ghost
+        if (f === 'high'      && f !== currentFilter) btn.style.color = '#ff7b7b';
+        if (f === 'medium'    && f !== currentFilter) btn.style.color = '#fbbf24';
+        if (f === 'low'       && f !== currentFilter) btn.style.color = '#34d399';
+        if (f === 'threshold' && f !== currentFilter) btn.style.color = '#a78bfa';
       });
 
       const searchVal = (document.getElementById('alertSearch')?.value || '').toLowerCase();
       const items = document.querySelectorAll('.alert-full-item');
 
       items.forEach(item => {
-        const isHandled  = item.dataset.handled === 'true';
-        const patName    = (item.dataset.patient || '').toLowerCase();
+        const isHandled       = item.dataset.handled    === 'true';
+        const patName         = (item.dataset.patient   || '').toLowerCase();
+        const riskLevel       = (item.dataset.risk      || '').toLowerCase();
+        const hasThreshold    = item.dataset.threshold  === 'true';
 
         const matchFilter =
           currentFilter === 'all'       ? true :
-          currentFilter === 'handled'   ? isHandled :
-          currentFilter === 'unhandled' ? !isHandled : true;
+          currentFilter === 'unhandled' ? !isHandled :
+          currentFilter === 'handled'   ? isHandled  :
+          currentFilter === 'high'      ? riskLevel === 'high'   :
+          currentFilter === 'medium'    ? riskLevel === 'medium' :
+          currentFilter === 'low'       ? riskLevel === 'low'    :
+          currentFilter === 'threshold' ? hasThreshold           : true;
 
         const matchSearch = !searchVal || patName.includes(searchVal);
 

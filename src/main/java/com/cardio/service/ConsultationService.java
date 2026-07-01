@@ -356,6 +356,49 @@ public class ConsultationService {
         return recordIcdRepository.findByRecordRecordId(recordId);
     }
 
+    // ── ICD: Xoá một chẩn đoán khỏi hồ sơ ──────────────────────────
+    @Transactional
+    public void removeDiagnosis(Integer recordId, String icdCode) {
+        RecordIcdKey key = new RecordIcdKey();
+        key.setRecordId(recordId);
+        key.setIcdCode(icdCode);
+        if (!recordIcdRepository.existsById(key)) {
+            throw new RuntimeException("Không tìm thấy chẩn đoán ICD " + icdCode + " trong hồ sơ này!");
+        }
+        recordIcdRepository.deleteById(key);
+    }
+
+    // ── HeartClinicalMetrics: Cập nhật chỉ số lâm sàng ─────────────
+    @Transactional
+    public void updateClinicalMetrics(Integer recordId,
+            Integer restingBP, Integer cholesterol, Boolean fastingBloodSugar,
+            Integer maxHeartRate, Boolean exerciseAngina, Double oldpeak,
+            String slope, Integer ca, String thal) {
+        List<HeartClinicalMetrics> metricsList =
+                heartClinicalMetricsRepository.findByRecordRecordId(recordId);
+        if (metricsList.isEmpty()) {
+            return; // chưa có metrics thì bỏ qua — chỉ update khi tồn tại
+        }
+        HeartClinicalMetrics m = metricsList.get(0);
+        if (restingBP != null)         m.setRestingBP(restingBP);
+        if (cholesterol != null)       m.setCholesterol(cholesterol);
+        if (fastingBloodSugar != null) m.setFastingBloodSugar(fastingBloodSugar);
+        if (maxHeartRate != null)      m.setMaxHeartRate(maxHeartRate);
+        if (exerciseAngina != null)    m.setExerciseAngina(exerciseAngina);
+        if (oldpeak != null)           m.setOldpeak(oldpeak);
+        if (slope != null && !slope.isBlank())  m.setSlope(slope);
+        if (ca != null)                m.setCa(ca);
+        if (thal != null && !thal.isBlank())    m.setThal(thal);
+        heartClinicalMetricsRepository.save(m);
+    }
+
+    // ── HeartClinicalMetrics: Lấy metrics của một record ────────────
+    public java.util.Optional<HeartClinicalMetrics> getMetricsByRecord(Integer recordId) {
+        List<HeartClinicalMetrics> list =
+                heartClinicalMetricsRepository.findByRecordRecordId(recordId);
+        return list.isEmpty() ? java.util.Optional.empty() : java.util.Optional.of(list.get(0));
+    }
+
     // ── ICD: Search autocomplete ─────────────────────────────────────
     public List<IcdCatalog> searchIcd(String keyword) {
         return icdCatalogRepository.searchByKeyword(keyword);
