@@ -27,7 +27,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/login", "/login/profile", "/register", "/register/**", "/css/**", "/js/**").permitAll()
+                .requestMatchers("/login", "/login/profile", "/register", "/register/**", "/css/**", "/js/**", "/api/sepay/webhook").permitAll()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .requestMatchers("/reception/**").hasAnyRole("RECEPTIONIST", "ADMIN")
                 .requestMatchers("/patient/**").hasAnyRole("PATIENT", "ADMIN")

@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface SystemLogRepository extends JpaRepository<SystemLog, Integer> {
     List<SystemLog> findAllByOrderByTimestampDesc();
+    boolean existsByActionAndDetailsContaining(String action, String details);
 }
