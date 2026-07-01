@@ -428,6 +428,7 @@ input:focus, select:focus { border-color: #3b82f6; }
       <span th:case="'ok_reset_pw'">🔑 Đặt lại mật khẩu bệnh nhân thành công!</span>
       <span th:case="'ok_deleted_user'">❌ Xóa tài khoản nhân sự thành công!</span>
       <span th:case="'ok_deleted_patient'">❌ Xóa hồ sơ bệnh nhân thành công!</span>
+      <span th:case="'ok_updated_fees'">⚙️ Cấu hình giá khám bệnh đã được lưu thành công!</span>
       <span th:case="*">✨ Thao tác thực hiện thành công!</span>
     </span>
   </div>
@@ -464,6 +465,7 @@ input:focus, select:focus { border-color: #3b82f6; }
       <div class="tab-buttons">
         <button class="tab-btn active" id="btnUsers" onclick="switchTab('users')">Nhân viên hệ thống</button>
         <button class="tab-btn" id="btnPatients" onclick="switchTab('patients')">Bệnh nhân</button>
+        <button class="tab-btn" id="btnSettings" onclick="switchTab('settings')">Cấu hình giá khám</button>
       </div>
       <div class="actions-row">
         <input type="text" class="search-input" id="searchName" placeholder="Tìm theo họ và tên..." style="width:220px;" onkeydown="if(event.key==='Enter') filterTable()">
@@ -620,6 +622,32 @@ input:focus, select:focus { border-color: #3b82f6; }
         <div class="pagination-buttons" id="patientsPaginationButtons">
         </div>
       </div>
+    </div>
+
+    <!-- Settings View -->
+    <div id="settingsSection" style="display: none; padding: 20px 0;">
+      <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 20px; color: #e8edf5;"><i class="ti ti-adjustments-horizontal"></i> Cấu hình giá khám bệnh</h3>
+      <form th:action="@{/admin/settings/update-fees}" method="post" style="max-width: 500px;">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+        
+        <div class="form-group">
+          <label style="font-size: 12px; color: #8a96b0; display: block; margin-bottom: 8px;">Giá khám Tổng quát (VND) *</label>
+          <input type="number" name="feeGeneral" th:value="${feeGeneral}" min="0" placeholder="150000" required
+                 style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none;">
+        </div>
+
+        <div class="form-group" style="margin-top: 20px;">
+          <label style="font-size: 12px; color: #8a96b0; display: block; margin-bottom: 8px;">Giá khám Chuyên khoa (VND) *</label>
+          <input type="number" name="feeSpecialist" th:value="${feeSpecialist}" min="0" placeholder="300000" required
+                 style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none;">
+        </div>
+
+        <div style="margin-top: 30px;">
+          <button type="submit" class="action-btn" style="background: linear-gradient(135deg, #10b981, #059669); padding: 12px 24px; font-size: 14px; border-radius: 8px; width: 100%;">
+            💾 Lưu cấu hình giá khám
+          </button>
+        </div>
+      </form>
     </div>
 
   </div>
@@ -869,31 +897,48 @@ function switchTab(tab) {
   currentTab = tab;
   const useSec = document.getElementById("usersSection");
   const patSec = document.getElementById("patientsSection");
+  const setSec = document.getElementById("settingsSection");
   const useBtn = document.getElementById("btnUsers");
   const patBtn = document.getElementById("btnPatients");
+  const setBtn = document.getElementById("btnSettings");
   const addNewBtn = document.getElementById("addNewBtn");
+  const searchRow = document.querySelector(".actions-row");
 
   const searchEl = document.getElementById("searchName");
   if (searchEl) searchEl.value = "";
 
   if (tab === 'users') {
-    useSec.style.display = "block";
-    patSec.style.display = "none";
-    useBtn.classList.add("active");
-    patBtn.classList.remove("active");
-    addNewBtn.style.display = "block";
+    if (useSec) useSec.style.display = "block";
+    if (patSec) patSec.style.display = "none";
+    if (setSec) setSec.style.display = "none";
+    if (useBtn) useBtn.classList.add("active");
+    if (patBtn) patBtn.classList.remove("active");
+    if (setBtn) setBtn.classList.remove("active");
+    if (addNewBtn) addNewBtn.style.display = "block";
+    if (searchRow) searchRow.style.display = "flex";
+    usersPage = 0;
+    paginateList(tab);
+  } else if (tab === 'patients') {
+    if (useSec) useSec.style.display = "none";
+    if (patSec) patSec.style.display = "block";
+    if (setSec) setSec.style.display = "none";
+    if (useBtn) useBtn.classList.remove("active");
+    if (patBtn) patBtn.classList.add("active");
+    if (setBtn) setBtn.classList.remove("active");
+    if (addNewBtn) addNewBtn.style.display = "none";
+    if (searchRow) searchRow.style.display = "flex";
+    patientsPage = 0;
+    paginateList(tab);
   } else {
-    useSec.style.display = "none";
-    patSec.style.display = "block";
-    useBtn.classList.remove("active");
-    patBtn.classList.add("active");
-    addNewBtn.style.display = "none";
+    if (useSec) useSec.style.display = "none";
+    if (patSec) patSec.style.display = "none";
+    if (setSec) setSec.style.display = "block";
+    if (useBtn) useBtn.classList.remove("active");
+    if (patBtn) patBtn.classList.remove("active");
+    if (setBtn) setBtn.classList.add("active");
+    if (addNewBtn) addNewBtn.style.display = "none";
+    if (searchRow) searchRow.style.display = "none";
   }
-  
-  if (tab === 'users') usersPage = 0;
-  else patientsPage = 0;
-  
-  paginateList(tab);
 }
 
 function filterTable() {
@@ -1005,12 +1050,14 @@ window.onclick = function(event) {
   if (event.target === pM) pM.style.display = "none";
 }
 
-// Tự động giữ nguyên và chuyển sang tab Bệnh nhân dựa trên tham số URL thành công
+// Tự động giữ nguyên và chuyển sang tab Bệnh nhân hoặc Cấu hình dựa trên tham số URL thành công
 window.addEventListener('DOMContentLoaded', () => {
   const urlParams = new URLSearchParams(window.location.search);
   const success = urlParams.get('success');
   if (success && (success.includes('patient') || success === 'ok_reset_pw')) {
     switchTab('patients');
+  } else if (success && success === 'ok_updated_fees') {
+    switchTab('settings');
   } else {
     paginateList('users');
     paginateList('patients');

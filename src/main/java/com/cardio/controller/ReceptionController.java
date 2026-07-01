@@ -2,6 +2,7 @@ package com.cardio.controller;
 
 import com.cardio.model.*;
 import com.cardio.repository.*;
+import com.cardio.service.SystemSettingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,6 +41,7 @@ public class ReceptionController {
     private final DoctorRepository doctorRepository;
     private final SystemLogRepository systemLogRepository;
     private final InvoiceRepository invoiceRepository;
+    private final SystemSettingService systemSettingService;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${sepay.bank.id:}")
@@ -371,7 +373,7 @@ public class ReceptionController {
             appointmentRepository.save(appointment);
 
             // Tự động tạo hóa đơn tương ứng với lịch khám
-            Long fee = "Specialist".equalsIgnoreCase(bookingType) ? 300000L : 150000L;
+            Long fee = "Specialist".equalsIgnoreCase(bookingType) ? systemSettingService.getFeeSpecialist() : systemSettingService.getFeeGeneral();
             Invoice invoice = new Invoice();
             invoice.setAppointment(appointment);
             invoice.setPatient(patient);
@@ -551,7 +553,7 @@ public class ReceptionController {
         for (Appointment app : appointments) {
             Optional<Invoice> invOpt = invoiceRepository.findByAppointment(app);
             if (!invOpt.isPresent() && !"Cancelled".equalsIgnoreCase(app.getStatus())) {
-                Long fee = "Specialist".equalsIgnoreCase(app.getBookingType()) ? 300000L : 150000L;
+                Long fee = "Specialist".equalsIgnoreCase(app.getBookingType()) ? systemSettingService.getFeeSpecialist() : systemSettingService.getFeeGeneral();
                 Invoice invoice = new Invoice();
                 invoice.setAppointment(app);
                 invoice.setPatient(app.getPatient());

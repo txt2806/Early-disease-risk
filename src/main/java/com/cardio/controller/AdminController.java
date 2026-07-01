@@ -11,6 +11,7 @@ import com.cardio.repository.PatientRepository;
 import com.cardio.repository.SystemLogRepository;
 import com.cardio.repository.AIRiskRepository;
 import com.cardio.repository.StaffRepository;
+import com.cardio.service.SystemSettingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
@@ -34,6 +35,7 @@ public class AdminController {
     private final SystemLogRepository systemLogRepository;
     private final AIRiskRepository aiRiskRepository;
     private final StaffRepository staffRepository;
+    private final SystemSettingService systemSettingService;
     private final PasswordEncoder passwordEncoder;
 
     private void saveAuditLog(String actor, String action, String details) {
@@ -69,6 +71,8 @@ public class AdminController {
         model.addAttribute("users", users);
         model.addAttribute("patients", patients);
         model.addAttribute("newUser", new DoctorProfile());
+        model.addAttribute("feeGeneral", systemSettingService.getFeeGeneral());
+        model.addAttribute("feeSpecialist", systemSettingService.getFeeSpecialist());
         return "admin/admin-dashboard";
     }
 
@@ -366,5 +370,19 @@ public class AdminController {
         model.addAttribute("endDate", endDateStr);
 
         return "admin/admin-reports";
+    }
+
+    @PostMapping("/settings/update-fees")
+    public String updateClinicFees(
+            @RequestParam("feeGeneral") Long feeGeneral,
+            @RequestParam("feeSpecialist") Long feeSpecialist,
+            Principal principal,
+            org.springframework.web.servlet.mvc.support.RedirectAttributes ra) {
+        String actor = principal != null ? principal.getName() : "admin";
+        systemSettingService.updateFeeGeneral(feeGeneral);
+        systemSettingService.updateFeeSpecialist(feeSpecialist);
+        saveAuditLog(actor, "UPDATE_CLINIC_FEES", "Cập nhật giá khám tổng quát thành " + feeGeneral + "đ và chuyên khoa thành " + feeSpecialist + "đ");
+        ra.addFlashAttribute("success", "ok_updated_fees");
+        return "redirect:/admin/dashboard?success=ok_updated_fees";
     }
 }
