@@ -30,9 +30,9 @@ public class SePayWebhookController {
     public ResponseEntity<Map<String, Object>> handleWebhook(
             @RequestBody SePayWebhookPayload payload,
             HttpServletRequest request) {
-        
+
         Map<String, Object> response = new HashMap<>();
-        
+
         try {
             log.info("Received SePay webhook payload: {}", payload);
 
@@ -40,7 +40,7 @@ public class SePayWebhookController {
             if (sepayApiKey != null && !sepayApiKey.trim().isEmpty()) {
                 String authHeader = request.getHeader("Authorization");
                 boolean isValid = false;
-                
+
                 if (authHeader != null) {
                     // Định dạng của SePay gửi lên có thể là "Apikey xxx" hoặc chỉ "xxx"
                     String cleanToken = authHeader.replace("Apikey ", "").trim();
@@ -48,7 +48,7 @@ public class SePayWebhookController {
                         isValid = true;
                     }
                 }
-                
+
                 if (!isValid) {
                     log.warn("SePay Webhook unauthorized: Invalid API Key in Authorization header.");
                     response.put("success", false);
@@ -81,7 +81,7 @@ public class SePayWebhookController {
             SystemLog transactionLog = new SystemLog();
             transactionLog.setUsername("SEPAY_WEBHOOK");
             transactionLog.setAction("SEPAY_TRANSACTION");
-            
+
             StringBuilder details = new StringBuilder();
             details.append("Nhận thông báo chuyển khoản thành công từ SePay.\n");
             details.append("ID giao dịch SePay: ").append(payload.getId()).append("\n");
@@ -95,10 +95,10 @@ public class SePayWebhookController {
             details.append("Loại giao dịch: ").append(payload.getTransferType()).append("\n");
             details.append("Tên người chuyển: ").append(payload.getDescription()).append("\n");
             details.append("Số dư tích lũy: ").append(payload.getAccumulated()).append(" VND");
-            
+
             transactionLog.setDetails(details.toString());
             transactionLog.setTimestamp(LocalDateTime.now());
-            
+
             systemLogRepository.save(transactionLog);
             log.info("SePay Webhook: Successfully processed transaction ID: {}", payload.getId());
 
@@ -108,6 +108,96 @@ public class SePayWebhookController {
 
         } catch (Exception e) {
             log.error("Error processing SePay Webhook: ", e);
+            response.put("success", false);
+            response.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    @PostMapping("/ipn")
+    public ResponseEntity<Map<String, Object>> handleIPN(
+            @RequestBody SePayIpnPayload payload,
+            HttpServletRequest request) {
+
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            log.info("Received SePay IPN payload: {}", payload);
+
+            // 1. Kiểm tra API Key (nếu đã cấu hình)
+            if (sepayApiKey != null && !sepayApiKey.trim().isEmpty()) {
+                String authHeader = request.getHeader("Authorization");
+                boolean isValid = false;
+
+                if (authHeader != null) {
+                    String cleanToken = authHeader.replace("Apikey ", "").trim();
+                    if (sepayApiKey.trim().equals(cleanToken)) {
+                        isValid = true;
+                    }
+                }
+
+                if (!isValid) {
+                    log.warn("SePay IPN unauthorized: Invalid API Key in Authorization header.");
+                    response.put("success", false);
+                    response.put("error", "Unauthorized: Invalid API Key");
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+                }
+            }
+
+            // 2. Validate payload
+            if (payload.getTransaction() == null || payload.getTransaction().getTransaction_id() == null) {
+                log.warn("SePay IPN: Missing transaction details in payload.");
+                response.put("success", false);
+                response.put("error", "Missing transaction details");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+            }
+
+            // 3. Kiểm tra trùng lặp (Deduplication)
+            String targetSignature = "Mã giao dịch ngân hàng: " + payload.getTransaction().getTransaction_id();
+            boolean isDuplicate = systemLogRepository.existsByActionAndDetailsContaining(
+                    "SEPAY_IPN_TRANSACTION", targetSignature);
+
+            if (isDuplicate) {
+                log.info("SePay IPN: Transaction {} is already processed.", payload.getTransaction().getTransaction_id());
+                response.put("success", true);
+                response.put("message", "Already processed");
+                return ResponseEntity.ok(response);
+            }
+
+            // 4. Lưu log giao dịch vào cơ sở dữ liệu SystemLog
+            SystemLog transactionLog = new SystemLog();
+            transactionLog.setUsername("SEPAY_IPN");
+            transactionLog.setAction("SEPAY_IPN_TRANSACTION");
+
+            StringBuilder details = new StringBuilder();
+            details.append("Nhận thông báo thanh toán đơn hàng thành công từ SePay IPN.\n");
+
+            if (payload.getOrder() != null) {
+                details.append("Mã đơn hàng (order_id): ").append(payload.getOrder().getOrder_id()).append("\n");
+                details.append("Số tiền đơn hàng: ").append(payload.getOrder().getOrder_amount()).append(" ").append(payload.getOrder().getOrder_currency()).append("\n");
+                details.append("Mô tả đơn hàng: ").append(payload.getOrder().getOrder_description()).append("\n");
+                details.append("Trạng thái đơn hàng: ").append(payload.getOrder().getOrder_status()).append("\n");
+            }
+
+            details.append("ID giao dịch SePay: ").append(payload.getTransaction().getId()).append("\n");
+            details.append("Phương thức thanh toán: ").append(payload.getTransaction().getPayment_method()).append("\n");
+            details.append("Mã giao dịch ngân hàng: ").append(payload.getTransaction().getTransaction_id()).append("\n");
+            details.append("Thời gian giao dịch: ").append(payload.getTransaction().getTransaction_date()).append("\n");
+            details.append("Trạng thái giao dịch: ").append(payload.getTransaction().getTransaction_status()).append("\n");
+            details.append("Loại thông báo: ").append(payload.getNotification_type());
+
+            transactionLog.setDetails(details.toString());
+            transactionLog.setTimestamp(LocalDateTime.now());
+
+            systemLogRepository.save(transactionLog);
+            log.info("SePay IPN: Successfully processed transaction ID: {}", payload.getTransaction().getTransaction_id());
+
+            // 5. Trả về đúng định dạng
+            response.put("success", true);
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Error processing SePay IPN: ", e);
             response.put("success", false);
             response.put("error", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
@@ -128,5 +218,33 @@ public class SePayWebhookController {
         private Long transferAmount;
         private Long accumulated;
         private String referenceCode;
+    }
+
+    @Data
+    public static class SePayIpnPayload {
+        private Long timestamp;
+        private String notification_type;
+        private OrderInfo order;
+        private TransactionInfo transaction;
+
+        @Data
+        public static class OrderInfo {
+            private String id;
+            private String order_id;
+            private String order_status;
+            private String order_currency;
+            private String order_amount;
+            private String order_invoice_number;
+            private String order_description;
+        }
+
+        @Data
+        public static class TransactionInfo {
+            private String id;
+            private String payment_method;
+            private String transaction_id;
+            private String transaction_date;
+            private String transaction_status;
+        }
     }
 }

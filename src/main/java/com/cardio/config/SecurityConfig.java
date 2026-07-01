@@ -26,42 +26,45 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.ignoringRequestMatchers("/api/sepay/webhook"))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/login", "/login/profile", "/register", "/register/**", "/css/**", "/js/**", "/api/sepay/webhook").permitAll()
-                .requestMatchers("/admin/**").hasRole("ADMIN")
-                .requestMatchers("/reception/**").hasAnyRole("RECEPTIONIST", "ADMIN")
-                .requestMatchers("/patient/**").hasAnyRole("PATIENT", "ADMIN")
-                .requestMatchers("/doctor/ai-predict/**").hasAnyRole("DOCTOR", "ADMIN")
-                .requestMatchers("/doctor/alerts/**").hasAnyRole("DOCTOR", "STAFF", "ADMIN")
-                .requestMatchers("/doctor/patients/*/vitals/**").hasAnyRole("STAFF", "DOCTOR", "ADMIN")
-                .requestMatchers("/doctor/patients/new", "/doctor/patients/save").hasAnyRole("RECEPTIONIST", "DOCTOR", "ADMIN")
-                .requestMatchers("/doctor/appointments/*/details").hasAnyRole("DOCTOR", "STAFF", "ADMIN")
-                .requestMatchers("/doctor/appointments/**").hasAnyRole("RECEPTIONIST", "DOCTOR", "STAFF", "ADMIN")
-                .requestMatchers("/doctor/**").hasAnyRole("DOCTOR", "STAFF", "ADMIN")
-                .anyRequest().authenticated()
-            )
-            .formLogin(form -> form
-                .loginPage("/login")
-                .loginProcessingUrl("/login")
-                .defaultSuccessUrl("/dashboard-redirect", true)
-                .failureHandler((request, response, exception) -> {
-                    if (exception.getCause() instanceof LockedException || exception instanceof LockedException) {
-                        response.sendRedirect("/login?error=locked");
-                    } else {
-                        response.sendRedirect("/login?error=true");
-                    }
-                })
-                .permitAll()
-            )
-            .logout(logout -> logout
-                .logoutRequestMatcher(new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/logout"))
-                .logoutSuccessUrl("/login?logout")
-                .invalidateHttpSession(true)
-                .clearAuthentication(true)
-                .deleteCookies("JSESSIONID")
-                .permitAll()
-            );
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/sepay/webhook"))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/login", "/login/profile", "/register", "/register/**", "/css/**", "/js/**",
+                                "/api/sepay/webhook")
+                        .permitAll()
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/reception/**").hasAnyRole("RECEPTIONIST", "ADMIN")
+                        .requestMatchers("/patient/**").hasAnyRole("PATIENT", "ADMIN")
+                        .requestMatchers("/doctor/ai-predict/**").hasAnyRole("DOCTOR", "ADMIN")
+                        .requestMatchers("/doctor/alerts/**").hasAnyRole("DOCTOR", "STAFF", "ADMIN")
+                        .requestMatchers("/doctor/patients/*/vitals/**").hasAnyRole("STAFF", "DOCTOR", "ADMIN")
+                        .requestMatchers("/doctor/patients/new", "/doctor/patients/save")
+                        .hasAnyRole("RECEPTIONIST", "DOCTOR", "ADMIN")
+                        .requestMatchers("/doctor/appointments/*/details").hasAnyRole("DOCTOR", "STAFF", "ADMIN")
+                        .requestMatchers("/doctor/appointments/**")
+                        .hasAnyRole("RECEPTIONIST", "DOCTOR", "STAFF", "ADMIN")
+                        .requestMatchers("/doctor/**").hasAnyRole("DOCTOR", "STAFF", "ADMIN")
+                        .anyRequest().authenticated())
+                .formLogin(form -> form
+                        .loginPage("/login")
+                        .loginProcessingUrl("/login")
+                        .defaultSuccessUrl("/dashboard-redirect", true)
+                        .failureHandler((request, response, exception) -> {
+                            if (exception.getCause() instanceof LockedException
+                                    || exception instanceof LockedException) {
+                                response.sendRedirect("/login?error=locked");
+                            } else {
+                                response.sendRedirect("/login?error=true");
+                            }
+                        })
+                        .permitAll())
+                .logout(logout -> logout
+                        .logoutRequestMatcher(
+                                new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/logout"))
+                        .logoutSuccessUrl("/login?logout")
+                        .invalidateHttpSession(true)
+                        .clearAuthentication(true)
+                        .deleteCookies("JSESSIONID")
+                        .permitAll());
         return http.build();
     }
 
@@ -73,19 +76,19 @@ public class SecurityConfig {
                 try {
                     // Query app_users table directly (case-insensitive)
                     users = jdbcTemplate.queryForList(
-                        "SELECT * FROM app_users WHERE LOWER(\"Username\") = LOWER(?)", username);
-                    
+                            "SELECT * FROM app_users WHERE LOWER(\"Username\") = LOWER(?)", username);
+
                     if (users.isEmpty()) {
                         // Trông giống số điện thoại? Thử tìm theo Phone (hỗ trợ mọi định dạng biến thể)
                         java.util.List<String> phoneVariations = getPhoneVariations(username);
-                        
+
                         // Tìm kiếm patient theo phone (Tối ưu hóa: Dùng findByPhoneIn thay vì findAll)
                         var patOpt = patientRepository.findByPhoneIn(phoneVariations).stream().findFirst();
-                            
+
                         if (patOpt.isPresent()) {
                             String realUsername = patOpt.get().getUsername();
                             users = jdbcTemplate.queryForList(
-                                "SELECT * FROM app_users WHERE LOWER(\"Username\") = LOWER(?)", realUsername);
+                                    "SELECT * FROM app_users WHERE LOWER(\"Username\") = LOWER(?)", realUsername);
                         }
                     }
                 } catch (Exception sqlEx) {
@@ -101,13 +104,14 @@ public class SecurityConfig {
                     boolean isLocked = "LOCKED".equalsIgnoreCase(status);
 
                     return User.withUsername(dbUsername)
-                        .password(passwordHash)
-                        .roles(role)
-                        .accountLocked(isLocked)
-                        .build();
+                            .password(passwordHash)
+                            .roles(role)
+                            .accountLocked(isLocked)
+                            .build();
                 }
 
-                // FALLBACK: Nếu không tìm thấy trong app_users hoặc lỗi view, truy vấn trực tiếp từ các bảng Profile
+                // FALLBACK: Nếu không tìm thấy trong app_users hoặc lỗi view, truy vấn trực
+                // tiếp từ các bảng Profile
                 // 1. Tìm bệnh nhân theo Username/Email hoặc Phone
                 var patOpt = patientRepository.findByUsernameIgnoreCase(username);
                 if (!patOpt.isPresent()) {
@@ -117,10 +121,10 @@ public class SecurityConfig {
                 if (patOpt.isPresent()) {
                     var patient = patOpt.get();
                     return User.withUsername(patient.getUsername())
-                        .password(patient.getPasswordHash())
-                        .roles("PATIENT")
-                        .accountLocked("LOCKED".equalsIgnoreCase(patient.getStatus()))
-                        .build();
+                            .password(patient.getPasswordHash())
+                            .roles("PATIENT")
+                            .accountLocked("LOCKED".equalsIgnoreCase(patient.getStatus()))
+                            .build();
                 }
 
                 // 2. Tìm bác sĩ theo Username
@@ -128,10 +132,10 @@ public class SecurityConfig {
                 if (docOpt.isPresent()) {
                     var doctor = docOpt.get();
                     return User.withUsername(doctor.getUsername())
-                        .password(doctor.getPasswordHash())
-                        .roles("DOCTOR")
-                        .accountLocked("LOCKED".equalsIgnoreCase(doctor.getStatus()))
-                        .build();
+                            .password(doctor.getPasswordHash())
+                            .roles("DOCTOR")
+                            .accountLocked("LOCKED".equalsIgnoreCase(doctor.getStatus()))
+                            .build();
                 }
 
                 // 3. Tìm nhân sự theo Username
@@ -139,10 +143,10 @@ public class SecurityConfig {
                 if (staffOpt.isPresent()) {
                     var staff = staffOpt.get();
                     return User.withUsername(staff.getUsername())
-                        .password(staff.getPasswordHash())
-                        .roles(staff.getRole())
-                        .accountLocked("LOCKED".equalsIgnoreCase(staff.getStatus()))
-                        .build();
+                            .password(staff.getPasswordHash())
+                            .roles(staff.getRole())
+                            .accountLocked("LOCKED".equalsIgnoreCase(staff.getStatus()))
+                            .build();
                 }
 
                 throw new UsernameNotFoundException("Không tìm thấy người dùng: " + username);
@@ -161,9 +165,10 @@ public class SecurityConfig {
 
     private static java.util.List<String> getPhoneVariations(String username) {
         java.util.List<String> variations = new java.util.ArrayList<>();
-        if (username == null) return variations;
+        if (username == null)
+            return variations;
         variations.add(username);
-        
+
         if (username.startsWith("0") && username.length() > 1) {
             variations.add("+84" + username.substring(1));
         } else if (username.startsWith("+84") && username.length() > 3) {
