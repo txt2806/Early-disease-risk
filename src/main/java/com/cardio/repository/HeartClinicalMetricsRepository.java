@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface HeartClinicalMetricsRepository extends JpaRepository<HeartClinicalMetrics, Integer> {
     Optional<HeartClinicalMetrics> findByRecord(ConsultationRecord record);
+    java.util.List<HeartClinicalMetrics> findByRecordRecordId(Integer recordId);
 }

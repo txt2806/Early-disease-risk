@@ -314,6 +314,15 @@ public class DoctorController {
         model.addAttribute("patient", patient);
         model.addAttribute("records", records);
         model.addAttribute("recordDiagnosesMap", recordDiagnosesMap);
+
+        // [FIX] Truyền HeartClinicalMetrics của từng record để form sửa có thể
+        // hiển thị giá trị hiện tại (huyết áp, cholesterol...) thay vì ô trống
+        java.util.Map<Integer, com.cardio.model.HeartClinicalMetrics> recordMetricsMap =
+                new java.util.HashMap<>();
+        records.forEach(r -> consultationService.getMetricsByRecord(r.getRecordId())
+                .ifPresent(m -> recordMetricsMap.put(r.getRecordId(), m)));
+        model.addAttribute("recordMetricsMap", recordMetricsMap);
+
         model.addAttribute("highAlertCount", 0L);
         model.addAttribute("hasActiveAppointment", hasActiveAppointment);
         model.addAttribute("specialists", specialists);
@@ -411,6 +420,67 @@ public class DoctorController {
         return "redirect:/doctor/patients/" + patientId;
     }
 
+    // ── UC02: Xoá chẩn đoán ICD-10 ──────────────────────────────
+    @PostMapping("/records/{recordId}/diagnosis/remove")
+    public String removeDiagnosis(@PathVariable Integer recordId,
+            @RequestParam String icdCode,
+            @RequestParam Integer patientId,
+            @AuthenticationPrincipal UserDetails userDetails,
+            RedirectAttributes ra) {
+        DoctorProfile doctor = getCurrentDoctor(userDetails);
+        if (doctor.getDoctorId() != null
+                && !patientService.isPatientAssignedToDoctor(patientId, doctor.getDoctorId())) {
+            ra.addFlashAttribute("error", "Bạn không có quyền thực hiện thao tác này!");
+            return "redirect:/doctor/appointments";
+        }
+        try {
+            consultationService.removeDiagnosis(recordId, icdCode);
+            auditLogService.log(userDetails.getUsername(),
+                    "REMOVE_ICD", "Record #" + recordId + " — xoá ICD " + icdCode);
+            ra.addFlashAttribute("success", "Đã xoá chẩn đoán " + icdCode + "!");
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/doctor/patients/" + patientId;
+    }
+
+    // ── UC02: Cập nhật chỉ số lâm sàng (HeartClinicalMetrics) ────
+    @PostMapping("/records/{recordId}/metrics/update")
+    public String updateClinicalMetrics(@PathVariable Integer recordId,
+            @RequestParam Integer patientId,
+            @RequestParam(required = false) Integer restingBP,
+            @RequestParam(required = false) Integer cholesterol,
+            @RequestParam(required = false) String fastingBloodSugar,
+            @RequestParam(required = false) Integer maxHeartRate,
+            @RequestParam(required = false) String exerciseAngina,
+            @RequestParam(required = false) Double oldpeak,
+            @RequestParam(required = false) String slope,
+            @RequestParam(required = false) Integer ca,
+            @RequestParam(required = false) String thal,
+            @AuthenticationPrincipal UserDetails userDetails,
+            RedirectAttributes ra) {
+        DoctorProfile doctor = getCurrentDoctor(userDetails);
+        if (doctor.getDoctorId() != null
+                && !patientService.isPatientAssignedToDoctor(patientId, doctor.getDoctorId())) {
+            ra.addFlashAttribute("error", "Bạn không có quyền thực hiện thao tác này!");
+            return "redirect:/doctor/appointments";
+        }
+        // Parse fbs/exang nhất quán với A.1 (chuẩn '1.0'/'0.0')
+        Boolean fbs   = fastingBloodSugar != null
+                ? ("1.0".equals(fastingBloodSugar) || "true".equalsIgnoreCase(fastingBloodSugar))
+                : null;
+        Boolean exang = exerciseAngina != null
+                ? ("1.0".equals(exerciseAngina) || "true".equalsIgnoreCase(exerciseAngina))
+                : null;
+
+        consultationService.updateClinicalMetrics(recordId, restingBP, cholesterol,
+                fbs, maxHeartRate, exang, oldpeak, slope, ca, thal);
+        auditLogService.log(userDetails.getUsername(),
+                "UPDATE_METRICS", "Record #" + recordId + " — cập nhật chỉ số lâm sàng");
+        ra.addFlashAttribute("success", "Đã cập nhật chỉ số lâm sàng!");
+        return "redirect:/doctor/patients/" + patientId;
+    }
+
     // ── UC02: ICD Autocomplete API ────────────────────────────
     @GetMapping("/icd/search")
     @ResponseBody
@@ -438,12 +508,22 @@ public class DoctorController {
         alerts.forEach(a -> urgencyMap.put(a.getPredictionId(),
                 consultationService.calcUrgencyScore(a)));
 
-        // [A.5] Đánh dấu riêng các ca VƯỢT ngưỡng cá nhân hoá (cấu hình theo
-        // từng bệnh nhân ở thresholds.html) — không lọc bớt alerts, chỉ để
-        // làm nổi bật thêm những ca bác sĩ đã chủ động đặt ngưỡng thấp hơn.
+        // [A.5] Đánh dấu riêng các ca VƯỢT ngưỡng cá nhân hoá
         Map<Integer, Boolean> thresholdExceededMap = new HashMap<>();
         alerts.forEach(a -> thresholdExceededMap.put(a.getPredictionId(),
                 consultationService.exceedsPersonalThreshold(a)));
+
+        // [FIX] Giá trị ngưỡng CỤ THỂ (số %) để hiển thị trực tiếp trên badge,
+        // tránh bác sĩ phải chạy sang trang Ngưỡng cảnh báo để xem ngưỡng là bao nhiêu.
+        Map<Integer, Double> thresholdValueMap = new HashMap<>();
+        alerts.forEach(a -> {
+            if (a.getRecord() != null && a.getRecord().getPatient() != null
+                    && a.getRecord().getDoctor() != null) {
+                thresholdRepository
+                        .findByPatientAndDoctor(a.getRecord().getPatient(), a.getRecord().getDoctor())
+                        .ifPresent(t -> thresholdValueMap.put(a.getPredictionId(), t.getRiskScoreThreshold()));
+            }
+        });
 
         // Filter counts (chỉ đếm chưa xử lý)
         List<AIRiskPrediction> unhandled = alerts.stream()
@@ -453,6 +533,7 @@ public class DoctorController {
         model.addAttribute("alerts", alerts);
         model.addAttribute("urgencyMap", urgencyMap);
         model.addAttribute("thresholdExceededMap", thresholdExceededMap);
+        model.addAttribute("thresholdValueMap", thresholdValueMap);
         model.addAttribute("highCount", unhandled.stream().filter(a -> "HIGH".equals(a.getRiskLevel())).count());
         model.addAttribute("medCount", unhandled.stream().filter(a -> "MEDIUM".equals(a.getRiskLevel())).count());
         model.addAttribute("lowCount", unhandled.stream().filter(a -> "LOW".equals(a.getRiskLevel())).count());
@@ -540,14 +621,15 @@ public class DoctorController {
                     ? aiService.predictWithTrend(visitHistory)
                     : aiService.predict(aiRequest);
                     System.out.println("====== DEBUG AI RESPONSE ======");
-                    System.out.println("history: " + aiResponse.getHistory());
-                    System.out.println("probability: " + aiResponse.getProbability());
-                    System.out.println("trend_message: " + aiResponse.getTrend_message());
-                    System.out.println("================================");
-                    System.out.println("====== DEBUG D.2/D.4 ======");
-                    System.out.println("age_confidence_warning: " + aiResponse.getAge_confidence_warning());
-                    System.out.println("physiological_warnings: " + aiResponse.getPhysiological_warnings());
-                    System.out.println("============================");
+System.out.println("history: " + aiResponse.getHistory());
+System.out.println("probability: " + aiResponse.getProbability());
+System.out.println("trend_message: " + aiResponse.getTrend_message());
+System.out.println("================================");
+
+System.out.println("====== DEBUG D.2/D.4 ======");
+System.out.println("age_confidence_warning: " + aiResponse.getAge_confidence_warning());
+System.out.println("physiological_warnings: " + aiResponse.getPhysiological_warnings());
+System.out.println("============================");
         } else {
             aiResponse = aiService.predict(aiRequest);
         }
