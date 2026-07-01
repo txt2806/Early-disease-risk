@@ -180,3 +180,47 @@ sepay.bank.owner=TRAN XUAN THANH
   * **Order Payment gateway callback (IPN):** `POST /api/sepay/ipn`
 * Set your SePay Webhook / IPN callback URL to: `https://early-disease-risk.onrender.com/api/sepay/webhook` (or `/api/sepay/ipn`) with the `Authorization` header containing the matching API Key configured in your application properties.
 * Required Bank transfer description/memo format: **`TT` + `{invoiceId}`** (e.g., `TT1024`).
+
+---
+
+## 🛠️ Testing Webhooks & Local Development
+
+Since local servers (`http://localhost:8080`) are not publicly accessible by SePay servers, you can test transaction callbacks using one of these methods:
+
+### Method 1: Mocking Callbacks via Postman (Recommended for fast dev tests)
+You can directly mock the transaction payload by triggering your local server endpoint using an API client like Postman:
+* **Method:** `POST`
+* **URL:** `http://localhost:8080/api/sepay/webhook`
+* **Headers:** 
+  * `Content-Type: application/json`
+  * `Authorization: Apikey OEYETO1H1DYIZMQWCOCINZRB5VXJQQ3KJDR73INFYMFB6VHGTX0MSATIFSOTBUWU`
+* **JSON Body Example (Mocking paid in full):**
+  ```json
+  {
+    "id": 9991234,
+    "gateway": "MBBank",
+    "transactionDate": "2026-07-01 12:00:00",
+    "accountNumber": "966662869999",
+    "code": "TT1001",
+    "content": "Chuyen khoan TT1001",
+    "transferType": "in",
+    "description": "TEST PAYMENT",
+    "transferAmount": 150000,
+    "accumulated": 150000,
+    "referenceCode": "FT123456"
+  }
+  ```
+  *(Replace `TT1001` with the active invoice's reference code, and `150000` with the invoice amount. The server will update the status and auto-confirm the appointment).*
+
+### Method 2: Real Payments Synced through Render & Shared Supabase DB
+Because both your local app and the live Render site connect to the **same Supabase PostgreSQL database**, any real bank transfer webhook sent to `https://early-disease-risk.onrender.com/api/sepay/webhook` will update the database. Since your local app reads from the exact same database, the payment status will immediately show as "Paid" on your local UI!
+
+### Method 3: Tunneling local server using Ngrok
+If you want SePay to trigger your local app instance directly:
+1. Start ngrok tunnel pointing to port 8080:
+   ```bash
+   ngrok http 8080
+   ```
+2. Copy the generated public URL (e.g. `https://xxxx.ngrok-free.app`).
+3. Set your callback URL in SePay Dashboard to: `https://xxxx.ngrok-free.app/api/sepay/webhook`.
+
