@@ -185,7 +185,7 @@ public class RegisterController {
 
             Optional<PatientProfile> patientOpt = Optional.empty();
             try {
-                patientOpt = patientRepository.findByUsername(email);
+                patientOpt = patientRepository.findByUsernameIgnoreCase(email);
             } catch (Exception e) {
                 // DB offline
             }
@@ -220,7 +220,7 @@ public class RegisterController {
     public String showCompleteProfile(
             @RequestParam(value = "email", required = false, defaultValue = "user@example.com") String email,
             Model model) {
-        Optional<PatientProfile> patientOpt = patientRepository.findByUsername(email);
+        Optional<PatientProfile> patientOpt = patientRepository.findByUsernameIgnoreCase(email);
         if (!patientOpt.isPresent()) {
             // Trông giống số điện thoại? Thử tìm theo Phone
             String phoneNorm1 = email;
@@ -335,7 +335,7 @@ public class RegisterController {
 
             try {
                 // Kiểm tra trùng lặp
-                if (patientRepository.findByUsername(email).isPresent()) {
+                if (patientRepository.findByUsernameIgnoreCase(email).isPresent()) {
                     model.addAttribute("error", "Email Google này đã tồn tại trên hệ thống.");
                     return "auth/complete-profile";
                 }
