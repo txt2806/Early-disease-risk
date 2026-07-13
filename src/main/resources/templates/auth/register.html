@@ -640,7 +640,13 @@
           showStatus("Xác thực SĐT thành công và Hồ sơ đã được lưu vào Cơ sở dữ liệu!", "success");
           startCountdownRedirect();
         } else {
-          showStatus("Đăng ký thất bại. Số điện thoại hoặc Email đã được sử dụng.", "error");
+          const htmlText = await response.text();
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(htmlText, "text/html");
+          const errorDiv = doc.querySelector(".error");
+          const errorMsg = errorDiv ? errorDiv.innerText : "Đăng ký thất bại. Số điện thoại hoặc Email có thể đã được sử dụng.";
+          
+          showStatus(errorMsg, "error");
           confirmOtpBtn.disabled = false;
           confirmOtpBtn.innerText = "Xác nhận";
         }
@@ -670,7 +676,7 @@
           return;
         }
 
-        const idToken = await auth.currentUser.getIdToken();
+        const idToken = await auth.currentUser.getIdToken(true);
         document.getElementById("firebaseToken").value = idToken;
 
         const formData = new FormData(form);
@@ -683,7 +689,14 @@
           showStatus("Xác thực Email thành công và Hồ sơ đã được lưu vào Cơ sở dữ liệu!", "success");
           startCountdownRedirect();
         } else {
-          showStatus("Đăng ký thất bại. Email hoặc Số điện thoại đã được sử dụng.", "error");
+          // Parse HTML response to extract the specific error message from the server
+          const htmlText = await response.text();
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(htmlText, "text/html");
+          const errorDiv = doc.querySelector(".error");
+          const errorMsg = errorDiv ? errorDiv.innerText : "Đăng ký thất bại. Email hoặc Số điện thoại có thể đã được sử dụng.";
+          
+          showStatus(errorMsg, "error");
           confirmEmailVerificationBtn.disabled = false;
           confirmEmailVerificationBtn.innerText = "Tôi đã bấm kích hoạt link - Xác nhận đăng ký";
         }
