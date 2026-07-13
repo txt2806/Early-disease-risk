@@ -98,16 +98,45 @@ public class SecurityConfig {
 
                 if (!users.isEmpty()) {
                     var user = users.get(0);
-                    String dbUsername = (String) user.get("Username");
-                    String passwordHash = (String) user.get("PasswordHash");
                     String role = (String) user.get("Role");
-                    String status = (String) user.get("Status");
-                    boolean isLocked = "LOCKED".equalsIgnoreCase(status);
+                    String realUsername = (String) user.get("Username");
 
-                    return User.withUsername(dbUsername)
-                            .password(passwordHash)
+                    // ĐỒNG BỘ TỨC THỜI: Kiểm tra Firebase nếu Role = PATIENT
+                    if ("PATIENT".equalsIgnoreCase(role)) {
+                        boolean isFirebaseInitialized = !com.google.firebase.FirebaseApp.getApps().isEmpty();
+                        if (isFirebaseInitialized) {
+                            try {
+                                com.google.firebase.auth.FirebaseAuth.getInstance().getUserByEmail(realUsername);
+                            } catch (com.google.firebase.auth.FirebaseAuthException e) {
+                                if ("user-not-found".equals(e.getErrorCode())) {
+                                    // Bệnh nhân đã bị xóa trên Firebase -> Đồng bộ xóa ở Database
+                                    Integer patientId = patientRepository.findByUsernameIgnoreCase(realUsername)
+                                            .map(com.cardio.model.PatientProfile::getPatientId).orElse(null);
+                                    if (patientId != null) {
+                                        jdbcTemplate.update("UPDATE invoice SET patientid = NULL, appointmentid = NULL WHERE patientid = ?", patientId);
+                                        jdbcTemplate.update("UPDATE invoice SET appointmentid = NULL WHERE appointmentid IN (SELECT appointmentid FROM appointment WHERE patientid = ?)", patientId);
+                                        jdbcTemplate.update("DELETE FROM record_icd WHERE recordid IN (SELECT recordid FROM consultation_record WHERE patientid = ?)", patientId);
+                                        jdbcTemplate.update("DELETE FROM ai_risk_prediction WHERE recordid IN (SELECT recordid FROM consultation_record WHERE patientid = ?)", patientId);
+                                        jdbcTemplate.update("DELETE FROM heart_clinical_metrics WHERE recordid IN (SELECT recordid FROM consultation_record WHERE patientid = ?)", patientId);
+                                        jdbcTemplate.update("DELETE FROM consultation_record WHERE patientid = ?", patientId);
+                                        jdbcTemplate.update("DELETE FROM lab_request WHERE patientid = ?", patientId);
+                                        jdbcTemplate.update("DELETE FROM patient_alert_threshold WHERE patientid = ?", patientId);
+                                        jdbcTemplate.update("DELETE FROM appointment WHERE patientid = ?", patientId);
+                                        patientRepository.deleteById(patientId);
+                                    }
+                                    throw new UsernameNotFoundException("Tài khoản của bạn không tồn tại hoặc đã bị xóa khỏi hệ thống.");
+                                }
+                            } catch (Exception ex) {
+                                // Lỗi khác (vd: mạng) thì bỏ qua
+                            }
+                        }
+                    }
+
+                    return org.springframework.security.core.userdetails.User
+                            .withUsername(realUsername)
+                            .password((String) user.get("PasswordHash"))
                             .roles(role)
-                            .accountLocked(isLocked)
+                            .accountLocked("LOCKED".equalsIgnoreCase((String) user.get("Status")))
                             .build();
                 }
 

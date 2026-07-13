@@ -546,7 +546,8 @@ input[readonly] { background: #111827; color: #8a96b0; cursor: not-allowed; }
       <!-- Readonly fields from Google OAuth -->
       <div class="form-group">
         <label>Email Đăng nhập (Google)</label>
-        <input type="email" name="email" th:value="${email}" readonly required>
+        <input type="email" name="email" th:value="${email}" th:readonly="${email != 'patient@example.com'}" required>
+        <small th:if="${email == 'patient@example.com'}" style="color: #fbbf24; font-size: 11px;">Vui lòng nhập Email của bạn do không thể lấy tự động.</small>
       </div>
 
       <div class="form-row">

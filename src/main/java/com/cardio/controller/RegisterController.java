@@ -99,11 +99,14 @@ public class RegisterController {
                         }
                     }
                 } catch (Exception firebaseEx) {
-                    System.err.println("Firebase verification error, falling back to local credentials: "
-                            + firebaseEx.getMessage());
+                    httpResponse.setStatus(400);
+                    model.addAttribute("error", "Lỗi xác thực: Server chưa được cấu hình Firebase credentials hoặc Token không hợp lệ. Vui lòng liên hệ Admin.");
+                    return "auth/register";
                 }
             } else {
-                System.out.println("Warning: Firebase Admin SDK not initialized. Local dev mode fallback active.");
+                httpResponse.setStatus(500);
+                model.addAttribute("error", "Hệ thống chưa được cấu hình Firebase Admin SDK (thiếu firebase-service-account.json). Không thể đăng ký.");
+                return "auth/register";
             }
 
             // [VALIDATION] Kiểm tra xem trùng sdt hay trùng email của bất kỳ ai trong DB
@@ -159,13 +162,11 @@ public class RegisterController {
             HttpServletRequest request,
             HttpServletResponse response) {
         try {
-            String email = (clientEmail != null && !clientEmail.trim().isEmpty()) ? clientEmail.trim()
-                    : "patient@example.com";
-            String fullName = (clientFullName != null && !clientFullName.trim().isEmpty()) ? clientFullName.trim()
-                    : "Bệnh nhân Google";
+            String email = null;
+            String fullName = null;
 
             try {
-                // Thử xác thực thật trên Firebase
+                // Xác thực BẮT BUỘC bằng Firebase Admin SDK
                 FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(firebaseToken);
                 if (decodedToken.getEmail() != null) {
                     email = decodedToken.getEmail();
@@ -174,12 +175,13 @@ public class RegisterController {
                     fullName = decodedToken.getName();
                 }
             } catch (Exception firebaseException) {
-                // Fallback nếu offline hoặc không có tệp firebase-service-account.json
-                System.out.println("Warning: Firebase verification failed, using client fallback email: " + email);
+                // NẾU LỖI -> CHẶN ĐĂNG NHẬP HOÀN TOÀN
+                model.addAttribute("error", "Lỗi xác thực: Server chưa được cấu hình Firebase credentials (firebase-service-account.json) hoặc Token không hợp lệ. Chi tiết: " + firebaseException.getMessage());
+                return "auth/login";
             }
 
             if (email == null) {
-                model.addAttribute("error", "Không thể lấy thông tin Email từ tài khoản Google.");
+                model.addAttribute("error", "Không thể lấy thông tin Email từ tài khoản Google. Hãy đảm bảo tài khoản Google của bạn có Email.");
                 return "auth/login";
             }
 
@@ -191,6 +193,29 @@ public class RegisterController {
             }
 
             if (patientOpt.isPresent()) {
+                // ĐỒNG BỘ: Kiểm tra xem user còn tồn tại trên Firebase Auth không
+                try {
+                    FirebaseAuth.getInstance().getUserByEmail(email);
+                } catch (com.google.firebase.auth.FirebaseAuthException e) {
+                    if ("user-not-found".equals(e.getErrorCode())) {
+                        // TÀI KHOẢN ĐÃ BỊ XÓA TRÊN FIREBASE -> ĐỒNG BỘ XÓA Ở DATABASE
+                        Integer id = patientOpt.get().getPatientId();
+                        jdbcTemplate.update("UPDATE invoice SET patientid = NULL, appointmentid = NULL WHERE patientid = ?", id);
+                        jdbcTemplate.update("UPDATE invoice SET appointmentid = NULL WHERE appointmentid IN (SELECT appointmentid FROM appointment WHERE patientid = ?)", id);
+                        jdbcTemplate.update("DELETE FROM record_icd WHERE recordid IN (SELECT recordid FROM consultation_record WHERE patientid = ?)", id);
+                        jdbcTemplate.update("DELETE FROM ai_risk_prediction WHERE recordid IN (SELECT recordid FROM consultation_record WHERE patientid = ?)", id);
+                        jdbcTemplate.update("DELETE FROM heart_clinical_metrics WHERE recordid IN (SELECT recordid FROM consultation_record WHERE patientid = ?)", id);
+                        jdbcTemplate.update("DELETE FROM consultation_record WHERE patientid = ?", id);
+                        jdbcTemplate.update("DELETE FROM lab_request WHERE patientid = ?", id);
+                        jdbcTemplate.update("DELETE FROM patient_alert_threshold WHERE patientid = ?", id);
+                        jdbcTemplate.update("DELETE FROM appointment WHERE patientid = ?", id);
+                        patientRepository.deleteById(id);
+
+                        model.addAttribute("error", "Tài khoản của bạn đã bị xóa trên hệ thống (Đã đồng bộ xóa).");
+                        return "auth/login";
+                    }
+                }
+
                 PatientProfile patient = patientOpt.get();
                 User principal = new User(patient.getUsername(), "",
                         Collections.singletonList(new SimpleGrantedAuthority("ROLE_PATIENT")));
@@ -205,7 +230,7 @@ public class RegisterController {
                 return "redirect:/dashboard-redirect";
             } else {
                 model.addAttribute("email", email);
-                model.addAttribute("fullName", fullName);
+                model.addAttribute("fullName", fullName != null ? fullName : "Bệnh nhân mới");
                 model.addAttribute("firebaseToken", firebaseToken);
                 return "auth/complete-profile";
             }
@@ -315,12 +340,16 @@ public class RegisterController {
             HttpServletResponse response) {
 
         try {
-            String firebaseEmail = email; // Fallback default
             try {
+                // Xác thực BẮT BUỘC bằng Firebase Admin SDK
                 FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(firebaseToken);
-                firebaseEmail = decodedToken.getEmail();
+                // Bắt buộc dùng email từ Token để bảo mật, không dùng email từ Form nếu nó khác biệt (hoặc ít nhất là dùng email từ token làm định danh chuẩn)
+                if (decodedToken.getEmail() != null) {
+                    email = decodedToken.getEmail();
+                }
             } catch (Exception firebaseException) {
-                System.out.println("Warning: Firebase verification skipped in profile completion");
+                model.addAttribute("error", "Lỗi xác thực: Server chưa được cấu hình Firebase credentials hoặc Token không hợp lệ. Chi tiết: " + firebaseException.getMessage());
+                return "auth/complete-profile";
             }
 
             // Tạo PatientProfile mới
@@ -341,8 +370,8 @@ public class RegisterController {
                 }
                 patientRepository.save(patient);
             } catch (Exception e) {
-                // Bỏ qua lỗi DB nếu đang chạy ở chế độ offline và cho phép login vào thẳng
-                System.out.println("Warning: DB offline, skipping save to SQL Server");
+                model.addAttribute("error", "Lỗi lưu dữ liệu: " + e.getMessage());
+                return "auth/complete-profile";
             }
 
             // Cho đăng nhập tự động vào hệ thống ngay lập tức
@@ -359,7 +388,7 @@ public class RegisterController {
             return "redirect:/dashboard-redirect";
 
         } catch (Exception e) {
-            model.addAttribute("error", "Lỗi hoàn tất hồ sơ: " + e.getMessage());
+            model.addAttribute("error", "Hoàn thiện hồ sơ thất bại: " + e.getMessage());
             return "auth/complete-profile";
         }
     }
