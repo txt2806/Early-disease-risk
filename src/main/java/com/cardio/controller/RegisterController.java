@@ -127,13 +127,13 @@ public class RegisterController {
 
             // 2. Tạo đối tượng Patient Profile (Role Bệnh nhân)
             PatientProfile patient = new PatientProfile();
-            patient.setUsername(emailInput); // Username luôn lưu Email để đồng bộ đăng nhập
+            patient.setUsername(emailInput != null ? emailInput.trim() : null); // Username luôn lưu Email để đồng bộ đăng nhập
             patient.setPasswordHash(passwordEncoder.encode(password));
-            patient.setFullName(fullName);
+            patient.setFullName(fullName != null ? fullName.trim() : null);
             patient.setDob(LocalDate.parse(dob));
             patient.setGender(gender);
-            patient.setPhone(phoneInput); // Phone luôn lưu SĐT để đồng bộ đăng nhập
-            patient.setAddress(address);
+            patient.setPhone(phoneInput != null ? phoneInput.trim() : null); // Phone luôn lưu SĐT để đồng bộ đăng nhập
+            patient.setAddress(address != null ? address.trim() : null);
 
             patientRepository.save(patient);
 

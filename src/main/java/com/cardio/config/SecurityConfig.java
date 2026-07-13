@@ -70,8 +70,9 @@ public class SecurityConfig {
 
     @Bean
     public UserDetailsService userDetailsService() {
-        return username -> {
+        return usernameInput -> {
             try {
+                String username = usernameInput != null ? usernameInput.trim() : "";
                 java.util.List<java.util.Map<String, Object>> users = new java.util.ArrayList<>();
                 try {
                     // Query app_users table directly (case-insensitive)

@@ -409,6 +409,12 @@ input:focus, select:focus { border-color: #3b82f6; }
     </div>
     <div class="header-actions">
       <a th:href="@{/admin/reports}" class="btn-reports">📊 Báo cáo hệ thống</a>
+      
+      <form th:action="@{/admin/sync-firebase}" method="post" id="syncFirebaseForm" style="display:inline;" onsubmit="return confirm('Tiến trình này sẽ kiểm tra và dọn dẹp các tài khoản bệnh nhân không còn trên Firebase. Bạn có chắc chắn muốn tiếp tục?');">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+        <button type="submit" class="btn-reports" style="background: linear-gradient(135deg, #10b981, #059669);">🔄 Đồng bộ Firebase</button>
+      </form>
+
       <form th:action="@{/logout}" method="post" id="logoutForm" style="display:inline;">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
         <button type="submit" class="logout-btn">Đăng xuất Admin</button>
@@ -416,7 +422,7 @@ input:focus, select:focus { border-color: #3b82f6; }
     </div>
   </div>
 
-  <!-- Messages -->
+  <!-- Messages from query parameters -->
   <div th:if="${param.success}" class="alert alert-success">
     <span th:switch="${param.success[0]}">
       <span th:case="'ok_locked'">🔒 Khóa tài khoản nhân sự thành công!</span>
@@ -439,6 +445,10 @@ input:focus, select:focus { border-color: #3b82f6; }
       <span th:case="*">❌ Có lỗi xảy ra, vui lòng thử lại!</span>
     </span>
   </div>
+
+  <!-- Messages from Flash Attributes (e.g., sync Firebase) -->
+  <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+  <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
 
   <!-- Stats Grid -->
   <div class="stats-grid">

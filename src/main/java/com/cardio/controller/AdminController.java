@@ -277,6 +277,41 @@ public class AdminController {
         
         patientRepository.deleteById(id);
         saveAuditLog(actor, "DELETE_PATIENT", "Xóa hồ sơ bệnh nhân: " + patient.getFullName());
+        
+        // Đồng bộ xóa trên Firebase Auth
+        try {
+            boolean isFirebaseInitialized = !com.google.firebase.FirebaseApp.getApps().isEmpty();
+            if (isFirebaseInitialized) {
+                com.google.firebase.auth.FirebaseAuth auth = com.google.firebase.auth.FirebaseAuth.getInstance();
+                String uidToDelete = null;
+                try {
+                    // Thử tìm theo Email
+                    com.google.firebase.auth.UserRecord userRecord = auth.getUserByEmail(patient.getUsername());
+                    uidToDelete = userRecord.getUid();
+                } catch (com.google.firebase.auth.FirebaseAuthException e) {
+                    // Nếu không thấy theo email, thử tìm theo Phone
+                    if (patient.getPhone() != null && !patient.getPhone().isEmpty()) {
+                        try {
+                            String phone = patient.getPhone();
+                            if (phone.startsWith("0")) {
+                                phone = "+84" + phone.substring(1);
+                            }
+                            com.google.firebase.auth.UserRecord userRecord = auth.getUserByPhoneNumber(phone);
+                            uidToDelete = userRecord.getUid();
+                        } catch (com.google.firebase.auth.FirebaseAuthException ex) {
+                            // Không tìm thấy theo SĐT
+                        }
+                    }
+                }
+                if (uidToDelete != null) {
+                    auth.deleteUser(uidToDelete);
+                    System.out.println("Deleted Firebase user: " + uidToDelete);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to delete user from Firebase: " + e.getMessage());
+        }
+
         return "redirect:/admin/dashboard?success=ok_deleted_patient";
     }
 
@@ -466,5 +501,76 @@ public class AdminController {
         saveAuditLog(actor, "UPDATE_CLINIC_FEES", "Cập nhật giá khám tổng quát thành " + feeGeneral + "đ và chuyên khoa thành " + feeSpecialist + "đ");
         ra.addFlashAttribute("success", "ok_updated_fees");
         return "redirect:/admin/dashboard?success=ok_updated_fees";
+    }
+
+    @PostMapping("/sync-firebase")
+    public String syncFirebaseUsers(Principal principal, org.springframework.web.servlet.mvc.support.RedirectAttributes ra) {
+        String actor = principal != null ? principal.getName() : "admin";
+        int deletedCount = 0;
+
+        try {
+            boolean isFirebaseInitialized = !com.google.firebase.FirebaseApp.getApps().isEmpty();
+            if (!isFirebaseInitialized) {
+                ra.addFlashAttribute("error", "Firebase chưa được khởi tạo, không thể đồng bộ.");
+                return "redirect:/admin/dashboard";
+            }
+
+            com.google.firebase.auth.FirebaseAuth auth = com.google.firebase.auth.FirebaseAuth.getInstance();
+            List<PatientProfile> allPatients = patientRepository.findAll();
+
+            for (PatientProfile patient : allPatients) {
+                boolean foundInFirebase = false;
+
+                // Kiểm tra theo Email
+                try {
+                    auth.getUserByEmail(patient.getUsername());
+                    foundInFirebase = true;
+                } catch (com.google.firebase.auth.FirebaseAuthException e) {
+                    if ("user-not-found".equals(e.getErrorCode())) {
+                        // Tiếp tục kiểm tra theo SĐT nếu không thấy email
+                        if (patient.getPhone() != null && !patient.getPhone().isEmpty()) {
+                            try {
+                                String phone = patient.getPhone();
+                                if (phone.startsWith("0")) {
+                                    phone = "+84" + phone.substring(1);
+                                }
+                                auth.getUserByPhoneNumber(phone);
+                                foundInFirebase = true;
+                            } catch (com.google.firebase.auth.FirebaseAuthException ex) {
+                                // Cũng không tìm thấy
+                            }
+                        }
+                    } else {
+                        // Lỗi khác (vd: quá tải request), tạm thời coi như có để tránh xóa nhầm
+                        foundInFirebase = true;
+                    }
+                }
+
+                if (!foundInFirebase) {
+                    // Không tồn tại trên Firebase -> Xóa ở DB
+                    Integer id = patient.getPatientId();
+                    jdbcTemplate.update("UPDATE invoice SET patientid = NULL, appointmentid = NULL WHERE patientid = ?", id);
+                    jdbcTemplate.update("UPDATE invoice SET appointmentid = NULL WHERE appointmentid IN (SELECT appointmentid FROM appointment WHERE patientid = ?)", id);
+                    jdbcTemplate.update("DELETE FROM record_icd WHERE recordid IN (SELECT recordid FROM consultation_record WHERE patientid = ?)", id);
+                    jdbcTemplate.update("DELETE FROM ai_risk_prediction WHERE recordid IN (SELECT recordid FROM consultation_record WHERE patientid = ?)", id);
+                    jdbcTemplate.update("DELETE FROM heart_clinical_metrics WHERE recordid IN (SELECT recordid FROM consultation_record WHERE patientid = ?)", id);
+                    jdbcTemplate.update("DELETE FROM consultation_record WHERE patientid = ?", id);
+                    jdbcTemplate.update("DELETE FROM lab_request WHERE patientid = ?", id);
+                    jdbcTemplate.update("DELETE FROM patient_alert_threshold WHERE patientid = ?", id);
+                    jdbcTemplate.update("DELETE FROM appointment WHERE patientid = ?", id);
+                    
+                    patientRepository.deleteById(id);
+                    deletedCount++;
+                }
+            }
+
+            saveAuditLog(actor, "SYNC_FIREBASE", "Đã dọn dẹp " + deletedCount + " hồ sơ bệnh nhân không còn tồn tại trên Firebase.");
+            ra.addFlashAttribute("success", "Đồng bộ hoàn tất! Đã xóa " + deletedCount + " tài khoản bị mồ côi.");
+        } catch (Exception e) {
+            System.err.println("Error syncing firebase: " + e.getMessage());
+            ra.addFlashAttribute("error", "Có lỗi xảy ra khi đồng bộ Firebase: " + e.getMessage());
+        }
+
+        return "redirect:/admin/dashboard";
     }
 }
