@@ -725,6 +725,18 @@
         tokenInput.value = idToken;
         form.appendChild(tokenInput);
 
+        const emailInput = document.createElement("input");
+        emailInput.type = "hidden";
+        emailInput.name = "email";
+        emailInput.value = result.user.email || "";
+        form.appendChild(emailInput);
+
+        const nameInput = document.createElement("input");
+        nameInput.type = "hidden";
+        nameInput.name = "fullName";
+        nameInput.value = result.user.displayName || "";
+        form.appendChild(nameInput);
+
         const csrfInput = document.createElement("input");
         csrfInput.type = "hidden";
         csrfInput.name = "_csrf";
