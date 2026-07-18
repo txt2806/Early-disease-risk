@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Quản lý Hồ sơ Bệnh nhân')}"></head>
+<body>
+<div th:replace="~{fragments :: receptionSidebar('patients')}"></div>
+
+<main class="main">
+  <header th:replace="~{fragments :: simpleTopbar('Danh sách Bệnh nhân')}"></header>
+  <div class="content">
+
+    <!-- Filter & Search Toolbar -->
+    <div class="card" style="padding: 16px; margin-bottom: 20px;">
+      <form th:action="@{/reception/patients}" method="get" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+        <div style="position:relative; width: 300px;">
+          <input type="text" name="search" th:value="${search}" placeholder="Tìm bệnh nhân theo tên..." 
+                 style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px 14px 10px 36px; color: #e8edf5; font-size: 14px; outline: none;">
+          <i class="ti ti-search" style="position:absolute; left:12px; top:12px; color:#64748b;"></i>
+        </div>
+        <button type="submit" class="btn" style="background:#3b82f6; color:white; padding:10px 20px; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:14px; margin:0;">Tìm kiếm</button>
+        <a th:href="@{/reception/patients}" th:if="${search != null && !search.isEmpty()}" style="color:#8a96b0; font-size:13px; text-decoration:none; margin-left:8px;">Reset</a>
+        
+        <div style="flex:1;"></div>
+        
+        <a th:href="@{/reception/appointments/new}" class="btn primary" style="background:#10b981; padding: 10px 20px; font-size:14px; border-radius:8px; color:white; text-decoration:none; margin:0;">+ Đăng ký & Tiếp đón bệnh nhân</a>
+      </form>
+    </div>
+
+    <!-- Patients List Table -->
+    <div class="card">
+      <table class="patient-table">
+        <thead>
+          <tr>
+            <th>Mã BN</th>
+            <th>Họ và tên</th>
+            <th>Ngày sinh</th>
+            <th>Giới tính</th>
+            <th>Số điện thoại</th>
+            <th>Địa chỉ thường trú</th>
+            <th>Ngày đăng ký</th>
+            <th>Trạng thái</th>
+            <th>Hành động</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:each="p : ${patients}">
+            <td style="font-family:monospace; font-weight:700; color:#8a96b0;" th:text="'BN' + ${p.patientId}">BN001</td>
+            <td>
+              <div class="patient-name-cell">
+                <div class="patient-avatar" style="background:#10b981;" th:text="${p.fullName.charAt(0)}">B</div>
+                <div>
+                  <div class="patient-fullname" th:text="${p.fullName}">Nguyễn Văn A</div>
+                  <div class="patient-id" th:text="${p.username}">email@example.com</div>
+                </div>
+              </div>
+            </td>
+            <td th:text="${#temporals.format(p.dob, 'dd/MM/yyyy')}">--</td>
+            <td th:text="${p.gender}">Nam</td>
+            <td th:text="${p.phone != null ? p.phone : '--'}" style="font-family:monospace;">--</td>
+            <td th:text="${p.address}">Hà Nội</td>
+            <td th:text="${p.createdAt != null ? #temporals.format(p.createdAt, 'dd/MM/yyyy HH:mm') : '--'}" style="font-family:monospace; color:#8a96b0;">--</td>
+            <td>
+              <span class="risk-badge" th:classappend="${p.status == 'ACTIVE'} ? 'risk-LOW' : 'risk-HIGH'" th:text="${p.status == 'ACTIVE' ? 'Hoạt động' : 'Tạm khóa'}">Hoạt động</span>
+            </td>
+            <td>
+              <a th:href="@{/reception/appointments/new(patientId=${p.patientId})}" class="btn" 
+                 style="padding: 6px 12px; font-size: 11px; background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+                📅 Đặt lịch khám
+              </a>
+            </td>
+          </tr>
+          <tr th:if="${#lists.isEmpty(patients)}">
+            <td colspan="9" style="text-align:center;color:#8a96b0;padding:40px 20px;">
+              Không tìm thấy bệnh nhân nào khớp với từ khóa tìm kiếm.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-container" th:if="${totalPages > 0}">
+      <div class="pagination-info">
+        Hiển thị từ trang <span th:text="${currentPage + 1}">1</span> / <span th:text="${totalPages}">1</span> (Tổng <span th:text="${totalItems}">0</span> bệnh nhân)
+      </div>
+      <div class="pagination-buttons">
+        <!-- Trang đầu -->
+        <a th:href="@{/reception/patients(page=0, search=${search})}"
+           class="page-btn" th:classappend="${currentPage == 0} ? 'disabled' : ''">
+          «
+        </a>
+        <!-- Trang trước -->
+        <a th:href="@{/reception/patients(page=${currentPage - 1}, search=${search})}"
+           class="page-btn" th:classappend="${currentPage == 0} ? 'disabled' : ''">
+          ‹
+        </a>
+        <!-- Các số trang -->
+        <a th:each="i : ${#numbers.sequence(0, totalPages - 1)}"
+           th:if="${totalPages > 0 and i >= currentPage - 2 && i <= currentPage + 2}"
+           th:href="@{/reception/patients(page=${i}, search=${search})}"
+           class="page-btn"
+           th:classappend="${currentPage == i} ? 'active' : ''"
+           th:text="${i + 1}">
+          1
+        </a>
+        <!-- Trang sau -->
+        <a th:href="@{/reception/patients(page=${currentPage + 1}, search=${search})}"
+           class="page-btn" th:classappend="${currentPage == totalPages - 1} ? 'disabled' : ''">
+          ›
+        </a>
+        <!-- Trang cuối -->
+        <a th:href="@{/reception/patients(page=${totalPages - 1}, search=${search})}"
+           class="page-btn" th:classappend="${currentPage == totalPages - 1} ? 'disabled' : ''">
+          »
+        </a>
+      </div>
+    </div>
+
+  </div>
+</main>
+<script th:src="@{/js/main.js}"></script>
+</body>
+</html>

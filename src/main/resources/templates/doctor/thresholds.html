@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Ngưỡng cảnh báo')}"></head>
+<body>
+<div th:replace="~{fragments :: sidebar('thresholds')}"></div>
+<main class="main">
+  <header th:replace="~{fragments :: topbar('Cấu hình ngưỡng cảnh báo')}"></header>
+
+  <!-- [FIX] Bố cục 2 cột FULL-SCREEN — bỏ max-width cũ (720px) vốn để lại
+       khoảng trắng lớn ở màn hình rộng. Cột trái: danh sách bệnh nhân có
+       tìm kiếm + trạng thái cấu hình. Cột phải: form ngưỡng + bảng tham
+       chiếu lâm sàng. -->
+  <div class="threshold-layout">
+
+    <!-- ═══ CỘT TRÁI: Danh sách bệnh nhân ═══ -->
+    <aside class="threshold-sidebar">
+      <div class="threshold-sidebar-header">
+        <div style="font-weight:600;font-size:14px;">Bệnh nhân phụ trách</div>
+        <div style="font-size:12px;color:#8a96b0;margin-top:2px;">
+          <span th:text="${#lists.size(patients)}">0</span> bệnh nhân
+        </div>
+      </div>
+      <input type="text" id="patientSearchBox" class="form-input"
+             placeholder="🔍 Tìm theo tên..." style="margin:0 14px 12px;width:calc(100% - 28px);">
+
+      <div th:if="${#lists.isEmpty(patients)}"
+           style="padding:20px 14px;font-size:13px;color:#f59e0b;">
+        ⚠️ Bạn chưa có bệnh nhân phụ trách nào.
+      </div>
+
+      <div id="patientList" class="threshold-patient-list">
+        <div th:each="p : ${patients}"
+             class="threshold-patient-item"
+             th:attr="data-name=${p.fullName.toLowerCase()}"
+             th:data-id="${p.patientId}"
+             onclick="selectPatient(this)">
+          <div class="threshold-patient-avatar"
+               th:text="${#strings.substring(p.fullName,0,1)}">N</div>
+          <div style="flex:1;min-width:0;">
+            <div class="threshold-patient-name" th:text="${p.fullName}">Tên bệnh nhân</div>
+            <div class="threshold-patient-id" th:text="'#BN' + ${p.patientId}">#BN001</div>
+          </div>
+          <div class="threshold-status-badge"
+               th:classappend="${configuredMap[p.patientId]} ? 'configured' : 'default'"
+               th:text="${configuredMap[p.patientId]} ? '✓ Đã đặt' : 'Mặc định'">
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ═══ CỘT PHẢI: Form ngưỡng + tham chiếu ═══ -->
+    <section class="threshold-main">
+
+      <div th:if="${success}" class="threshold-alert threshold-alert-success" th:text="${success}"></div>
+      <div th:if="${error}" class="threshold-alert threshold-alert-error" th:text="${error}"></div>
+
+      <!-- Trạng thái chưa chọn bệnh nhân -->
+      <div id="emptyState" class="threshold-empty-state">
+        <i class="ti ti-hand-click" style="font-size:40px;opacity:0.3;"></i>
+        <div style="margin-top:10px;">Chọn 1 bệnh nhân bên trái để xem/cấu hình ngưỡng cảnh báo</div>
+      </div>
+
+      <!-- Form ngưỡng (ẩn cho đến khi chọn bệnh nhân) -->
+      <div id="thresholdForm" style="display:none;">
+        <form th:action="@{/doctor/thresholds/save-patient}" method="post" id="thresholdFormEl">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+          <input type="hidden" name="patientId" id="thresholdPatientId">
+
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+              <div class="card-title">
+                <i class="ti ti-heart-rate-monitor"></i>
+                Ngưỡng cảnh báo cho: <span id="selectedPatientName" style="color:#60a5fa;"></span>
+              </div>
+              <!-- [FIX] Gợi ý theo tuổi/giới tính — chỉ hiện khi bệnh nhân
+                   CHƯA có ngưỡng tùy chỉnh (đang dùng giá trị gợi ý tự động) -->
+              <div id="ageGenderHint" style="display:none;font-size:11px;color:#a78bfa;
+                   background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.3);
+                   border-radius:6px;padding:4px 10px;">
+                💡 Gợi ý tự động theo tuổi/giới tính
+              </div>
+            </div>
+            <div style="padding:20px;">
+
+              <div style="font-size:11px;color:#60a5fa;text-transform:uppercase;font-weight:600;
+                          margin-bottom:10px;">Nguy cơ AI</div>
+              <div class="form-grid" style="margin-bottom:18px;">
+                <div class="form-group">
+                  <label class="form-label">Ngưỡng nguy cơ AI (%)</label>
+                  <input class="form-input" type="number" name="riskScoreThreshold"
+                         id="thRisk" min="10" max="95" step="5" value="40" required>
+                  <div class="threshold-hint">AI cảnh báo khi xác suất bệnh nhân vượt mức này</div>
+                </div>
+              </div>
+
+              <div style="font-size:11px;color:#60a5fa;text-transform:uppercase;font-weight:600;
+                          margin-bottom:10px;">Nhịp tim (bpm)</div>
+              <div class="form-grid" style="margin-bottom:18px;">
+                <div class="form-group">
+                  <label class="form-label">Tối thiểu</label>
+                  <input class="form-input" type="number" name="minBpm" id="thMinBpm"
+                         min="30" max="150" value="50" required>
+                  <div class="threshold-hint">Cảnh báo nếu nhịp tim THẤP hơn mức này</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Tối đa</label>
+                  <input class="form-input" type="number" name="maxBpm" id="thBpm"
+                         min="60" max="220" value="100" required>
+                  <div class="threshold-hint">Cảnh báo nếu nhịp tim CAO hơn mức này</div>
+                </div>
+              </div>
+
+              <div style="font-size:11px;color:#60a5fa;text-transform:uppercase;font-weight:600;
+                          margin-bottom:10px;">Huyết áp tâm thu (mmHg)</div>
+              <div class="form-grid" style="margin-bottom:18px;">
+                <div class="form-group">
+                  <label class="form-label">Tối thiểu</label>
+                  <input class="form-input" type="number" name="minSystolicBp" id="thMinBp"
+                         min="60" max="130" value="90" required>
+                  <div class="threshold-hint">Cảnh báo nếu huyết áp THẤP hơn mức này (nguy cơ tụt huyết áp)</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Tối đa</label>
+                  <input class="form-input" type="number" name="maxSystolicBp" id="thBp"
+                         min="100" max="220" value="140" required>
+                  <div class="threshold-hint">Cảnh báo nếu huyết áp CAO hơn mức này</div>
+                </div>
+              </div>
+
+              <div style="font-size:11px;color:#60a5fa;text-transform:uppercase;font-weight:600;
+                          margin-bottom:10px;">Cholesterol</div>
+              <div class="form-grid" style="margin-bottom:18px;">
+                <div class="form-group">
+                  <label class="form-label">Tối đa (mg/dL)</label>
+                  <input class="form-input" type="number" name="maxCholesterol" id="thChol"
+                         min="150" max="400" value="240" required>
+                  <div class="threshold-hint">Ngưỡng "cao" theo phân loại NCEP/AHA: &gt;240 mg/dL</div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Ghi chú lâm sàng</label>
+                <textarea class="form-input" name="notes" id="thNotes" rows="2"
+                          placeholder="VD: Bệnh nhân có tiền sử tăng huyết áp..."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button type="button" onclick="clearSelection()" class="btn btn-ghost">Hủy</button>
+            <button type="submit" class="btn btn-primary">
+              <i class="ti ti-device-floppy"></i> Lưu ngưỡng cảnh báo
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Bảng tham chiếu lâm sàng -->
+      <div class="card" style="margin-top:20px;">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="ti ti-info-circle"></i> Tham chiếu lâm sàng (ACC/AHA Guidelines)
+          </div>
+        </div>
+        <div style="padding:16px;">
+          <table class="patient-table">
+            <thead>
+              <tr><th>Chỉ số</th><th>Bình thường</th><th>Cảnh báo MEDIUM</th><th>Cảnh báo HIGH</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-weight:500;">Nhịp tim</td>
+                <td style="color:#34d399;">60–100 bpm</td>
+                <td style="color:#fbbf24;">100–150 bpm</td>
+                <td style="color:#ff7b7b;">&gt;150 hoặc &lt;40 bpm</td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">Huyết áp tâm thu</td>
+                <td style="color:#34d399;">&lt;130 mmHg</td>
+                <td style="color:#fbbf24;">130–160 mmHg</td>
+                <td style="color:#ff7b7b;">&gt;180 mmHg</td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">Cholesterol</td>
+                <td style="color:#34d399;">&lt;200 mg/dL</td>
+                <td style="color:#fbbf24;">200–239 mg/dL</td>
+                <td style="color:#ff7b7b;">&gt;240 mg/dL</td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">Nguy cơ AI</td>
+                <td style="color:#34d399;">&lt;40%</td>
+                <td style="color:#fbbf24;">40–70%</td>
+                <td style="color:#ff7b7b;">&gt;70%</td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="font-size:11px;color:#8a96b0;margin-top:10px;">
+            * Ngưỡng gợi ý tự động có điều chỉnh nhẹ theo tuổi/giới tính bệnh nhân —
+            bác sĩ luôn có thể chỉnh sửa thủ công theo đánh giá lâm sàng riêng.
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </div>
+</main>
+
+<style>
+  /* [FIX] Layout 2 cột full-screen, thay cho max-width:720px cũ */
+  .threshold-layout{display:flex;height:calc(100vh - 64px);}
+  .threshold-sidebar{width:320px;flex-shrink:0;border-right:1px solid var(--border);
+    display:flex;flex-direction:column;padding:16px 0;overflow:hidden;}
+  .threshold-sidebar-header{padding:0 14px 12px;border-bottom:1px solid var(--border);margin-bottom:12px;}
+  .threshold-patient-list{flex:1;overflow-y:auto;padding:0 8px;}
+  .threshold-patient-item{display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;
+    cursor:pointer;transition:background 0.15s;margin-bottom:2px;}
+  .threshold-patient-item:hover{background:var(--card2);}
+  .threshold-patient-item.active{background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.35);}
+  .threshold-patient-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#ef4444,#b91c1c);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:white;flex-shrink:0;}
+  .threshold-patient-name{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;}
+  .threshold-patient-id{font-size:11px;color:#8a96b0;}
+  .threshold-status-badge{font-size:10px;padding:3px 8px;border-radius:10px;flex-shrink:0;white-space:nowrap;}
+  .threshold-status-badge.configured{background:rgba(52,211,153,0.15);color:#34d399;}
+  .threshold-status-badge.default{background:rgba(148,163,184,0.15);color:#94a3b8;}
+
+  .threshold-main{flex:1;overflow-y:auto;padding:20px 24px;}
+  .threshold-empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:80px 20px;color:#8a96b0;font-size:13px;text-align:center;}
+  .threshold-hint{font-size:11px;color:#8a96b0;margin-top:4px;}
+  .threshold-alert{padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;}
+  .threshold-alert-success{background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.3);color:#34d399;}
+  .threshold-alert-error{background:rgba(224,90,90,0.12);border:1px solid rgba(224,90,90,0.3);color:#ff7b7b;}
+</style>
+
+<script th:src="@{/js/main.js}"></script>
+<script>
+  // ── Tìm kiếm bệnh nhân trong danh sách ──
+  document.getElementById('patientSearchBox')?.addEventListener('input', function () {
+    const kw = this.value.trim().toLowerCase();
+    document.querySelectorAll('.threshold-patient-item').forEach(function (item) {
+      const name = item.getAttribute('data-name') || '';
+      item.style.display = name.includes(kw) ? '' : 'none';
+    });
+  });
+
+  async function selectPatient(el) {
+    const patientId = el.getAttribute('data-id');
+    const patientName = el.querySelector('.threshold-patient-name').textContent;
+
+    // Đánh dấu active
+    document.querySelectorAll('.threshold-patient-item').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('thresholdForm').style.display = 'block';
+    document.getElementById('selectedPatientName').textContent = patientName;
+    document.getElementById('thresholdPatientId').value = patientId;
+
+    try {
+      const res = await fetch(`/doctor/thresholds/patient/${patientId}`);
+      const data = await res.json();
+
+      document.getElementById('thRisk').value   = data.riskScoreThreshold ?? 40;
+      document.getElementById('thMinBpm').value = data.minBpm ?? 50;
+      document.getElementById('thBpm').value    = data.maxBpm ?? 100;
+      document.getElementById('thMinBp').value  = data.minSystolicBp ?? 90;
+      document.getElementById('thBp').value     = data.maxSystolicBp ?? 140;
+      document.getElementById('thChol').value   = data.maxCholesterol ?? 240;
+      document.getElementById('thNotes').value  = data.notes ?? '';
+
+      // [FIX] Hiện gợi ý tuổi/giới tính nếu bệnh nhân CHƯA có ngưỡng tùy
+      // chỉnh (đang dùng giá trị gợi ý tự động từ computeAgeGenderDefaults)
+      const hint = document.getElementById('ageGenderHint');
+      if (!data.isConfigured && data.patientAge) {
+        hint.style.display = 'block';
+        hint.textContent = `💡 Gợi ý tự động (${data.patientAge} tuổi${data.patientGender ? ', ' + data.patientGender : ''})`;
+      } else {
+        hint.style.display = 'none';
+      }
+    } catch (e) {
+      console.warn('Không tải được ngưỡng:', e);
+    }
+  }
+
+  function clearSelection() {
+    document.querySelectorAll('.threshold-patient-item').forEach(i => i.classList.remove('active'));
+    document.getElementById('thresholdForm').style.display = 'none';
+    document.getElementById('emptyState').style.display = 'flex';
+  }
+</script>
+</body>
+</html>

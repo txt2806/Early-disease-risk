@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Đặt lịch Hẹn khám')}"></head>
+<body>
+<div th:replace="~{fragments :: patientSidebar('book-appointment')}"></div>
+
+<main class="main">
+  <header th:replace="~{fragments :: simpleTopbar('Đặt lịch Hẹn khám')}"></header>
+  <div class="content">
+
+    <div class="alert-success" th:if="${success}" th:text="${success}" style="padding: 12px; margin-bottom: 20px; border-radius: 8px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);"></div>
+    <div class="alert-danger" th:if="${error}" th:text="${error}" style="padding: 12px; margin-bottom: 20px; border-radius: 8px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);"></div>
+
+    <div class="card" style="max-width: 650px; margin: 0 auto;">
+      <div class="card-header">
+        <div class="card-title">📅 Điền Thông tin Lịch hẹn</div>
+      </div>
+      <form th:action="@{/patient/book-appointment/save}" method="post" style="padding-top:10px;">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+
+        <!-- Chọn loại hình khám -->
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Chọn Loại hình khám</label>
+          <select name="bookingType" id="bookingType" required 
+                  style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none; cursor:pointer;">
+            <option value="" disabled selected>-- Chọn Loại hình khám --</option>
+            <option value="General">Khám tổng quát (Bác sĩ Đa khoa)</option>
+            <option value="Specialist">Khám chuyên khoa (Bác sĩ Chuyên khoa)</option>
+          </select>
+        </div>
+
+        <!-- Chọn bác sĩ -->
+        <div class="form-group" style="margin-bottom: 20px; display: none;" id="doctorContainer">
+          <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Chọn Bác sĩ khám</label>
+          <select name="doctorId" id="doctorIdSelect" required 
+                  style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none; cursor:pointer;">
+            <option value="" disabled selected>-- Chọn Bác sĩ --</option>
+            <option th:each="doc : ${doctors}" th:value="${doc.doctorId}" th:data-specialty="${doc.specialty}" th:text="${doc.fullName + ' - Chuyên khoa: ' + doc.specialty}"></option>
+          </select>
+        </div>
+
+        <div style="margin-bottom:20px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <!-- Chọn ngày -->
+          <div class="form-group">
+            <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Chọn Ngày hẹn</label>
+            <input type="date" name="scheduledDate" id="scheduledDate" required 
+                   style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none;">
+          </div>
+          <!-- Chọn ca giờ khám -->
+          <div class="form-group">
+            <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Chọn Khung giờ khám (1 tiếng / ca)</label>
+            <select name="timeSlot" id="timeSlot" required 
+                    style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none; cursor:pointer;">
+              <option value="" disabled selected>-- Chọn Khung giờ --</option>
+              <option value="08:00">08:00 - 09:00</option>
+              <option value="09:00">09:00 - 10:00</option>
+              <option value="10:00">10:00 - 11:00</option>
+              <option value="11:00">11:00 - 12:00</option>
+              <option value="13:00">13:00 - 14:00</option>
+              <option value="14:00">14:00 - 15:00</option>
+              <option value="15:00">15:00 - 16:00</option>
+              <option value="16:00">16:00 - 17:00</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Tình trạng sơ bộ -->
+        <div class="form-group" style="margin-bottom: 24px;">
+          <label style="color:#8a96b0; font-size:12px; font-weight:600; margin-bottom:6px; display:block;">Tình trạng sơ bộ / Triệu chứng lâm sàng</label>
+          <textarea name="preliminaryStatus" rows="4" placeholder="Ví dụ: Đau nhẹ thắt ngực khi chạy bộ gắng sức, khó thở nhẹ vào ban đêm..." required 
+                    style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; color: #e8edf5; font-size: 14px; outline: none; font-family:inherit; resize:vertical;"></textarea>
+        </div>
+
+        <button type="submit" class="btn" style="width:100%; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color:white; border:none; padding:12px; border-radius:8px; font-weight:600; cursor:pointer; font-size:14px; transition: opacity 0.2s;">Xác nhận Đặt lịch khám</button>
+      </form>
+    </div>
+
+  </div>
+</main>
+<script>
+// Filter doctor list by checkup type selection
+const bookingTypeSelect = document.getElementById('bookingType');
+const doctorContainer = document.getElementById('doctorContainer');
+const doctorIdSelect = document.getElementById('doctorIdSelect');
+const allDoctorOptions = Array.from(doctorIdSelect.options);
+
+if (bookingTypeSelect && doctorContainer && doctorIdSelect) {
+  bookingTypeSelect.addEventListener('change', function() {
+    const selectedType = this.value;
+    const expectedSpecialty = (selectedType === 'General') ? 'Đa khoa' : 'Chuyên khoa';
+    
+    doctorContainer.style.display = 'block';
+    doctorIdSelect.innerHTML = '';
+    
+    const defaultOpt = document.createElement('option');
+    defaultOpt.value = '';
+    defaultOpt.disabled = true;
+    defaultOpt.selected = true;
+    defaultOpt.text = '-- Chọn Bác sĩ --';
+    doctorIdSelect.appendChild(defaultOpt);
+    
+    allDoctorOptions.forEach(opt => {
+      if (opt.getAttribute('data-specialty') === expectedSpecialty) {
+        doctorIdSelect.appendChild(opt.cloneNode(true));
+      }
+    });
+  });
+}
+
+// Prevent selecting past dates
+const dateInput = document.getElementById('scheduledDate');
+if (dateInput) {
+  const today = new Date().toISOString().split('T')[0];
+  dateInput.min = today;
+}
+</script>
+<script th:src="@{/js/main.js}"></script>
+</body>
+</html>

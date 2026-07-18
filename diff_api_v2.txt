@@ -1,0 +1,230 @@
+diff --git a/api_v2.py b/api_v2.py
+index bc3c29e..eb421d7 100644
+--- a/api_v2.py
++++ b/api_v2.py
+@@ -758,33 +758,70 @@ def health():
+     return {
+         "status"   : "ok",
+         "model_v1" : "RandomForest Binary (AUC)",
+-        "model_v2" : "RandomForest Multi-class (BalAcc)" if model_v2 else "not loaded",
++        # [FIX] Đọc động từ metrics_v2["algorithm"] thay vì hard-code
++        # "RandomForest" — trước đây bị SAI sau khi đổi sang XGBoost vì
++        # dòng string này không được cập nhật theo, gây hiển thị nhầm
++        # thuật toán thật đang chạy trong production.
++        "model_v2" : (f"{metrics_v2.get('algorithm', 'Unknown')} Multi-class (BalAcc)"
++                      if model_v2 else "not loaded"),
+         "metrics_v1": metrics,
+         "metrics_v2": metrics_v2,
+     }
+ 
+ @app.get("/model/info")
+ def model_info():
+-    """Thông tin chi tiết về model v1 và v2"""
++    """Thông tin chi tiết về model v1 và v2 — ĐỌC ĐỘNG từ artifact, không hard-code"""
+     ensure_model_ready()
++
++    # [FIX] Python .get(key, "N/A") CHỈ trả về "N/A" khi KEY THIẾU HẲN —
++    # nếu key tồn tại nhưng giá trị là None tường minh (vd. metrics["auc"]
++    # = None), .get() vẫn trả về None chứ KHÔNG rơi vào default "N/A"
++    # (gotcha kinh điển của Python). Hệ quả: Thymeleaf nhận null thay vì
++    # chuỗi "N/A", điều kiện "!= 'N/A'" bên template vẫn đúng vì null khác
++    # chuỗi "N/A", rồi code cố format/nhân null → crash giữa lúc render
++    # (đã xảy ra thật với field auc/balanced_accuracy_cv_mean...). Hàm
++    # dưới đây coalesce CẢ HAI trường hợp (thiếu key VÀ giá trị None) về
++    # "N/A", để phía Thymeleaf luôn nhận đúng 1 trong 2: số thật hoặc
++    # chuỗi "N/A", không bao giờ là null.
++    def safe(d: dict, key: str):
++        val = d.get(key)
++        return val if val is not None else "N/A"
++
++    v2_algorithm = safe(metrics_v2, "algorithm")
++    if v2_algorithm == "N/A":
++        v2_algorithm = "Random Forest Multi-class 4 lớp (D.14)"
++
+     return {
+         "v1": {
+             "algorithm"  : "Random Forest Binary (Tuned)",
+             "dataset"    : "UCI Heart Disease 920 patients",
+-            "auc"        : metrics.get("auc", "N/A"),
+-            "accuracy"   : metrics.get("accuracy", "N/A"),
+-            "f1"         : metrics.get("f1", "N/A"),
++            "auc"        : safe(metrics, "auc"),
++            "accuracy"   : safe(metrics, "accuracy"),
++            "f1"         : safe(metrics, "f1"),
+             "best_params": artifacts.get("best_params", {}),
+             "features"   : feature_names,
+             "shap_ready" : get_explainer() is not None,
+-            "shap_error" : _shap_error,  # None nếu SHAP hoạt động bình thường
++            "shap_error" : _shap_error,
+             "endpoint"   : "/predict",
+         },
+         "v2": {
+-            "algorithm"       : "Random Forest Multi-class 4 lớp (D.14)",
++            # [FIX] Tên thuật toán lấy từ chính artifact đã lưu
++            # (metrics["algorithm"]), để khi đổi model (RandomForest ->
++            # XGBoost hay ngược lại) chỉ cần thay file .pkl, KHÔNG phải
++            # sửa code ở đây — tránh lặp lại lỗi hiển thị sai thuật toán
++            # đã xảy ra trước đó.
++            "algorithm"       : f"{v2_algorithm} (multi-class 4 lớp)",
+             "dataset"         : "UCI Heart Disease 920 patients (oversample)",
+-            "balanced_accuracy": metrics_v2.get("balanced_accuracy", "N/A"),
+-            "macro_f1"        : metrics_v2.get("macro_f1", "N/A"),
++            "imbalance_strategy": safe(metrics_v2, "imbalance_strategy"),
++            # [FIX] Ưu tiên hiển thị số liệu CV (mean ± std) — đáng tin cậy
++            # hơn nhiều so với "balanced_accuracy" từ 1 lần chia train/test
++            # đơn lẻ, vốn dễ dao động 5-10 điểm % với dataset chỉ 920 mẫu.
++            # Field "balanced_accuracy" cũ vẫn giữ để tương thích ngược.
++            "balanced_accuracy"        : safe(metrics_v2, "balanced_accuracy"),
++            "balanced_accuracy_cv_mean": safe(metrics_v2, "balanced_accuracy_cv_mean"),
++            "balanced_accuracy_cv_std" : safe(metrics_v2, "balanced_accuracy_cv_std"),
++            "macro_f1"        : safe(metrics_v2, "macro_f1"),
++            "weighted_f1"     : safe(metrics_v2, "weighted_f1"),
+             "n_classes"       : 4,
+             "class_names"     : class_names_v2,
+             "class_mapping"   : class_mapping_v2,
+@@ -1281,6 +1318,15 @@ class DoctorChatRequest(BaseModel):
+     # cụ thể, FE có thể gửi kèm để chatbot giải thích sâu hơn kết quả đó.
+     predict_context: Optional[dict] = None
+ 
++    # [FIX] Tùy chọn: dữ liệu tổng quan phòng khám của bác sĩ (số bệnh nhân
++    # phụ trách, số cảnh báo theo mức độ, lịch hẹn hôm nay...) — tính từ
++    # Spring Boot (nguồn dữ liệu thật duy nhất), KHÔNG để Gemini tự đoán/
++    # bịa số liệu khi bác sĩ hỏi các câu kiểu "tôi đang phụ trách bao nhiêu
++    # bệnh nhân". Trước đây thiếu field này khiến chatbot phải trả lời
++    # "tôi không có quyền truy cập dữ liệu" cho MỌI câu hỏi dạng tổng quan,
++    # dù dữ liệu đó thực ra có sẵn trong hệ thống.
++    doctor_context: Optional[dict] = None
++
+ 
+ class PatientChatRequest(BaseModel):
+     """Request cho chatbot bệnh nhân — app di động."""
+@@ -1298,8 +1344,27 @@ class ChatResponse(BaseModel):
+ 
+ 
+ # ─── System prompt riêng cho từng đối tượng ────────────────────────────
+-DOCTOR_SYSTEM_PROMPT = """Bạn là trợ lý AI hỗ trợ BÁC SĨ trong hệ thống CardioCare —
+-một nền tảng phát hiện sớm bệnh tim mạch dùng Random Forest + SHAP.
++# [FIX] Build ĐỘNG phần mô tả model thay vì hard-code cứng trong string,
++# để mỗi lần đổi model (.pkl mới) prompt tự cập nhật theo, không lặp lại
++# lỗi "chatbot nói sai thuật toán" đã từng xảy ra khi đổi RandomForest
++# sang XGBoost mà quên sửa system prompt.
++def _build_doctor_system_prompt() -> str:
++    v2_algo = metrics_v2.get("algorithm", "chưa xác định")
++    v2_cv_mean = metrics_v2.get("balanced_accuracy_cv_mean")
++    v2_cv_std  = metrics_v2.get("balanced_accuracy_cv_std")
++    if v2_cv_mean is not None and v2_cv_std is not None:
++        v2_perf_note = f"balanced_accuracy ≈ {v2_cv_mean:.2f} ± {v2_cv_std:.2f} (5-fold CV)"
++    else:
++        v2_perf_note = f"balanced_accuracy ≈ {metrics_v2.get('balanced_accuracy', 'N/A')}"
++
++    return f"""Bạn là trợ lý AI hỗ trợ BÁC SĨ trong hệ thống CardioCare —
++một nền tảng phát hiện sớm bệnh tim mạch, gồm 2 model:
++  • Model nhị phân (endpoint /predict): Random Forest, dự đoán có/không
++    có bệnh, AUC ≈ {metrics.get('auc', 'N/A')}.
++  • Model đa lớp (endpoint /predict/v2): {v2_algo}, dự đoán 4 mức độ nặng
++    (Không bệnh/Nhẹ/Trung bình/Nặng), {v2_perf_note}.
++Cả 2 đều dùng SHAP để giải thích kết quả và huấn luyện trên UCI Heart
++Disease (920 bệnh nhân).
+ 
+ Đối tượng trò chuyện với bạn LÀ BÁC SĨ CHUYÊN MÔN, không phải bệnh nhân.
+ Vì vậy:
+@@ -1307,8 +1372,16 @@ Vì vậy:
+   depression, balanced accuracy...) mà không cần giải thích lại từ đầu.
+ - Khi được hỏi về một kết quả dự đoán cụ thể (predict_context nếu có),
+   hãy giải thích các yếu tố ảnh hưởng, độ tin cậy, và giới hạn của model
+-  (ví dụ: model chỉ đạt balanced_accuracy ~0.48 cho bài toán 4 lớp do
+-  dataset mất cân bằng — bác sĩ cần biết giới hạn này).
++  — đặc biệt lưu ý: model đa lớp có độ dao động balanced_accuracy khá lớn
++  giữa các lần đánh giá (do dataset chỉ 920 mẫu, 4 lớp mất cân bằng), nên
++  luôn nói rõ đây là khoảng ước lượng (mean ± std), không phải con số cố
++  định tuyệt đối.
++- Khi được hỏi các câu tổng quan về phòng khám (số bệnh nhân phụ trách,
++  số cảnh báo, lịch hẹn hôm nay...) và có [Số liệu tổng quan phòng khám
++  hiện tại] trong tin nhắn, hãy TRẢ LỜI TRỰC TIẾP bằng đúng số liệu đó —
++  KHÔNG nói "tôi không có quyền truy cập dữ liệu" khi số liệu đã được
++  cung cấp sẵn. Nếu không thấy phần này trong tin nhắn (không có dữ liệu
++  kèm theo), mới nói rõ là không có dữ liệu để trả lời chính xác.
+ - Bạn có thể thảo luận về dataset UCI Heart Disease, ý nghĩa lâm sàng
+   của các chỉ số, và cách diễn giải kết quả AI — nhưng PHẢI luôn nói rõ
+   đây là công cụ HỖ TRỢ quyết định, không thay thế đánh giá lâm sàng.
+@@ -1316,9 +1389,26 @@ Vì vậy:
+   thích những gì model/dữ liệu cho thấy.
+ - Trả lời ngắn gọn, đúng trọng tâm, theo phong cách chuyên môn — không
+   cần giải thích y khoa cơ bản mà bác sĩ đã biết.
++- [QUAN TRỌNG] Khi bác sĩ hỏi mơ hồ/rộng như "toàn bộ luôn", "tất cả
++  thông tin", "cho tôi biết hết"... KHÔNG cố liệt kê TOÀN BỘ dữ liệu thô
++  (mọi SHAP factor, mọi chỉ số) trong 1 câu trả lời dài dằng dặc — điều
++  này dễ khiến câu trả lời rối, lặp lại nội dung đã nói trước đó trong
++  hội thoại, hoặc bị cụt giữa chừng. Thay vào đó:
++    (a) Tóm tắt CÓ CHỌN LỌC những điểm quan trọng nhất (tối đa ~150 từ),
++    (b) Hỏi lại bác sĩ muốn đào sâu vào phần nào cụ thể (ví dụ: "Bác sĩ
++        muốn xem chi tiết về yếu tố nguy cơ, chỉ số lâm sàng, hay xu
++        hướng theo thời gian?"), thay vì đoán và liệt kê tất cả.
++- KHÔNG lặp lại nguyên văn thông tin đã cung cấp ở lượt trả lời trước
++  trong CÙNG cuộc hội thoại — nếu bác sĩ hỏi thêm, bổ sung thông tin MỚI
++  hoặc góc nhìn khác, không nhắc lại y hệt.
++- Giới hạn mỗi câu trả lời trong khoảng 100-200 từ trừ khi bác sĩ yêu
++  cầu rõ ràng một bản phân tích đầy đủ, chi tiết.
+ - Trả lời bằng tiếng Việt trừ khi được hỏi bằng ngôn ngữ khác."""
+ 
+ 
++DOCTOR_SYSTEM_PROMPT = _build_doctor_system_prompt()
++
++
+ PATIENT_SYSTEM_PROMPT = """Bạn là trợ lý AI sức khỏe tim mạch trong app CardioCare,
+ trò chuyện trực tiếp với BỆNH NHÂN (không có chuyên môn y khoa).
+ 
+@@ -1361,14 +1451,27 @@ def _history_to_dicts(history: List[ChatTurn]) -> list[dict]:
+     return [{"role": h.role, "text": h.text} for h in history]
+ 
+ 
+-def _build_user_message_with_context(message: str, predict_context: Optional[dict]) -> str:
+-    """Nếu có predict_context, ghép vào đầu tin nhắn để model có thông tin."""
+-    if not predict_context:
++def _build_user_message_with_context(
++    message: str,
++    predict_context: Optional[dict],
++    doctor_context: Optional[dict] = None,
++) -> str:
++    """
++    Ghép predict_context (kết quả AI 1 lần khám cụ thể) và/hoặc doctor_context
++    (số liệu tổng quan phòng khám: số bệnh nhân, cảnh báo, lịch hẹn hôm nay)
++    vào đầu tin nhắn, để model có dữ liệu THẬT thay vì phải từ chối trả lời
++    hoặc bịa số khi bác sĩ hỏi các câu hỏi tổng quan.
++    """
++    parts = []
++    if doctor_context:
++        parts.append(f"[Số liệu tổng quan phòng khám hiện tại]: {doctor_context}")
++    if predict_context:
++        parts.append(f"[Bối cảnh — kết quả dự đoán AI gần nhất]: {predict_context}")
++
++    if not parts:
+         return message
+-    return (
+-        f"[Bối cảnh — kết quả dự đoán AI gần nhất]: {predict_context}\n\n"
+-        f"[Câu hỏi của người dùng]: {message}"
+-    )
++
++    return "\n\n".join(parts) + f"\n\n[Câu hỏi của người dùng]: {message}"
+ 
+ 
+ @app.post("/chat/doctor", response_model=ChatResponse)
+@@ -1384,7 +1487,9 @@ def chat_doctor(req: DoctorChatRequest):
+                    "google-genai). Liên hệ admin hệ thống."
+         )
+ 
+-    user_message = _build_user_message_with_context(req.message, req.predict_context)
++    user_message = _build_user_message_with_context(
++        req.message, req.predict_context, req.doctor_context
++    )
+ 
+     try:
+         reply = chat_completion(
+@@ -1402,6 +1507,7 @@ def chat_doctor(req: DoctorChatRequest):
+     log_api_request(
+         _api_logger, "/chat/doctor", status="OK",
+         message_len=len(req.message), has_context=req.predict_context is not None,
++        has_doctor_context=req.doctor_context is not None,
+         history_turns=len(req.history),
+     )
+ 

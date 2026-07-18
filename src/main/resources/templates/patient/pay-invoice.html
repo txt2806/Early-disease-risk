@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Thanh toán Hóa đơn')}"></head>
+<body>
+<div th:replace="~{fragments :: patientSidebar('invoices')}"></div>
+
+<main class="main">
+  <header th:replace="~{fragments :: simpleTopbar('Quét mã thanh toán')}"></header>
+  <div class="content">
+
+    <div style="max-width: 650px; margin: 0 auto;">
+      <a th:href="@{/patient/invoices}" style="color: #3b82f6; text-decoration: none; font-size: 14px; display: inline-flex; align-items: center; margin-bottom: 20px;">
+        <i class="ti ti-chevron-left" style="margin-right: 4px;"></i> Quay lại danh sách hóa đơn
+      </a>
+
+      <div class="card" style="text-align: center; padding: 30px;">
+        <h3 style="font-size: 18px; font-weight: 700; color: #e8edf5; margin-bottom: 8px;">💳 Quét mã VietQR chuyển khoản nhanh</h3>
+        <p style="color: #8a96b0; font-size: 14px; margin-bottom: 24px;">Hệ thống tự động duyệt ngay sau khi tiền vào tài khoản.</p>
+
+        <!-- QR Code VietQR động -->
+        <div style="position: relative; display: inline-block; margin-bottom: 24px;">
+          <img th:src="'https://img.vietqr.io/image/' + ${bankId} + '-' + ${bankAccount} + '-compact2.png'
+                      + '?amount=' + ${invoice.amount} 
+                      + '&addInfo=' + ${invoice.referenceCode}" 
+               alt="Mã QR Chuyển khoản VietQR" 
+               style="max-width: 280px; border: 1px solid rgba(255, 255, 255, 0.08); padding: 12px; border-radius: 16px; background: white; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);">
+        </div>
+
+        <!-- Thông tin chi tiết để chuyển khoản thủ công -->
+        <div style="background: #1e293b; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px; padding: 20px; text-align: left; max-width: 480px; margin: 0 auto 24px auto;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 8px;">
+            <span style="color: #8a96b0; font-size: 13px;">Ngân hàng nhận</span>
+            <strong style="color: #e8edf5; font-size: 14px;" th:text="${bankId.toUpperCase()}">MB Bank</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 8px;">
+            <span style="color: #8a96b0; font-size: 13px;">Số tài khoản</span>
+            <strong style="color: #e8edf5; font-size: 14px; font-family: monospace;" th:text="${bankAccount}">966662869999</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 8px;">
+            <span style="color: #8a96b0; font-size: 13px;">Chủ tài khoản</span>
+            <strong style="color: #e8edf5; font-size: 14px;" th:text="${bankOwner}">TRAN XUAN THANH</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 8px;">
+            <span style="color: #8a96b0; font-size: 13px;">Số tiền</span>
+            <strong style="color: #34d399; font-size: 16px;" th:text="${#numbers.formatDecimal(invoice.amount, 0, 'COMMA', 0, 'POINT')} + ' đ'">150,000 đ</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span style="color: #8a96b0; font-size: 13px;">Nội dung chuyển khoản</span>
+            <strong style="color: #f87171; font-size: 15px; background: rgba(239, 68, 68, 0.1); padding: 2px 8px; border-radius: 4px; border: 1px dashed rgba(239, 68, 68, 0.3);" th:text="${invoice.referenceCode}">TT1005</strong>
+          </div>
+        </div>
+
+        <!-- Trạng thái chờ -->
+        <div id="payment-status-box" style="display: flex; align-items: center; justify-content: center; gap: 8px; color: #fbbf24; font-weight: 600; font-size: 14px; margin-bottom: 15px;">
+          <div class="spinner" style="width: 18px; height: 18px; border: 2px solid rgba(251, 191, 36, 0.3); border-top-color: #fbbf24; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+          <span>Đang đợi bạn chuyển khoản...</span>
+        </div>
+        
+        <button onclick="checkPaymentStatus()" class="btn" style="background: #3b82f6; color: white; padding: 10px 24px; border-radius: 8px; font-weight: 600; border: none; cursor: pointer; font-size: 14px; transition: opacity 0.2s;">
+          <i class="ti ti-refresh" style="vertical-align: middle; margin-right: 4px;"></i> Kiểm tra trạng thái ngay
+        </button>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<style>
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>
+
+<script th:inline="javascript">
+  const invoiceId = [[${invoice.invoiceId}]];
+  let checkInterval = setInterval(checkPaymentStatus, 3000); // Tự động kiểm tra sau mỗi 3 giây
+
+  function checkPaymentStatus() {
+    fetch(`/patient/invoices/${invoiceId}/check-status`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          const statusBox = document.getElementById('payment-status-box');
+          if (data.status === 'Paid') {
+            clearInterval(checkInterval);
+            statusBox.style.color = '#34d399';
+            statusBox.innerHTML = '<i class="ti ti-circle-check" style="font-size: 20px; vertical-align: middle; margin-right: 4px;"></i> Thanh toán thành công! Đang chuyển hướng...';
+            setTimeout(() => {
+              window.location.href = '/patient/invoices';
+            }, 2000);
+          } else if (data.status === 'PartiallyPaid') {
+            statusBox.style.color = '#fbbf24';
+            statusBox.innerHTML = `<i class="ti ti-alert-triangle" style="font-size: 20px; vertical-align: middle; margin-right: 4px;"></i> Bạn đã thanh toán thiếu! Đã nhận: ${data.paidAmount.toLocaleString()}đ, còn thiếu: ${data.missingAmount.toLocaleString()}đ. Vui lòng chuyển khoản thêm!`;
+          }
+        }
+      })
+      .catch(err => console.error("Lỗi kiểm tra thanh toán:", err));
+  }
+</script>
+</body>
+</html>
