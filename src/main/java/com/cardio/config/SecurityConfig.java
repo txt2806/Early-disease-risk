@@ -28,7 +28,7 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.ignoringRequestMatchers("/api/sepay/webhook"))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/login/profile", "/register", "/register/**", "/css/**", "/js/**",
+                        .requestMatchers("/", "/login", "/login/profile", "/register", "/register/**", "/css/**", "/js/**",
                                 "/api/sepay/webhook")
                         .permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")

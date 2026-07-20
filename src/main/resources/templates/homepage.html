@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cardio Care — Tầm Soát Tim Mạch & Sức Khỏe AI</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    /*<![CDATA[*/
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            medical: {
+              dark: '#0f172a',
+              trust: '#1e40af',
+              accent: '#2563eb',
+              light: '#f8fafc',
+              gray: '#f1f5f9',
+              coral: '#f43f5e',
+              coralhover: '#e11d48'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+    /*]]>*/
+  </script>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- React & Babel CDNs -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+    @keyframes dash {
+      to {
+        stroke-dashoffset: 0;
+      }
+    }
+  </style>
+</head>
+<body class="bg-medical-light text-medical-dark antialiased font-sans">
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+    /*<![CDATA[*/
+    const { useState, useEffect } = React;
+
+    // ========================================================
+    // 1. NAVBAR COMPONENT
+    // ========================================================
+    function Navbar() {
+      const [isOpen, setIsOpen] = useState(false);
+      const [scrolled, setScrolled] = useState(false);
+
+      useEffect(() => {
+        const handleScroll = () => {
+          setScrolled(window.scrollY > 20);
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+      }, []);
+
+      return (
+        <nav className={`fixed w-full z-50 transition-all duration-300 ${
+          scrolled ? 'bg-medical-dark/95 backdrop-blur-md border-b border-white/10 shadow-lg py-3' : 'bg-transparent py-5'
+        }`}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-12">
+              <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}>
+                <i data-lucide="heart-pulse" className="h-8 w-8 text-medical-coral animate-pulse"></i>
+                <span className="text-white font-extrabold text-xl tracking-tight">
+                  CARDIO<span className="text-medical-coral">CARE</span>
+                </span>
+              </div>
+              <div className="hidden md:flex items-center gap-8">
+                <a href="#home" className="text-slate-300 hover:text-white font-medium text-sm transition-colors">Trang chủ</a>
+                <a href="#services" className="text-slate-300 hover:text-white font-medium text-sm transition-colors">Dịch vụ</a>
+                <a href="#doctors" className="text-slate-300 hover:text-white font-medium text-sm transition-colors">Đội ngũ bác sĩ</a>
+                <a href="#booking" className="text-slate-300 hover:text-white font-medium text-sm transition-colors">Đặt lịch khám</a>
+                <a href="/login" className="text-slate-300 hover:text-white font-semibold text-sm transition-colors border-l border-white/20 pl-6">Đăng nhập Portal</a>
+                <a href="#booking" className="bg-medical-coral hover:bg-medical-coralhover text-white px-6 py-2.5 rounded-full text-sm font-bold shadow-md shadow-medical-coral/20 transition-all hover:-translate-y-0.5">
+                  Đặt lịch ngay
+                </a>
+              </div>
+              <div className="md:hidden">
+                <button onClick={() => setIsOpen(!isOpen)} className="text-slate-300 hover:text-white p-2">
+                  <i data-lucide={isOpen ? "x" : "menu"} className="h-6 w-6"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          {isOpen && (
+            <div className="md:hidden bg-medical-dark/98 border-b border-white/10 px-2 pt-2 pb-4 space-y-1">
+              <a href="#home" onClick={() => setIsOpen(false)} className="block px-4 py-3 rounded-md text-slate-300 hover:text-white hover:bg-white/5">Trang chủ</a>
+              <a href="#services" onClick={() => setIsOpen(false)} className="block px-4 py-3 rounded-md text-slate-300 hover:text-white hover:bg-white/5">Dịch vụ</a>
+              <a href="#doctors" onClick={() => setIsOpen(false)} className="block px-4 py-3 rounded-md text-slate-300 hover:text-white hover:bg-white/5">Đội ngũ bác sĩ</a>
+              <a href="#booking" onClick={() => setIsOpen(false)} className="block px-4 py-3 rounded-md text-slate-300 hover:text-white hover:bg-white/5">Đặt lịch khám</a>
+              <a href="/login" onClick={() => setIsOpen(false)} className="block px-4 py-3 rounded-md text-slate-300 hover:text-white hover:bg-white/5 border-t border-white/10 mt-2">Đăng nhập Portal</a>
+              <div className="px-4 pt-4">
+                <a href="#booking" onClick={() => setIsOpen(false)} className="block w-full text-center bg-medical-coral py-3 rounded-full text-base font-bold text-white shadow-lg">Đặt lịch khám</a>
+              </div>
+            </div>
+          )}
+        </nav>
+      );
+    }
+
+    // ========================================================
+    // 2. HERO COMPONENT
+    // ========================================================
+    function Hero() {
+      return (
+        <section id="home" className="relative bg-medical-dark pt-32 pb-24 md:pt-40 md:pb-36 overflow-hidden flex items-center min-h-[90vh]">
+          <div className="absolute top-0 right-0 w-[45%] h-[45%] bg-blue-600/10 rounded-full blur-[120px]" />
+          <div className="absolute bottom-0 left-[10%] w-[35%] h-[35%] bg-rose-500/5 rounded-full blur-[100px]" />
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+              <div className="lg:col-span-7 text-left">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 font-bold text-xs uppercase mb-6 animate-pulse">
+                  <i data-lucide="brain" className="h-4 w-4"></i>
+                  Công nghệ Dự đoán Nguy cơ bằng AI Đạt chuẩn Y khoa
+                </div>
+                <h1 className="text-white text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] mb-6">
+                  Bảo vệ <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">Trái tim</span> của bạn từ sớm và chuẩn xác
+                </h1>
+                <p className="text-slate-300 text-lg sm:text-xl leading-relaxed mb-8 max-w-xl">
+                  Kết hợp đột phá giữa kinh nghiệm lâm sàng của đội ngũ bác sĩ hàng đầu và hệ thống AI phân tích rủi ro tim mạch từ các chỉ số cơ bản.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <a href="#booking" className="inline-flex items-center justify-center bg-medical-coral hover:bg-medical-coralhover text-white px-8 py-4 rounded-full text-base font-bold shadow-lg transition-all hover:-translate-y-0.5">
+                    Đặt lịch khám ngay
+                    <i data-lucide="arrow-right" className="ml-2 h-5 w-5"></i>
+                  </a>
+                  <a href="#services" className="inline-flex items-center justify-center bg-white/10 hover:bg-white/15 border border-white/20 text-white px-8 py-4 rounded-full text-base font-bold transition-all">
+                    Tìm hiểu dịch vụ
+                  </a>
+                </div>
+                <div className="flex flex-wrap gap-6 mt-10 border-t border-white/10 pt-8 w-full">
+                  <div className="flex items-center gap-2">
+                    <i data-lucide="heart" className="h-5 w-5 text-medical-coral"></i>
+                    <span className="text-sm font-semibold text-slate-300">Tim mạch chuyên sâu</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <i data-lucide="brain" className="h-5 w-5 text-blue-400"></i>
+                    <span className="text-sm font-semibold text-slate-300">AI dự báo nguy cơ</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <i data-lucide="shield-alert" className="h-5 w-5 text-green-400"></i>
+                    <span className="text-sm font-semibold text-slate-300">Bảo mật bệnh án 100%</span>
+                  </div>
+                </div>
+              </div>
+              <div className="lg:col-span-5 flex justify-center items-center relative h-[380px] sm:h-[450px]">
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-[300px] h-[300px] rounded-full border border-blue-500/20 animate-pulse" />
+                </div>
+                <div className="relative bg-slate-900/80 border border-white/15 rounded-3xl p-6 w-[320px] sm:w-[350px] shadow-2xl backdrop-blur-md">
+                  <div className="flex justify-between items-center mb-6">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
+                      <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Hệ thống giám sát AI</span>
+                    </div>
+                    <span className="text-xs font-semibold text-blue-400">92% Accuracy</span>
+                  </div>
+                  <div className="h-44 bg-slate-950/70 rounded-2xl border border-white/5 flex flex-col justify-center items-center relative overflow-hidden mb-6">
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(244,63,94,0.1),transparent)]" />
+                    <svg className="absolute w-full h-24 stroke-medical-coral fill-none" viewBox="0 0 100 30" preserveAspectRatio="none">
+                      <path d="M0,15 L35,15 L38,10 L41,20 L44,2 L47,28 L50,15 L53,12 L56,17 L60,15 L100,15" 
+                            strokeWidth="1.5" 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            className="animate-[dash_2s_linear_infinite]"
+                            style={{
+                              strokeDasharray: '100',
+                              strokeDashoffset: '100',
+                              animation: 'dash 2.5s linear infinite'
+                            }}
+                      />
+                    </svg>
+                    <i data-lucide="heart" className="h-14 w-14 text-medical-coral animate-pulse"></i>
+                    <span className="text-xs font-bold text-slate-400 mt-4">ECG Live Monitor: 72 BPM</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-left">
+                    <div className="bg-white/5 border border-white/5 rounded-xl p-3">
+                      <div className="text-[10px] text-slate-400">Huyết áp</div>
+                      <div className="text-sm font-bold text-white mt-0.5">120/80 mmHg</div>
+                    </div>
+                    <div className="bg-white/5 border border-white/5 rounded-xl p-3">
+                      <div className="text-[10px] text-slate-400">Độ bão hòa Oxy</div>
+                      <div className="text-sm font-bold text-white mt-0.5">99% SpO2</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    // ========================================================
+    // 3. STATS COMPONENT
+    // ========================================================
+    function Stats() {
+      const statItems = [
+        { icon: "award", value: '15+', label: 'Năm kinh nghiệm chuyên sâu' },
+        { icon: "smile", value: '10K+', label: 'Ca chẩn đoán & khám tim thành công' },
+        { icon: "stethoscope", value: '25+', label: 'Bác sĩ chuyên khoa hàng đầu' },
+        { icon: "users", value: '99.8%', label: 'Bệnh nhân hài lòng và tin cậy' }
+      ];
+      return (
+        <section className="relative z-20 -mt-10 sm:-mt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-xl p-8 sm:p-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12">
+              {statItems.map((item, idx) => (
+                <div key={idx} className={`flex items-start gap-4 text-left ${idx !== 0 ? 'lg:border-l lg:border-slate-100 lg:pl-8' : ''}`}>
+                  <div className="p-3 bg-rose-50 rounded-2xl flex-shrink-0">
+                    <i data-lucide={item.icon} className="h-6 w-6 text-medical-coral"></i>
+                  </div>
+                  <div>
+                    <div className="text-3xl sm:text-4xl font-extrabold text-medical-dark tracking-tight">{item.value}</div>
+                    <div className="text-slate-500 font-semibold text-xs sm:text-sm mt-1">{item.label}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    // ========================================================
+    // 4. SERVICES COMPONENT
+    // ========================================================
+    function Services() {
+      const services = [
+        { icon: "stethoscope", title: 'Khám Tim Tổng Quát', desc: 'Khám lâm sàng toàn diện với bác sĩ chuyên khoa đầu ngành để tầm soát và phát hiện sớm các dấu hiệu bất thường.' },
+        { icon: "activity", title: 'Đo Điện Tâm Đồ (ECG)', desc: 'Ghi lại các hoạt động điện học của tim nhằm chẩn đoán rối loạn nhịp tim, nhồi máu cơ tim và thiếu máu cơ tim.' },
+        { icon: "heart", title: 'Siêu Âm Tim Doppler', desc: 'Sử dụng sóng siêu âm để quan sát trực quan hình ảnh chuyển động và đánh giá huyết động học bên trong tim.' },
+        { icon: "file-check", title: 'Điều Trị Cao Huyết Áp', desc: 'Quản lý huyết áp liên tục kết hợp phác đồ điều trị, lối sống nhằm ngăn ngừa các biến chứng tai biến mạch máu não.' },
+        { icon: "brain", title: 'Tầm Soát Nguy Cơ Bằng AI', desc: 'Ứng dụng AI phân tích bộ chỉ số sức khỏe lâm sàng để ước lượng xác suất nguy cơ mắc bệnh tim mạch trong tương lai.' },
+        { icon: "home", title: 'Chăm Sóc Từ Xa 24/7', desc: 'Cung cấp hệ thống theo dõi huyết áp và nhịp tim liên tục tại nhà thông qua thiết bị đeo thông minh và ứng dụng di động.' }
+      ];
+      return (
+        <section id="services" className="py-20 bg-medical-light">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-medical-dark tracking-tight mb-4">Dịch vụ chăm sóc tim mạch toàn diện</h2>
+              <p className="text-slate-500 text-base sm:text-lg font-medium">Chúng tôi cung cấp các giải pháp khám, tầm soát phòng ngừa và điều trị tim mạch kỹ thuật cao, kết hợp giữa lâm sàng và công nghệ y khoa hiện đại.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {services.map((item, idx) => (
+                <div key={idx} className="bg-white rounded-3xl p-8 border border-slate-100 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 text-left flex flex-col justify-between group">
+                  <div>
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center mb-6 group-hover:bg-medical-trust group-hover:text-white transition-colors duration-300">
+                      <i data-lucide={item.icon} className="h-6 w-6 text-medical-trust"></i>
+                    </div>
+                    <h3 className="text-xl font-bold text-medical-dark mb-3 group-hover:text-medical-trust transition-colors">{item.title}</h3>
+                    <p className="text-slate-500 text-sm sm:text-base leading-relaxed mb-6">{item.desc}</p>
+                  </div>
+                  <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
+                    <a href="#booking" className="text-xs sm:text-sm font-bold text-medical-trust hover:text-medical-accent flex items-center gap-1">
+                      Đăng ký khám
+                      <i data-lucide="arrow-right" className="h-4 w-4"></i>
+                    </a>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 font-bold">Đạt chuẩn y tế</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    // ========================================================
+    // 5. DOCTORS COMPONENT
+    // ========================================================
+    function Doctors() {
+      const doctors = [
+        { name: 'PGS.TS.BS. Nguyễn Văn An', title: 'Trưởng khoa Tim mạch Can thiệp', specialty: 'Khám tim tổng quát & Điều trị mạch vành', exp: '25+ năm kinh nghiệm', avatarText: 'AN' },
+        { name: 'ThS.BS. Trần Thị Bình', title: 'Phó khoa Chẩn đoán Hình ảnh', specialty: 'Siêu âm tim Doppler & Tầm soát tim bẩm sinh', exp: '15+ năm kinh nghiệm', avatarText: 'BI' },
+        { name: 'TS.BS. Lê Hoàng Đức', title: 'Chuyên gia Nhịp học Lâm sàng', specialty: 'Đo điện tâm đồ (ECG) & Loạn nhịp tim', exp: '18+ năm kinh nghiệm', avatarText: 'DU' }
+      ];
+      return (
+        <section id="doctors" className="py-20 bg-medical-gray">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-medical-dark tracking-tight mb-4">Đội ngũ bác sĩ tim mạch đầu ngành</h2>
+              <p className="text-slate-500 text-base sm:text-lg font-medium">Quy tụ các phó giáo sư, tiến sĩ và thạc sĩ được đào tạo chuyên sâu tại Việt Nam và nước ngoài, tận tâm vì sức khỏe người bệnh.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {doctors.map((doc, idx) => (
+                <div key={idx} className="bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col h-full text-left">
+                  <div className="h-48 bg-gradient-to-br from-medical-dark to-slate-800 flex items-center justify-center relative">
+                    <div className="absolute top-4 right-4 bg-white/15 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5">
+                      <i data-lucide="award" className="h-4 w-4 text-medical-coral"></i>
+                      <span className="text-[10px] text-white font-bold uppercase tracking-wider">Chuyên gia cấp cao</span>
+                    </div>
+                    <div className="w-24 h-24 rounded-full bg-white flex items-center justify-center text-medical-trust font-extrabold text-3xl shadow-lg border-4 border-slate-700/50">
+                      {doc.avatarText}
+                    </div>
+                  </div>
+                  <div className="p-8 flex-1 flex flex-col justify-between">
+                    <div>
+                      <h3 className="text-xl font-bold text-medical-dark mb-1">{doc.name}</h3>
+                      <div className="text-sm font-bold text-medical-coral mb-4">{doc.title}</div>
+                      <div className="space-y-3.5 mb-6 text-sm text-slate-500">
+                        <div className="flex items-start gap-2">
+                          <i data-lucide="stethoscope" className="h-4.5 w-4.5 text-medical-trust flex-shrink-0 mt-0.5"></i>
+                          <div><strong>Chuyên môn:</strong> {doc.specialty}</div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <i data-lucide="calendar" className="h-4.5 w-4.5 text-medical-trust flex-shrink-0 mt-0.5"></i>
+                          <div><strong>Kinh nghiệm:</strong> {doc.exp}</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="pt-6 border-t border-slate-50">
+                      <a href="#booking" className="w-full inline-flex items-center justify-center bg-medical-trust hover:bg-medical-accent text-white py-3 px-6 rounded-2xl text-sm font-bold transition-all">
+                        Đặt lịch với bác sĩ
+                        <i data-lucide="chevron-right" className="ml-1.5 h-4 w-4"></i>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    // ========================================================
+    // 6. BOOKINGFORM COMPONENT
+    // ========================================================
+    function BookingForm() {
+      const [formData, setFormData] = useState({
+        fullName: '',
+        phone: '',
+        specialty: '',
+        doctor: '',
+        date: '',
+        timeSlot: ''
+      });
+
+      const [status, setStatus] = useState({ type: '', message: '' });
+      const [loading, setLoading] = useState(false);
+
+      const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+      };
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setStatus({ type: '', message: '' });
+
+        if (!formData.fullName.trim()) {
+          setStatus({ type: 'error', message: 'Vui lòng nhập họ và tên.' });
+          setLoading(false);
+          return;
+        }
+        if (!formData.phone.match(/^[0-9]{10,11}$/)) {
+          setStatus({ type: 'error', message: 'Số điện thoại không hợp lệ (yêu cầu 10-11 số).' });
+          setLoading(false);
+          return;
+        }
+
+        try {
+          // Giả lập gửi API tới server Spring Boot
+          await new Promise(resolve => setTimeout(resolve, 1200));
+          setStatus({
+            type: 'success',
+            message: '🎉 Đăng ký đặt lịch khám thành công! Bộ phận lễ tân sẽ liên hệ xác nhận qua điện thoại trong vài phút.'
+          });
+          setFormData({ fullName: '', phone: '', specialty: '', doctor: '', date: '', timeSlot: '' });
+        } catch (err) {
+          setStatus({ type: 'error', message: 'Có lỗi xảy ra. Vui lòng liên hệ hotline cấp cứu.' });
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      return (
+        <section id="booking" className="py-20 bg-white relative overflow-hidden">
+          <div className="absolute top-1/2 left-0 -translate-y-1/2 w-[300px] h-[300px] bg-rose-50 rounded-full blur-[100px] pointer-events-none" />
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div className="bg-slate-900 text-white rounded-3xl overflow-hidden border border-white/10 shadow-2xl p-8 sm:p-12">
+              <div className="text-center max-w-2xl mx-auto mb-10">
+                <div className="inline-flex items-center justify-center p-3 bg-white/10 rounded-2xl mb-4">
+                  <i data-lucide="clipboard-check" className="h-6 w-6 text-medical-coral"></i>
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2">Đặt lịch hẹn khám nhanh</h2>
+                <p className="text-slate-400 text-xs sm:text-sm font-semibold">Nhập thông tin đăng ký khám bệnh. Chúng tôi bảo mật thông tin y khoa của bạn tuyệt đối.</p>
+              </div>
+              {status.message && (
+                <div className={`mb-6 p-4 rounded-xl text-sm font-bold border ${
+                  status.type === 'success' ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                }`}>{status.message}</div>
+              )}
+              <form onSubmit={handleSubmit} className="space-y-6 text-left">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Họ và tên bệnh nhân *</label>
+                    <div className="relative">
+                      <i data-lucide="user" className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500"></i>
+                      <input type="text" name="fullName" required value={formData.fullName} onChange={handleInputChange} placeholder="Nguyễn Văn A" className="w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-medical-coral focus:ring-1 focus:ring-medical-coral text-sm font-semibold" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Số điện thoại liên hệ *</label>
+                    <div className="relative">
+                      <i data-lucide="phone" className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500"></i>
+                      <input type="tel" name="phone" required value={formData.phone} onChange={handleInputChange} placeholder="Ví dụ: 0912345678" className="w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-medical-coral focus:ring-1 focus:ring-medical-coral text-sm font-semibold" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Chuyên khoa cần khám *</label>
+                    <div className="relative">
+                      <i data-lucide="heart" className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500"></i>
+                      <select name="specialty" required value={formData.specialty} onChange={handleInputChange} className="w-full bg-slate-900 border border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-white focus:outline-none focus:border-medical-coral focus:ring-1 focus:ring-medical-coral text-sm font-semibold cursor-pointer">
+                        <option value="">-- Chọn chuyên khoa --</option>
+                        <option value="Khám tim mạch tổng quát">Khám tim mạch tổng quát</option>
+                        <option value="Đo điện tâm đồ (ECG)">Đo điện tâm đồ (ECG)</option>
+                        <option value="Siêu âm tim Doppler">Siêu âm tim Doppler</option>
+                        <option value="Điều trị cao huyết áp">Điều trị cao huyết áp</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Bác sĩ mong muốn (nếu có)</label>
+                    <div className="relative">
+                      <i data-lucide="stethoscope" className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500"></i>
+                      <select name="doctor" value={formData.doctor} onChange={handleInputChange} className="w-full bg-slate-900 border border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-white focus:outline-none focus:border-medical-coral focus:ring-1 focus:ring-medical-coral text-sm font-semibold cursor-pointer">
+                        <option value="">-- Chọn bác sĩ --</option>
+                        <option value="PGS.TS.BS. Nguyễn Văn An">PGS.TS.BS. Nguyễn Văn An</option>
+                        <option value="ThS.BS. Trần Thị Bình">ThS.BS. Trần Thị Bình</option>
+                        <option value="TS.BS. Lê Hoàng Đức">TS.BS. Lê Hoàng Đức</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Ngày hẹn khám *</label>
+                    <div className="relative">
+                      <i data-lucide="calendar" className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500"></i>
+                      <input type="date" name="date" required value={formData.date} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-white focus:outline-none focus:border-medical-coral focus:ring-1 focus:ring-medical-coral text-sm font-semibold cursor-pointer" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Giờ hẹn khám *</label>
+                    <div className="relative">
+                      <i data-lucide="clock" className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500"></i>
+                      <select name="timeSlot" required value={formData.timeSlot} onChange={handleInputChange} className="w-full bg-slate-900 border border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-white focus:outline-none focus:border-medical-coral focus:ring-1 focus:ring-medical-coral text-sm font-semibold cursor-pointer">
+                        <option value="">-- Chọn khung giờ --</option>
+                        <option value="08:00 - 09:00">08:00 - 09:00</option>
+                        <option value="09:00 - 10:00">09:00 - 10:00</option>
+                        <option value="10:00 - 11:00">10:00 - 11:00</option>
+                        <option value="14:00 - 15:00">14:00 - 15:00</option>
+                        <option value="15:00 - 16:00">15:00 - 16:00</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div className="pt-4 flex justify-center">
+                  <button type="submit" disabled={loading} className="w-full sm:w-auto bg-medical-coral hover:bg-medical-coralhover text-white px-10 py-4 rounded-full text-base font-bold shadow-lg transition-all hover:-translate-y-0.5 disabled:opacity-50">
+                    {loading ? 'Đang gửi thông tin...' : 'Xác nhận Đặt lịch hẹn'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    // ========================================================
+    // 7. FOOTER COMPONENT
+    // ========================================================
+    function Footer() {
+      return (
+        <footer className="bg-medical-dark text-slate-400 pt-16 pb-8 border-t border-white/5 relative overflow-hidden">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-8 mb-12">
+              <div className="lg:col-span-4 flex flex-col items-start text-left">
+                <div className="flex items-center gap-2 mb-4 cursor-pointer" onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}>
+                  <i data-lucide="heart-pulse" className="h-8 w-8 text-medical-coral"></i>
+                  <span className="text-white font-extrabold text-xl tracking-tight">
+                    CARDIO<span className="text-medical-coral">CARE</span>
+                  </span>
+                </div>
+                <p className="text-slate-400 text-sm leading-relaxed mb-6">Hệ thống phòng khám chuyên khoa tim mạch hàng đầu, tích hợp trí tuệ nhân tạo (AI) giúp dự đoán và ngăn ngừa nguy cơ đột quỵ và các bệnh lý tim mạch sớm.</p>
+                <div className="flex items-center gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-2xl">
+                  <i data-lucide="shield-alert" className="h-5 w-5 text-red-500 animate-pulse"></i>
+                  <span className="text-xs font-bold text-red-400 uppercase tracking-wider font-bold">Cấp cứu 24/7: 1900 1234</span>
+                </div>
+              </div>
+              <div className="lg:col-span-3 text-left">
+                <h4 className="text-white font-bold text-sm uppercase tracking-wider mb-6">Dịch vụ chính</h4>
+                <ul className="space-y-3.5 text-sm font-semibold">
+                  <li><a href="#services" className="hover:text-white transition-colors">Khám tim tổng quát</a></li>
+                  <li><a href="#services" className="hover:text-white transition-colors">Đo điện tâm đồ (ECG)</a></li>
+                  <li><a href="#services" className="hover:text-white transition-colors">Siêu âm tim Doppler</a></li>
+                  <li><a href="#services" className="hover:text-white transition-colors">Dự báo nguy cơ bằng AI</a></li>
+                </ul>
+              </div>
+              <div className="lg:col-span-5 text-left">
+                <h4 className="text-white font-bold text-sm uppercase tracking-wider mb-6">Thông tin liên hệ</h4>
+                <ul className="space-y-4 text-sm font-semibold">
+                  <li className="flex items-start gap-3">
+                    <i data-lucide="map-pin" className="h-5 w-5 text-medical-coral flex-shrink-0 mt-0.5"></i>
+                    <span className="text-slate-300">Tòa nhà Cardio Care, Khu đô thị công nghệ FPT Đà Nẵng, Ngũ Hành Sơn, Đà Nẵng</span>
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <i data-lucide="phone-call" className="h-5 w-5 text-medical-coral flex-shrink-0"></i>
+                    <span className="text-slate-300">Hotline: (0236) 3 999 888</span>
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <i data-lucide="mail" className="h-5 w-5 text-medical-coral flex-shrink-0"></i>
+                    <span className="text-slate-300">lienhe@cardiocare.vn</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div className="pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-semibold text-slate-500">
+              <div>&copy; {new Date().getFullYear()} Cardio Care. Bảo lưu mọi quyền.</div>
+              <div className="flex items-center gap-1">
+                Made with <i data-lucide="heart" className="h-3.5 w-3.5 text-medical-coral fill-medical-coral"></i> for a healthier heart.
+              </div>
+            </div>
+          </div>
+        </footer>
+      );
+    }
+
+    // ========================================================
+    // 8. APP ROOT
+    // ========================================================
+    function App() {
+      // Trigger Lucide icons replacing after mounting
+      useEffect(() => {
+        if (window.lucide) {
+          window.lucide.createIcons();
+        }
+      });
+
+      return (
+        <div className="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased scroll-smooth">
+          <Navbar />
+          <Hero />
+          <Stats />
+          <Services />
+          <Doctors />
+          <BookingForm />
+          <Footer />
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+    /*]]>*/
+  </script>
+
+</body>
+</html>
