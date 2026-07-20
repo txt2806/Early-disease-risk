@@ -1,41 +1,57 @@
 package com.cardio.controller;
 
-import com.cardio.dto.AIRequest;
-import com.cardio.dto.AIResponse;
-import com.cardio.model.*;
-import com.cardio.repository.DoctorRepository;
-import com.cardio.repository.StaffRepository;
-import com.cardio.service.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-import org.springframework.web.multipart.MultipartFile;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import com.cardio.dto.AIRequest;
+import com.cardio.model.AIRiskPrediction;
+import com.cardio.model.Appointment;
+import com.cardio.model.ConsultationRecord;
+import com.cardio.model.DoctorProfile;
+import com.cardio.model.HeartClinicalMetrics;
+import com.cardio.model.IcdCatalog;
+import com.cardio.model.LabRequest;
+import com.cardio.model.PatientAlertThreshold;
+import com.cardio.model.PatientProfile;
+import com.cardio.model.RecordIcd;
+import com.cardio.model.StaffProfile;
 import com.cardio.repository.AppointmentRepository;
 import com.cardio.repository.ConsultationRepository;
+import com.cardio.repository.DoctorRepository;
 import com.cardio.repository.HeartClinicalMetricsRepository;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.LocalDateTime;
-import java.util.List;
-import com.cardio.model.IcdCatalog;
-import com.cardio.model.RecordIcd;
-import com.cardio.model.HeartClinicalMetrics;
-import com.cardio.model.DoctorProfile;
-import java.util.Map;
-import java.util.HashMap;
-import com.cardio.model.PatientAlertThreshold;
-import com.cardio.repository.PatientAlertThresholdRepository;
 import com.cardio.repository.LabRequestRepository;
+import com.cardio.repository.PatientAlertThresholdRepository;
+import com.cardio.repository.StaffRepository;
+import com.cardio.service.AIService;
+import com.cardio.service.AuditLogService;
+import com.cardio.service.ConsultationService;
+import com.cardio.service.PatientService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 // ── CONTROLLER (C trong MVC) ─────────────────────────
 @Controller
