@@ -22,6 +22,7 @@ public class DashboardRedirectController {
             boolean isAdmin = false;
             boolean isPatient = false;
             boolean isReceptionist = false;
+            boolean isStaff = false;
             
             if (authentication.getAuthorities() != null) {
                 isAdmin = authentication.getAuthorities().stream()
@@ -35,6 +36,10 @@ public class DashboardRedirectController {
                 isReceptionist = authentication.getAuthorities().stream()
                         .filter(a -> a != null && a.getAuthority() != null)
                         .anyMatch(a -> a.getAuthority().equals("ROLE_RECEPTIONIST"));
+
+                isStaff = authentication.getAuthorities().stream()
+                        .filter(a -> a != null && a.getAuthority() != null)
+                        .anyMatch(a -> a.getAuthority().equals("ROLE_STAFF"));
             }
 
             if (isAdmin) {
@@ -52,6 +57,10 @@ public class DashboardRedirectController {
 
             if (isReceptionist) {
                 return "redirect:/reception/dashboard";
+            }
+
+            if (isStaff) {
+                return "redirect:/staff/dashboard";
             }
             
             return "redirect:/doctor/dashboard";

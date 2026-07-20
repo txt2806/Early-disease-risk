@@ -53,25 +53,11 @@ public class ChatController {
     private final PatientService patientService;
     private final ObjectMapper objectMapper;
 
-    // Helper lấy doctor/staff đang đăng nhập — giữ đúng pattern getCurrentDoctor()
-    // đã có trong DoctorController, viết lại gọn ở đây để tránh phụ thuộc
-    // chéo không cần thiết giữa 2 controller.
+    // Helper lấy doctor đang đăng nhập — giữ đúng pattern getCurrentDoctor()
     private DoctorProfile getCurrentDoctor(UserDetails userDetails) {
         String username = userDetails.getUsername();
-        var docOpt = doctorRepository.findByUsername(username);
-        if (docOpt.isPresent()) {
-            return docOpt.get();
-        }
-        var staffOpt = staffRepository.findByUsername(username);
-        if (staffOpt.isPresent()) {
-            StaffProfile staff = staffOpt.get();
-            DoctorProfile mockDoc = new DoctorProfile();
-            mockDoc.setUsername(staff.getUsername());
-            mockDoc.setFullName(staff.getFullName());
-            mockDoc.setSpecialty("Nhân viên");
-            return mockDoc;
-        }
-        throw new RuntimeException("Doctor or Staff profile not found for username: " + username);
+        return doctorRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Doctor profile not found for username: " + username));
     }
 
     // ── Hiển thị trang chatbot ─────────────────────────

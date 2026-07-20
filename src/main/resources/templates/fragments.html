@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 </head>
 
-<!-- SIDEBAR fragment -->
+<!-- SIDEBAR fragment (DOCTOR) -->
 <aside th:fragment="sidebar(page)" class="sidebar">
   <div class="sidebar-logo">
     <div class="logo-mark">
@@ -29,11 +29,7 @@
     </a>
 
     <div class="nav-label">Quản lý</div>
-    <a th:href="@{/doctor/patients}" sec:authorize="!hasRole('DOCTOR')"
-       th:classappend="${page == 'patients'} ? ' active'" class="nav-item">
-      <i class="ti ti-users"></i> Bệnh nhân
-    </a>
-    <a th:href="@{/doctor/assigned-patients}" sec:authorize="hasRole('DOCTOR')"
+    <a th:href="@{/doctor/assigned-patients}"
        th:classappend="${page == 'assigned-patients'} ? ' active'" class="nav-item">
       <i class="ti ti-users-group"></i> Bệnh nhân phụ trách
     </a>
@@ -42,28 +38,28 @@
        th:classappend="${page == 'appointments'} ? ' active'" class="nav-item">
       <i class="ti ti-calendar-event"></i> Lịch làm việc
     </a>
-    <a th:href="@{/doctor/thresholds}" sec:authorize="hasRole('DOCTOR')"
+    <a th:href="@{/doctor/thresholds}"
        th:classappend="${page == 'thresholds'} ? ' active'" class="nav-item">
       <i class="ti ti-adjustments-horizontal"></i> Ngưỡng cảnh báo
     </a>
 
-    <a th:href="@{/doctor/alerts}" sec:authorize="hasAnyRole('DOCTOR', 'STAFF', 'ADMIN')"
+    <a th:href="@{/doctor/alerts}"
        th:classappend="${page == 'alerts'} ? ' active'" class="nav-item">
       <i class="ti ti-bell-ringing"></i> Cảnh báo
       <span class="nav-badge" th:text="${highAlertCount}" th:if="${highAlertCount != null && highAlertCount > 0}">0</span>
     </a>
 
-    <a th:href="@{/doctor/lab-requests}" sec:authorize="hasAnyRole('DOCTOR', 'STAFF', 'ADMIN')"
+    <a th:href="@{/doctor/lab-requests}"
        th:classappend="${page == 'lab-requests'} ? ' active'" class="nav-item">
       <i class="ti ti-file-analytics"></i> Yêu cầu xét nghiệm
     </a>
 
-    <div class="nav-label" sec:authorize="hasAnyRole('DOCTOR', 'ADMIN')">Công cụ</div>
-    <a th:href="@{/doctor/ai-predict}" sec:authorize="hasAnyRole('DOCTOR', 'ADMIN')"
+    <div class="nav-label">Công cụ</div>
+    <a th:href="@{/doctor/ai-predict}"
        th:classappend="${page == 'ai-predict'} ? ' active'" class="nav-item">
       <i class="ti ti-brain"></i> Dự đoán AI
     </a>
-    <a th:href="@{/doctor/chatbot}" sec:authorize="hasAnyRole('DOCTOR', 'ADMIN')"
+    <a th:href="@{/doctor/chatbot}"
        th:classappend="${page == 'chatbot'} ? ' active'" class="nav-item">
       <i class="ti ti-robot"></i> Chatbot AI
     </a>
@@ -75,6 +71,62 @@
       <div>
         <div class="doctor-name" th:text="${doctor != null ? doctor.fullName : ''}">Bác sĩ</div>
         <div class="doctor-role" th:text="${doctor != null ? doctor.specialty : ''}">Tim mạch</div>
+      </div>
+    </div>
+    <a th:href="@{/logout}" class="nav-item" style="margin-top:8px;color:#e05a5a;">
+      <i class="ti ti-logout"></i> Đăng xuất
+    </a>
+  </div>
+</aside>
+
+<!-- STAFF SIDEBAR fragment -->
+<aside th:fragment="staffSidebar(page)" class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon">❤️</div>
+      <div>
+        <div class="logo-text">CardioCare</div>
+        <div class="logo-sub">STAFF PORTAL</div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-label">Tổng quan</div>
+    <a th:href="@{/staff/dashboard}"
+       th:classappend="${page == 'dashboard'} ? ' active'" class="nav-item">
+      <i class="ti ti-layout-dashboard"></i> Dashboard
+    </a>
+
+    <div class="nav-label">Quản lý</div>
+    <a th:href="@{/staff/patients}"
+       th:classappend="${page == 'patients'} ? ' active'" class="nav-item">
+      <i class="ti ti-users"></i> Bệnh nhân
+    </a>
+    
+    <a th:href="@{/staff/appointments}"
+       th:classappend="${page == 'appointments'} ? ' active'" class="nav-item">
+      <i class="ti ti-calendar-event"></i> Lịch làm việc
+    </a>
+
+    <a th:href="@{/staff/alerts}"
+       th:classappend="${page == 'alerts'} ? ' active'" class="nav-item">
+      <i class="ti ti-bell-ringing"></i> Cảnh báo
+      <span class="nav-badge" th:text="${highAlertCount}" th:if="${highAlertCount != null && highAlertCount > 0}">0</span>
+    </a>
+
+    <a th:href="@{/staff/lab-requests}"
+       th:classappend="${page == 'lab-requests'} ? ' active'" class="nav-item">
+      <i class="ti ti-file-analytics"></i> Yêu cầu xét nghiệm
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="doctor-info">
+      <div class="doctor-avatar" th:text="${staff != null && staff.fullName != null && !staff.fullName.isEmpty() ? staff.fullName.charAt(0) : 'S'}" style="background:#f59e0b;">S</div>
+      <div>
+        <div class="doctor-name" th:text="${staff != null ? staff.fullName : ''}">Nhân viên</div>
+        <div class="doctor-role" th:text="${staff != null ? (staff.role == 'STAFF' ? 'Điều dưỡng' : staff.role) : 'Điều dưỡng'}">Điều dưỡng</div>
       </div>
     </div>
     <a th:href="@{/logout}" class="nav-item" style="margin-top:8px;color:#e05a5a;">
@@ -185,14 +237,23 @@
   </div>
 </aside>
 
-<!-- TOPBAR fragment -->
+<!-- TOPBAR fragment (DOCTOR) -->
 <header th:fragment="topbar(title)" class="topbar">
   <div class="topbar-title" th:text="${title}">Dashboard</div>
-  <form th:action="@{/doctor/patients}" method="get" class="topbar-search" sec:authorize="!hasRole('DOCTOR')">
+  <a th:href="@{/doctor/alerts}" class="topbar-btn" style="margin-left:auto;">
+    <i class="ti ti-bell"></i>
+    <div class="notif-dot" th:if="${highAlertCount != null && highAlertCount > 0}"></div>
+  </a>
+</header>
+
+<!-- STAFF TOPBAR fragment -->
+<header th:fragment="staffTopbar(title)" class="topbar">
+  <div class="topbar-title" th:text="${title}">Dashboard</div>
+  <form th:action="@{/staff/patients}" method="get" class="topbar-search">
     <i class="ti ti-search"></i>
     <input type="text" name="search" placeholder="Tìm bệnh nhân...">
   </form>
-  <a th:href="@{/doctor/alerts}" class="topbar-btn">
+  <a th:href="@{/staff/alerts}" class="topbar-btn">
     <i class="ti ti-bell"></i>
     <div class="notif-dot" th:if="${highAlertCount != null && highAlertCount > 0}"></div>
   </a>

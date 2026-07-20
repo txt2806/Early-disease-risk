@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Nhập chỉ số & Xét nghiệm')}"></head>
+<body>
+<div th:replace="~{fragments :: staffSidebar('patients')}"></div>
+
+<main class="main">
+  <header th:replace="~{fragments :: staffTopbar('Nhập chỉ số & Xét nghiệm')}"></header>
+  <div class="content">
+
+    <div class="card" style="margin-bottom: 24px;">
+      <h2 style="font-size: 18px; font-weight: 700; margin: 0; color: #e8edf5; display: flex; align-items: center; gap: 8px;">
+        <i class="ti ti-activity-heartbeat" style="color: #10b981;"></i> 
+        Ghi nhận dữ liệu lâm sàng cho: <span th:text="${patient.fullName}" style="color: #60a5fa;">Bệnh nhân</span>
+      </h2>
+      <p style="font-size: 12px; color: #8a96b0; margin: 4px 0 0 0;">Nhập các chỉ số sinh tồn và tải kết quả xét nghiệm cận lâm sàng của bệnh nhân.</p>
+    </div>
+
+    <form th:action="@{/staff/patients/{id}/vitals/save(id=${patient.patientId})}" th:object="${vitals}" method="post" enctype="multipart/form-data">
+      <input type="hidden" name="requestId" th:value="${requestId}">
+      <div class="two-col" style="grid-template-columns: 1fr 1fr; gap: 20px;">
+        
+        <!-- Bên trái: Chỉ số sinh tồn -->
+        <div class="card" style="display: flex; flex-direction: column; gap: 16px;">
+          <h3 style="font-size: 15px; font-weight: 700; color: #e8edf5; margin: 0 0 8px 0; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">
+            <i class="ti ti-heart-rate-monitor" style="color: #10b981;"></i> Chỉ số sinh tồn (Vital Signs)
+          </h3>
+
+          <div>
+            <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">Huyết áp lúc nghỉ (mmHg)</label>
+            <input type="number" th:field="*{restingBP}" placeholder="Ví dụ: 120" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none;">
+          </div>
+
+          <div>
+            <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">Nhịp tim lúc nghỉ (BPM)</label>
+            <input type="number" th:field="*{maxHeartRate}" placeholder="Ví dụ: 75" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none;">
+          </div>
+
+          <div>
+            <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">Nhiệt độ cơ thể (°C)</label>
+            <input type="number" step="0.1" th:field="*{temperature}" placeholder="Ví dụ: 36.5" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none;">
+          </div>
+
+          <div>
+            <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">Chỉ số oxy trong máu SpO2 (%)</label>
+            <input type="number" th:field="*{spO2}" placeholder="Ví dụ: 98" min="0" max="100" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none;">
+          </div>
+        </div>
+
+        <!-- Bên phải: Kết quả xét nghiệm -->
+        <div class="card" style="display: flex; flex-direction: column; gap: 16px;">
+          <h3 style="font-size: 15px; font-weight: 700; color: #e8edf5; margin: 0 0 8px 0; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">
+            <i class="ti ti-file-analytics" style="color: #3b82f6;"></i> Kết quả cận lâm sàng (Test Results)
+          </h3>
+
+          <div>
+            <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">Xét nghiệm máu (PDF, Word, Ảnh)</label>
+            <input type="file" name="bloodTestFile" accept=".doc,.docx,.pdf,.xls,.xlsx,.png,.jpg,.jpeg" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none;">
+          </div>
+
+          <div>
+            <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">Xét nghiệm nước tiểu (PDF, Word, Ảnh)</label>
+            <input type="file" name="urineTestFile" accept=".doc,.docx,.pdf,.xls,.xlsx,.png,.jpg,.jpeg" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none;">
+          </div>
+
+          <div>
+            <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">Phim X-quang (Ảnh)</label>
+            <input type="file" name="xrayFile" accept="image/*" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none;">
+          </div>
+
+          <div>
+            <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">Siêu âm (Ảnh)</label>
+            <input type="file" name="ultrasoundFile" accept="image/*" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none;">
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+            <div>
+              <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">Ảnh chụp MRI</label>
+              <input type="file" name="mriFile" accept="image/*" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none;">
+            </div>
+            <div>
+              <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">Ảnh chụp CT Scan</label>
+              <input type="file" name="ctFile" accept="image/*" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none;">
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Chỉ số hỗ trợ dự đoán AI -->
+      <div class="card" style="margin-top: 20px; display: flex; flex-direction: column; gap: 16px;">
+        <h3 style="font-size: 15px; font-weight: 700; color: #e8edf5; margin: 0 0 8px 0; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">
+          <i class="ti ti-brain" style="color: #60a5fa;"></i> Chỉ số hỗ trợ dự đoán AI (AI Model Parameters)
+        </h3>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <!-- Cột trái -->
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div>
+              <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">Loại đau ngực (cp)</label>
+              <select th:field="*{chestPainType}" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none; cursor:pointer;">
+                <option value="0">Không triệu chứng (asymptomatic)</option>
+                <option value="1">Đau thắt ngực điển hình (typical angina)</option>
+                <option value="2">Đau thắt ngực không điển hình (atypical angina)</option>
+                <option value="3">Không phải đau thắt ngực (non-anginal)</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">Cholesterol (mg/dl)</label>
+              <input type="number" th:field="*{cholesterol}" placeholder="Ví dụ: 200" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none;">
+            </div>
+
+            <div>
+              <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">Đường huyết lúc đói > 120 mg/dl (fbs)</label>
+              <select th:field="*{fastingBloodSugar}" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none; cursor:pointer;">
+                <option value="false">Không (False)</option>
+                <option value="true">Có (True)</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">Kết quả điện tâm đồ lúc nghỉ (restecg)</label>
+              <select th:field="*{restingECG}" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none; cursor:pointer;">
+                <option value="0">Bình thường (normal)</option>
+                <option value="1">Sóng ST-T bất thường (st-t abnormality)</option>
+                <option value="2">Phì đại thất trái (lv hypertrophy)</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">Đau thắt ngực khi gắng sức (exang)</label>
+              <select th:field="*{exerciseAngina}" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none; cursor:pointer;">
+                <option value="false">Không (False)</option>
+                <option value="true">Có (True)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Cột phải -->
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div>
+              <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">ST Depression (oldpeak)</label>
+              <input type="number" step="0.1" th:field="*{oldpeak}" placeholder="Ví dụ: 1.0" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none;">
+            </div>
+
+            <div>
+              <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">Độ dốc đoạn ST (slope)</label>
+              <select th:field="*{slope}" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none; cursor:pointer;">
+                <option value="upsloping">Dốc lên (upsloping)</option>
+                <option value="flat">Đi ngang (flat)</option>
+                <option value="downsloping">Dốc xuống (downsloping)</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">Số mạch vành tắc nghẽn (ca: 0-3)</label>
+              <input type="number" min="0" max="3" th:field="*{ca}" placeholder="Ví dụ: 0" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none;">
+            </div>
+
+            <div>
+              <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">Thalassemia (thal)</label>
+              <select th:field="*{thal}" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none; cursor:pointer;">
+                <option value="normal">Bình thường (normal)</option>
+                <option value="fixed defect">Khiếm khuyết cố định (fixed defect)</option>
+                <option value="reversable defect">Khiếm khuyết hồi phục (reversable defect)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Thêm Thông tin Bệnh án -->
+      <div class="card" style="margin-top: 20px; display: flex; flex-direction: column; gap: 16px;">
+        <h3 style="font-size: 15px; font-weight: 700; color: #e8edf5; margin: 0 0 8px 0; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">
+          <i class="ti ti-report-medical" style="color: #60a5fa;"></i> Thông tin bệnh án (Consultation Details)
+        </h3>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <div>
+            <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">Ghi chú lâm sàng / Triệu chứng (Clinical Notes)</label>
+            <textarea name="consultationNotes" placeholder="Nhập kết luận khám lâm sàng hoặc mô tả chi tiết của nhân viên y tế..." rows="3" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none; resize:vertical; font-family:sans-serif;"></textarea>
+          </div>
+          <div>
+            <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">Phác đồ điều trị dự kiến (Treatment Plan)</label>
+            <textarea name="treatmentPlan" placeholder="Nhập hướng xử trí hoặc phác đồ điều trị dự kiến..." rows="3" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none; resize:vertical; font-family:sans-serif;"></textarea>
+          </div>
+        </div>
+
+        <div>
+          <label style="display:block; font-size:12px; color:#8a96b0; margin-bottom:6px;">Trạng thái ca khám (Status)</label>
+          <select name="status" style="width:100%; background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; color:#e8edf5; font-size:14px; outline:none;">
+            <option value="Completed" selected>Đã hoàn thành khám (Completed)</option>
+            <option value="InProgress">Đang tiến hành khám (InProgress)</option>
+            <option value="Pending">Đang chờ (Pending)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Footer Buttons -->
+      <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:24px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.08);">
+        <a th:href="@{/staff/patients/{id}(id=${patient.patientId})}" class="btn btn-ghost" style="padding:10px 24px; text-decoration:none; display:inline-flex; align-items:center; cursor:pointer;">Hủy bỏ</a>
+        <button type="submit" class="btn btn-ai" style="padding:10px 28px; background:#10b981; border:none; border-radius:8px; color:white; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:8px;">
+          <i class="ti ti-device-floppy"></i> Lưu bệnh án
+        </button>
+      </div>
+    </form>
+
+  </div>
+</main>
+<script th:src="@{/js/main.js}"></script>
+</body>
+</html>
