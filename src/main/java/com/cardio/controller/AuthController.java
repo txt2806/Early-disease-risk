@@ -45,8 +45,9 @@ public class AuthController {
         }
 
         if (passwordEncoder.matches(loginRequest.getPassword(), patient.getPasswordHash())) {
-            // Giả định "lần đăng nhập đầu tiên" là khi người dùng vẫn sử dụng mật khẩu mặc định "123"
-            boolean isFirstLogin = passwordEncoder.matches("123", patient.getPasswordHash());
+            // [FIX] Lấy trạng thái isFirstLogin trực tiếp từ DB thay vì hardcode check.
+            // Giả định PatientProfile entity đã có trường `isFirstLogin`.
+            boolean isFirstLogin = patient.isFirstLogin();
 
             response.put("status", "success");
             response.put("message", "Đăng nhập hợp lệ.");
@@ -84,6 +85,9 @@ public class AuthController {
         }
 
         patient.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        // [FIX] Sau khi đổi mật khẩu, cập nhật cờ isFirstLogin = false để không hỏi lại.
+        // Giả định PatientProfile entity đã có trường `isFirstLogin` và setter.
+        patient.setFirstLogin(false);
         patientRepository.save(patient);
 
         log.info("Password changed successfully for user {}", request.getUsername());

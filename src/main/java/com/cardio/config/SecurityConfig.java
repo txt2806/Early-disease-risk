@@ -1,211 +1,62 @@
 package com.cardio.config;
 
-import com.cardio.repository.DoctorRepository;
-import com.cardio.repository.PatientRepository;
-import com.cardio.repository.StaffRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.authentication.LockedException;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.core.userdetails.*;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 
-@Configuration(proxyBeanMethods = false)
-@RequiredArgsConstructor
+@Configuration
+@EnableWebSecurity
 public class SecurityConfig {
-
-    private final DoctorRepository doctorRepository;
-    private final PatientRepository patientRepository;
-    private final StaffRepository staffRepository;
-    private final JdbcTemplate jdbcTemplate;
-
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/sepay/webhook"))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/login/profile", "/register", "/register/**", "/css/**", "/js/**",
-                                "/api/sepay/webhook")
-                        .permitAll()
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/reception/**").hasAnyRole("RECEPTIONIST", "ADMIN")
-                        .requestMatchers("/patient/**").hasAnyRole("PATIENT", "ADMIN")
-                        .requestMatchers("/doctor/ai-predict/**").hasAnyRole("DOCTOR", "ADMIN")
-                        .requestMatchers("/doctor/alerts/**").hasAnyRole("DOCTOR", "STAFF", "ADMIN")
-                        .requestMatchers("/doctor/patients/*/vitals/**").hasAnyRole("STAFF", "DOCTOR", "ADMIN")
-                        .requestMatchers("/doctor/patients/new", "/doctor/patients/save")
-                        .hasAnyRole("RECEPTIONIST", "DOCTOR", "ADMIN")
-                        .requestMatchers("/doctor/appointments/*/details").hasAnyRole("DOCTOR", "STAFF", "ADMIN")
-                        .requestMatchers("/doctor/appointments/**")
-                        .hasAnyRole("RECEPTIONIST", "DOCTOR", "STAFF", "ADMIN")
-                        .requestMatchers("/doctor/**").hasAnyRole("DOCTOR", "STAFF", "ADMIN")
-                        .anyRequest().authenticated())
-                .formLogin(form -> form
-                        .loginPage("/login")
-                        .loginProcessingUrl("/login")
-                        .defaultSuccessUrl("/dashboard-redirect", true)
-                        .failureHandler((request, response, exception) -> {
-                            if (exception.getCause() instanceof LockedException
-                                    || exception instanceof LockedException) {
-                                response.sendRedirect("/login?error=locked");
-                            } else {
-                                response.sendRedirect("/login?error=true");
-                            }
-                        })
-                        .permitAll())
-                .logout(logout -> logout
-                        .logoutRequestMatcher(
-                                new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/logout"))
-                        .logoutSuccessUrl("/login?logout")
-                        .invalidateHttpSession(true)
-                        .clearAuthentication(true)
-                        .deleteCookies("JSESSIONID")
-                        .permitAll());
-        return http.build();
-    }
-
-    @Bean
-    public UserDetailsService userDetailsService() {
-        return usernameInput -> {
-            try {
-                String username = usernameInput != null ? usernameInput.trim() : "";
-                java.util.List<java.util.Map<String, Object>> users = new java.util.ArrayList<>();
-                try {
-                    // Query app_users table directly (case-insensitive)
-                    users = jdbcTemplate.queryForList(
-                            "SELECT * FROM app_users WHERE LOWER(\"Username\") = LOWER(?)", username);
-
-                    if (users.isEmpty()) {
-                        // Trông giống số điện thoại? Thử tìm theo Phone (hỗ trợ mọi định dạng biến thể)
-                        java.util.List<String> phoneVariations = getPhoneVariations(username);
-
-                        // Tìm kiếm patient theo phone (Tối ưu hóa: Dùng findByPhoneIn thay vì findAll)
-                        var patOpt = patientRepository.findByPhoneIn(phoneVariations).stream().findFirst();
-
-                        if (patOpt.isPresent()) {
-                            String realUsername = patOpt.get().getUsername();
-                            users = jdbcTemplate.queryForList(
-                                    "SELECT * FROM app_users WHERE LOWER(\"Username\") = LOWER(?)", realUsername);
-                        }
-                    }
-                } catch (Exception sqlEx) {
-                    // Log warning/info if SQL view fails, proceed to fallback JPA query
-                }
-
-                if (!users.isEmpty()) {
-                    var user = users.get(0);
-                    String role = (String) user.get("Role");
-                    String realUsername = (String) user.get("Username");
-
-                    // ĐỒNG BỘ TỨC THỜI: Kiểm tra Firebase nếu Role = PATIENT
-                    if ("PATIENT".equalsIgnoreCase(role)) {
-                        boolean isFirebaseInitialized = !com.google.firebase.FirebaseApp.getApps().isEmpty();
-                        if (isFirebaseInitialized) {
-                            try {
-                                com.google.firebase.auth.FirebaseAuth.getInstance().getUserByEmail(realUsername);
-                            } catch (com.google.firebase.auth.FirebaseAuthException e) {
-                                if ("user-not-found".equals(e.getErrorCode())) {
-                                    // Bệnh nhân đã bị xóa trên Firebase -> Đồng bộ xóa ở Database
-                                    Integer patientId = patientRepository.findByUsernameIgnoreCase(realUsername)
-                                            .map(com.cardio.model.PatientProfile::getPatientId).orElse(null);
-                                    if (patientId != null) {
-                                        jdbcTemplate.update("UPDATE invoice SET patientid = NULL, appointmentid = NULL WHERE patientid = ?", patientId);
-                                        jdbcTemplate.update("UPDATE invoice SET appointmentid = NULL WHERE appointmentid IN (SELECT appointmentid FROM appointment WHERE patientid = ?)", patientId);
-                                        jdbcTemplate.update("DELETE FROM record_icd WHERE recordid IN (SELECT recordid FROM consultation_record WHERE patientid = ?)", patientId);
-                                        jdbcTemplate.update("DELETE FROM ai_risk_prediction WHERE recordid IN (SELECT recordid FROM consultation_record WHERE patientid = ?)", patientId);
-                                        jdbcTemplate.update("DELETE FROM heart_clinical_metrics WHERE recordid IN (SELECT recordid FROM consultation_record WHERE patientid = ?)", patientId);
-                                        jdbcTemplate.update("DELETE FROM consultation_record WHERE patientid = ?", patientId);
-                                        jdbcTemplate.update("DELETE FROM lab_request WHERE patientid = ?", patientId);
-                                        jdbcTemplate.update("DELETE FROM patient_alert_threshold WHERE patientid = ?", patientId);
-                                        jdbcTemplate.update("DELETE FROM appointment WHERE patientid = ?", patientId);
-                                        patientRepository.deleteById(patientId);
-                                    }
-                                    throw new UsernameNotFoundException("Tài khoản của bạn không tồn tại hoặc đã bị xóa khỏi hệ thống.");
-                                }
-                            } catch (Exception ex) {
-                                // Lỗi khác (vd: mạng) thì bỏ qua
-                            }
-                        }
-                    }
-
-                    return org.springframework.security.core.userdetails.User
-                            .withUsername(realUsername)
-                            .password((String) user.get("PasswordHash"))
-                            .roles(role)
-                            .accountLocked("LOCKED".equalsIgnoreCase((String) user.get("Status")))
-                            .build();
-                }
-
-                // FALLBACK: Nếu không tìm thấy trong app_users hoặc lỗi view, truy vấn trực
-                // tiếp từ các bảng Profile
-                // 1. Tìm bệnh nhân theo Username/Email hoặc Phone
-                var patOpt = patientRepository.findByUsernameIgnoreCase(username);
-                if (!patOpt.isPresent()) {
-                    java.util.List<String> phoneVariations = getPhoneVariations(username);
-                    patOpt = patientRepository.findByPhoneIn(phoneVariations).stream().findFirst();
-                }
-                if (patOpt.isPresent()) {
-                    var patient = patOpt.get();
-                    return User.withUsername(patient.getUsername())
-                            .password(patient.getPasswordHash())
-                            .roles("PATIENT")
-                            .accountLocked("LOCKED".equalsIgnoreCase(patient.getStatus()))
-                            .build();
-                }
-
-                // 2. Tìm bác sĩ theo Username
-                var docOpt = doctorRepository.findByUsernameIgnoreCase(username);
-                if (docOpt.isPresent()) {
-                    var doctor = docOpt.get();
-                    return User.withUsername(doctor.getUsername())
-                            .password(doctor.getPasswordHash())
-                            .roles("DOCTOR")
-                            .accountLocked("LOCKED".equalsIgnoreCase(doctor.getStatus()))
-                            .build();
-                }
-
-                // 3. Tìm nhân sự theo Username
-                var staffOpt = staffRepository.findByUsernameIgnoreCase(username);
-                if (staffOpt.isPresent()) {
-                    var staff = staffOpt.get();
-                    return User.withUsername(staff.getUsername())
-                            .password(staff.getPasswordHash())
-                            .roles(staff.getRole())
-                            .accountLocked("LOCKED".equalsIgnoreCase(staff.getStatus()))
-                            .build();
-                }
-
-                throw new UsernameNotFoundException("Không tìm thấy người dùng: " + username);
-            } catch (UsernameNotFoundException ue) {
-                throw ue;
-            } catch (Exception e) {
-                throw new UsernameNotFoundException("Không thể truy cập cơ sở dữ liệu lúc này.", e);
-            }
-        };
-    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    private static java.util.List<String> getPhoneVariations(String username) {
-        java.util.List<String> variations = new java.util.ArrayList<>();
-        if (username == null)
-            return variations;
-        variations.add(username);
+    /**
+     * Cấu hình chuỗi filter bảo mật cho các API endpoint (/api/**).
+     * Được ưu tiên xử lý trước (Order 1).
+     */
+    @Bean
+    @Order(1)
+    public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .securityMatcher("/api/**") // Chỉ áp dụng cho các request tới /api/
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/auth/**").permitAll() // Cho phép truy cập public vào API đăng nhập/đăng ký
+                .anyRequest().authenticated() // Các API khác yêu cầu xác thực
+            )
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // API là stateless
+            .csrf(AbstractHttpConfigurer::disable) // Vô hiệu hóa CSRF cho API
+            .exceptionHandling(exceptions -> exceptions
+                // Khi xác thực thất bại, trả về lỗi 401 thay vì redirect
+                .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+            );
+        return http.build();
+    }
 
-        if (username.startsWith("0") && username.length() > 1) {
-            variations.add("+84" + username.substring(1));
-        } else if (username.startsWith("+84") && username.length() > 3) {
-            variations.add("0" + username.substring(3));
-        } else if (username.startsWith("84") && username.length() > 2) {
-            variations.add("0" + username.substring(2));
-        }
-        return variations;
+    /**
+     * Cấu hình chuỗi filter bảo mật cho giao diện web (Doctor Portal).
+     * Sẽ được xử lý sau chuỗi API (Order 2).
+     */
+    @Bean
+    @Order(2)
+    public SecurityFilterChain webSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**", "/login").permitAll() // Tài nguyên tĩnh và trang login
+                .anyRequest().authenticated() // Tất cả các trang khác yêu cầu đăng nhập
+            )
+            .formLogin(form -> form.loginPage("/login").defaultSuccessUrl("/doctor/dashboard", true));
+        return http.build();
     }
 }
