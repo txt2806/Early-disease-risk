@@ -19,7 +19,7 @@
           <div>
             <div class="detail-name" th:text="${patient != null ? patient.fullName : ''}">Tên bệnh nhân</div>
             <div class="detail-meta">
-              <span th:text="'Sinh: ' + ${#temporals.format(patient.dob, 'dd/MM/yyyy')}">Sinh:</span>
+              <span th:text="${patient.dob != null} ? 'Sinh: ' + ${#temporals.format(patient.dob, 'dd/MM/yyyy')} : 'Sinh: --'">Sinh:</span>
               <span th:text="${patient.gender}">Nam</span>
               <span th:text="${patient.phone}">SĐT</span>
               <span th:text="${patient.address}">Địa chỉ</span>
@@ -48,8 +48,8 @@
                 <span th:text="${req.requestNotes}">Nội dung yêu cầu</span>
               </div>
               <div style="font-size: 11px; color: #8a96b0; margin-top: 4px;">
-                <span th:text="'BS chỉ định: ' + ${req.doctor.fullName}">Bác sĩ</span> · 
-                <span th:text="${#temporals.format(req.createdAt, 'dd/MM/yyyy HH:mm')}">Thời gian</span>
+                <span th:text="'BS chỉ định: ' + ${req.doctor != null ? req.doctor.fullName : 'Hệ thống'}">Bác sĩ</span> · 
+                <span th:text="${req.createdAt != null ? #temporals.format(req.createdAt, 'dd/MM/yyyy HH:mm') : '--'}">Thời gian</span>
               </div>
               <div th:if="${req.status == 'Completed'}" style="margin-top: 6px; padding: 6px 10px; background: rgba(16,185,129,0.08); border-radius: 4px; font-size: 12px; color: #a7f3d0; border-left: 2px solid #10b981;">
                 <strong>Kết quả xét nghiệm:</strong> <span th:text="${req.resultNotes}">Ghi chú kết quả</span>
@@ -84,26 +84,33 @@
               <div style="margin-top:4px;">
                 <span th:if="${r.aiRiskPrediction != null}" class="risk-badge"
                   th:classappend="'risk-' + ${r.aiRiskPrediction.riskLevel}"
-                  th:text="${r.aiRiskPrediction.riskLevel + ' · ' + #numbers.formatDecimal(r.aiRiskPrediction.riskScore, 1, 1) + '%'}">--</span>
+                  th:text="${r.aiRiskPrediction.riskLevel + ' · ' + (r.aiRiskPrediction.riskScore != null ? #numbers.formatDecimal(r.aiRiskPrediction.riskScore, 1, 1) + '%' : '0%')}">--</span>
                 <span th:if="${r.aiRiskPrediction == null}" style="color:#4a5568;font-size:12px;">Chưa có AI</span>
               </div>
             </div>
 
             <div style="display:flex;gap:8px;align-items:center;">
+              <!-- Hỏi AI button -->
+              <a th:if="${r.aiRiskPrediction != null}"
+                 th:href="@{/staff/chatbot(patientId=${patient.patientId}, recordId=${r.recordId})}"
+                 class="btn"
+                 style="padding: 6px 12px; font-size: 11px; background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 4px; text-decoration: none;">
+                🤖 Hỏi AI
+              </a>
               <!-- Chi tiết button -->
               <button class="btn"
                 style="padding: 6px 12px; font-size: 11px; background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 4px;"
                 th:data-date="${#temporals.format(r.visitDate, 'dd/MM/yyyy HH:mm')}"
                 th:data-notes="${r.consultationNotes}" th:data-treatment-plan="${r.treatmentPlan}"
                 th:data-risk-level="${r.aiRiskPrediction != null ? r.aiRiskPrediction.riskLevel : 'Chưa có'}"
-                th:data-risk-score="${r.aiRiskPrediction != null ? #numbers.formatDecimal(r.aiRiskPrediction.riskScore, 1, 1) + '%' : '--'}"
+                th:data-risk-score="${r.aiRiskPrediction != null and r.aiRiskPrediction.riskScore != null ? #numbers.formatDecimal(r.aiRiskPrediction.riskScore, 1, 1) + '%' : '--'}"
                 th:data-risk-exp="${r.aiRiskPrediction != null ? r.aiRiskPrediction.riskExplanation : '--'}"
                 th:data-bp="${r.clinicalMetrics != null ? r.clinicalMetrics.restingBP : '--'}"
                 th:data-chol="${r.clinicalMetrics != null ? r.clinicalMetrics.cholesterol : '--'}"
-                th:data-fbs="${r.clinicalMetrics != null ? (r.clinicalMetrics.fastingBloodSugar ? 'Có' : 'Không') : '--'}"
+                th:data-fbs="${r.clinicalMetrics != null ? (r.clinicalMetrics.fastingBloodSugar != null and r.clinicalMetrics.fastingBloodSugar ? 'Có' : 'Không') : '--'}"
                 th:data-ecg="${r.clinicalMetrics != null ? r.clinicalMetrics.restingECG : '--'}"
                 th:data-hr="${r.clinicalMetrics != null ? r.clinicalMetrics.maxHeartRate : '--'}"
-                th:data-exang="${r.clinicalMetrics != null ? (r.clinicalMetrics.exerciseAngina ? 'Có' : 'Không') : '--'}"
+                th:data-exang="${r.clinicalMetrics != null ? (r.clinicalMetrics.exerciseAngina != null and r.clinicalMetrics.exerciseAngina ? 'Có' : 'Không') : '--'}"
                 th:data-cp="${r.clinicalMetrics != null ? r.clinicalMetrics.chestPainType : '--'}"
                 th:data-oldpeak="${r.clinicalMetrics != null ? r.clinicalMetrics.oldpeak : '--'}"
                 th:data-slope="${r.clinicalMetrics != null ? r.clinicalMetrics.slope : '--'}"

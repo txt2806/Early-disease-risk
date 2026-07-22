@@ -14,11 +14,13 @@
         extend: {
           colors: {
             medical: {
-              dark: '#0f172a',
-              trust: '#1e40af',
-              accent: '#2563eb',
-              light: '#f8fafc',
-              gray: '#f1f5f9',
+              dark: '#0a0f1e', // Màu nền tối của hệ thống
+              card: '#111827', // Màu nền thẻ card tối
+              border: 'rgba(255,255,255,0.08)',
+              trust: '#2563eb', // Accent blue
+              accent: '#3b82f6',
+              light: '#e8edf5', // Chữ trắng sáng
+              gray: '#8a96b0', // Chữ xám
               coral: '#f43f5e',
               coralhover: '#e11d48'
             }
@@ -40,34 +42,35 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="bg-medical-light text-medical-dark antialiased font-sans min-h-screen flex items-center justify-center relative overflow-hidden p-4">
+<body class="bg-medical-dark text-medical-light antialiased font-sans min-h-screen flex items-center justify-center relative overflow-hidden p-4">
   
-  <!-- Background glow decoration -->
+  <!-- Background glow decoration for premium vibe -->
   <div class="absolute -top-40 -right-40 w-96 h-96 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none"></div>
-  <div class="absolute -bottom-40 -left-40 w-96 h-96 bg-rose-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+  <div class="absolute -bottom-40 -left-40 w-96 h-96 bg-rose-500/5 rounded-full blur-[100px] pointer-events-none"></div>
 
-  <div class="w-full max-w-md bg-white border border-slate-100 rounded-3xl shadow-xl shadow-slate-200/80 p-8 sm:p-10 relative z-10">
+  <!-- Login Card (Dark Theme) -->
+  <div class="w-full max-w-md bg-medical-card border border-medical-border rounded-3xl shadow-2xl p-8 sm:p-10 relative z-10">
     
     <!-- Logo & Header -->
     <div class="flex flex-col items-center text-center mb-8">
       <div class="flex items-center gap-2 cursor-pointer mb-2" onclick="window.location.href='/'">
         <i data-lucide="heart-pulse" class="h-9 w-9 text-medical-coral animate-pulse"></i>
-        <span class="text-medical-dark font-extrabold text-2xl tracking-tight">
+        <span class="text-white font-extrabold text-2xl tracking-tight">
           CARDIO<span class="text-medical-coral">CARE</span>
         </span>
       </div>
-      <p class="text-slate-400 text-sm font-semibold">Cổng đăng nhập hệ thống chuyên môn</p>
+      <p class="text-medical-gray text-sm font-semibold">Cổng đăng nhập hệ thống chuyên môn</p>
     </div>
 
     <!-- Error Messages (Thymeleaf) -->
-    <div class="mb-5 p-4 rounded-xl text-sm font-bold border bg-rose-50 border-rose-200 text-rose-600 animate-pulse" th:if="${param.error != null and #strings.equals(param.error, 'locked')}">
+    <div class="mb-5 p-4 rounded-xl text-sm font-bold border bg-rose-500/10 border-rose-500/20 text-rose-400" th:if="${param.error != null and #strings.equals(param.error, 'locked')}">
       Tài khoản của bạn tạm thời bị khóa, vui lòng liên hệ Admin.
     </div>
-    <div class="mb-5 p-4 rounded-xl text-sm font-bold border bg-rose-50 border-rose-200 text-rose-600" th:if="${param.error != null and #strings.equals(param.error, 'true')}">
+    <div class="mb-5 p-4 rounded-xl text-sm font-bold border bg-rose-500/10 border-rose-500/20 text-rose-400" th:if="${param.error != null and #strings.equals(param.error, 'true')}">
       Sai tên đăng nhập hoặc mật khẩu!
     </div>
-    <div class="mb-5 p-4 rounded-xl text-sm font-bold border bg-rose-50 border-rose-200 text-rose-600" th:if="${error}" th:text="${error}"></div>
-    <div class="mb-5 p-4 rounded-xl text-sm font-bold border bg-green-50 border-green-200 text-green-600" th:if="${param.logout}">
+    <div class="mb-5 p-4 rounded-xl text-sm font-bold border bg-rose-500/10 border-rose-500/20 text-rose-400" th:if="${error}" th:text="${error}"></div>
+    <div class="mb-5 p-4 rounded-xl text-sm font-bold border bg-green-500/10 border-green-500/20 text-green-400" th:if="${param.logout}">
       Đã đăng xuất thành công.
     </div>
 
@@ -76,31 +79,31 @@
       
       <!-- Username -->
       <div class="flex flex-col gap-1.5">
-        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">Tên đăng nhập</label>
+        <label class="text-xs font-bold text-medical-gray uppercase tracking-wider">Tên đăng nhập</label>
         <div class="relative">
-          <i data-lucide="user" class="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400"></i>
+          <i data-lucide="user" class="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-medical-gray"></i>
           <input 
             type="text" 
             name="username" 
             placeholder="doctor01@cardio.com" 
             required 
             autofocus
-            class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 pl-12 pr-4 text-medical-dark placeholder-slate-400 focus:outline-none focus:border-medical-trust focus:ring-1 focus:ring-medical-trust transition-all text-sm font-semibold"
+            class="w-full bg-[#161e2e] border border-medical-border rounded-2xl py-3.5 pl-12 pr-4 text-white placeholder-slate-600 focus:outline-none focus:border-medical-trust focus:ring-1 focus:ring-medical-trust transition-all text-sm font-semibold"
           />
         </div>
       </div>
 
       <!-- Password -->
       <div class="flex flex-col gap-1.5">
-        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">Mật khẩu</label>
+        <label class="text-xs font-bold text-medical-gray uppercase tracking-wider">Mật khẩu</label>
         <div class="relative">
-          <i data-lucide="lock" class="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400"></i>
+          <i data-lucide="lock" class="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-medical-gray"></i>
           <input 
             type="password" 
             name="password" 
             placeholder="••••••••" 
             required
-            class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 pl-12 pr-4 text-medical-dark placeholder-slate-400 focus:outline-none focus:border-medical-trust focus:ring-1 focus:ring-medical-trust transition-all text-sm font-semibold"
+            class="w-full bg-[#161e2e] border border-medical-border rounded-2xl py-3.5 pl-12 pr-4 text-white placeholder-slate-600 focus:outline-none focus:border-medical-trust focus:ring-1 focus:ring-medical-trust transition-all text-sm font-semibold"
           />
         </div>
       </div>
@@ -111,7 +114,7 @@
       <!-- Submit Button -->
       <button 
         type="submit" 
-        class="w-full bg-medical-trust hover:bg-medical-accent text-white py-3.5 rounded-full text-base font-bold shadow-md shadow-medical-trust/10 hover:-translate-y-0.5 transition-all duration-200"
+        class="w-full bg-medical-coral hover:bg-medical-coralhover text-white py-3.5 rounded-full text-base font-bold shadow-md shadow-medical-coral/10 hover:-translate-y-0.5 transition-all duration-200"
       >
         Đăng nhập hệ thống
       </button>
@@ -119,10 +122,10 @@
     </form>
 
     <!-- Divider -->
-    <div class="flex items-center text-center my-6 text-xs text-slate-400 uppercase tracking-widest font-bold">
-      <div class="flex-1 border-t border-slate-100"></div>
+    <div class="flex items-center text-center my-6 text-xs text-medical-gray uppercase tracking-widest font-bold">
+      <div class="flex-1 border-t border-medical-border"></div>
       <span class="px-3">Hoặc</span>
-      <div class="flex-1 border-t border-slate-100"></div>
+      <div class="flex-1 border-t border-medical-border"></div>
     </div>
 
     <!-- Google Authentication Button -->
@@ -143,7 +146,7 @@
     </form>
 
     <!-- Register Redirect Link -->
-    <div class="text-center mt-6 text-sm font-semibold text-slate-500">
+    <div class="text-center mt-6 text-sm font-semibold text-medical-gray">
       Bạn là bệnh nhân mới? 
       <a th:href="@{/register}" class="text-medical-coral hover:text-medical-coralhover font-bold ml-1 transition-colors">
         Đăng ký ngay

@@ -47,12 +47,15 @@ public class StaffController {
 
     // ── DASHBOARD ──────────────────────────────────────
     @GetMapping("/dashboard")
-    public String dashboard(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+    public String dashboard(@AuthenticationPrincipal UserDetails userDetails,
+                            @RequestParam(defaultValue = "0") int page,
+                            Model model) {
         try {
             StaffProfile staff = getCurrentStaff(userDetails);
             model.addAttribute("staff", staff);
 
-            List<PatientProfile> patients = patientService.getAllPatients();
+            Pageable pageable = PageRequest.of(page, 5); // 5 bệnh nhân trên một trang dashboard
+            Page<PatientProfile> patientPage = patientService.getAllPatients(pageable);
             List<AIRiskPrediction> alerts = consultationService.getUnhandledHighAlerts();
             long highAlerts = alerts.stream().filter(a -> a != null && "HIGH".equals(a.getRiskLevel())).count();
 
@@ -79,7 +82,10 @@ public class StaffController {
                 }
             });
 
-            model.addAttribute("patients", patients);
+            model.addAttribute("patients", patientPage.getContent());
+            model.addAttribute("currentPage", page);
+            model.addAttribute("totalPages", patientPage.getTotalPages());
+            model.addAttribute("totalItems", patientPage.getTotalElements());
             model.addAttribute("alerts", alerts);
             model.addAttribute("highAlertCount", highAlerts);
             model.addAttribute("totalAppointments", totalApps);
@@ -251,7 +257,7 @@ public class StaffController {
         record.setConsultationNotes(consultationNotes != null && !consultationNotes.trim().isEmpty() ? consultationNotes : 
                 ("Nhập chỉ số sinh tồn & xét nghiệm bởi " + staff.getFullName()));
         record.setTreatmentPlan(treatmentPlan != null && !treatmentPlan.trim().isEmpty() ? treatmentPlan : "Chờ khám chuyên khoa.");
-        record.setStatus(status != null && !status.trim().isEmpty() ? status : "Completed");
+        record.setStatus(status != null && !status.trim().isEmpty() ? status : "Pending");
         consultationRepository.save(record);
 
         // 2. Thiết lập liên kết và lưu chỉ số (HeartClinicalMetrics)
@@ -265,6 +271,9 @@ public class StaffController {
         vitals.setRecordedByStaffID(staff.getStaffId());
         vitals.setRecordedAt(LocalDateTime.now());
         heartClinicalMetricsRepository.save(vitals);
+
+        // 2.5. Tự động chạy dự đoán AI để phát hiện nguy cơ và sinh cảnh báo
+        consultationService.runAutoAIPrediction(record, vitals);
 
         // 3. Hoàn thành yêu cầu xét nghiệm nếu có
         if (requestId != null) {

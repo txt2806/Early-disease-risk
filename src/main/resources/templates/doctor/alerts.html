@@ -69,12 +69,10 @@
            class="alert-full-item"
            th:classappend="${a.riskLevel}"
            th:attr="data-handled=${a.isAlertSent},
-                    data-patient=${a.record.patient.fullName},
+                    data-patient=${a.record != null and a.record.patient != null ? a.record.patient.fullName : 'Bệnh nhân'},
                     data-risk=${a.riskLevel},
                     data-threshold=${thresholdExceededMap[a.predictionId]}"
-           th:with="daysOld=${T(java.time.temporal.ChronoUnit).DAYS.between(
-                        a.record.visitDate.toLocalDate(),
-                        T(java.time.LocalDate).now())},
+           th:with="daysOld=${a.record != null and a.record.visitDate != null ? T(java.time.temporal.ChronoUnit).DAYS.between(a.record.visitDate.toLocalDate(), T(java.time.LocalDate).now()) : 0},
                     urgency=${urgencyMap[a.predictionId]},
                     thresholdExceeded=${thresholdExceededMap[a.predictionId]},
                     thresholdValue=${thresholdValueMap[a.predictionId]}">
@@ -91,15 +89,15 @@
         <!-- Thông tin bệnh nhân -->
         <div class="alert-full-body" style="flex:1;min-width:0;">
           <div class="alert-full-name">
-            <span th:text="${a.record.patient.fullName}">Bệnh nhân</span>
+            <span th:text="${a.record != null and a.record.patient != null ? a.record.patient.fullName : 'Bệnh nhân'}">Bệnh nhân</span>
             <span style="color:#8a96b0;font-size:12px;font-weight:400;"
-                  th:text="' (#BN' + ${a.record.patient.patientId} + ')'">
+                  th:text="${a.record != null and a.record.patient != null} ? ' (#BN' + ${a.record.patient.patientId} + ')' : ''">
               (#BN001)
             </span>
           </div>
           <div class="alert-full-desc" th:text="${a.riskExplanation}">Mô tả</div>
           <div class="alert-full-meta"
-               th:text="${#temporals.format(a.record.visitDate, 'dd/MM/yyyy HH:mm')}">
+               th:text="${a.record != null and a.record.visitDate != null ? #temporals.format(a.record.visitDate, 'dd/MM/yyyy HH:mm') : '--'}">
             Thời gian
           </div>
 

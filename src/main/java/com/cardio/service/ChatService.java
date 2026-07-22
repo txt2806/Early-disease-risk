@@ -20,44 +20,56 @@ import lombok.extern.slf4j.Slf4j;
 public class ChatService {
 
     private final WebClient webClient;
+    private final String chatUrl;
 
     public ChatService(@Value("${ai.api.chat.url}") String chatUrl) {
-        // chatUrl đã là full URL (vd. http://host:8000/chat/doctor), nên
-        // dùng trực tiếp làm baseUrl và gọi uri("") — khác với AIService
-        // (baseUrl bỏ "/predict" rồi append lại path con cho từng endpoint),
-        // vì ChatService chỉ có đúng 1 endpoint duy nhất, không cần tách.
-        this.webClient = WebClient.builder()
-                .baseUrl(chatUrl)
-                .build();
+        this.chatUrl = chatUrl;
+        this.webClient = WebClient.builder().build();
     }
 
     /**
-     * Gửi tin nhắn sang FastAPI /chat/doctor. Trả về ChatResponse nếu thành
-     * công, hoặc 1 ChatResponse "fallback" mang nội dung lỗi dễ hiểu nếu
-     * thất bại — KHÔNG throw exception ra ngoài, để Controller luôn nhận
-     * được object hợp lệ và hiển thị cho bác sĩ một cách rõ ràng.
+     * Tương thích ngược cho bác sĩ
      */
     public ChatResponse sendMessage(ChatRequest request) {
+        return sendMessage(request, "doctor");
+    }
+
+    /**
+     * Gửi tin nhắn sang FastAPI với endpoint động dựa theo role.
+     */
+    public ChatResponse sendMessage(ChatRequest request, String role) {
+        String targetUrl = chatUrl;
+        
+        if ("staff".equalsIgnoreCase(role)) {
+            // Do máy chủ AI chạy production từ xa (Render) không có sẵn endpoint /chat/staff và ta không thể tự deploy lên Render của phòng khám,
+            // chúng ta sẽ gọi vào endpoint /chat/doctor hiện hữu và chèn thêm chỉ thị vai trò (Prompt Injection) vào tin nhắn để định hình phản hồi của AI.
+            String originalMessage = request.getMessage();
+            String staffPrompt = 
+                "[HỆ THỐNG NHẮC NHỞ CHUYÊN MÔN: Bạn đang trả lời ĐIỀU DƯỠNG / NHÂN VIÊN Y TẾ (Medical Staff) của phòng khám CardioCare, không phải Bác sĩ. "
+                + "Hãy điều chỉnh câu trả lời phù hợp: tập trung giải thích chỉ số sinh tồn (huyết áp, nhịp tim, đường huyết), hướng dẫn nhập liệu, nhắc nhở họ KHÔNG tự ý chẩn đoán hoặc kê đơn vì đó là quyền hạn của Bác sĩ. "
+                + "Trả lời ngắn gọn, thân thiện, tiếng Việt.]\n\n"
+                + "[Câu hỏi của Điều dưỡng]: " + originalMessage;
+            request.setMessage(staffPrompt);
+        }
+
         try {
             return webClient.post()
+                    .uri(targetUrl)
                     .bodyValue(request)
                     .retrieve()
                     .bodyToMono(ChatResponse.class)
                     .block();
         } catch (WebClientResponseException.ServiceUnavailable e) {
-            // 503 từ FastAPI: chatbot chưa cấu hình (thiếu GEMINI_API_KEY phía server AI)
             log.warn("Chatbot chưa được cấu hình ở server AI (503): {}", e.getResponseBodyAsString());
             return buildErrorResponse(
                     "Trợ lý AI chưa được cấu hình trên server (thiếu API key Gemini). "
                     + "Vui lòng liên hệ quản trị hệ thống.");
         } catch (WebClientResponseException.BadGateway e) {
-            // 502 từ FastAPI: lỗi khi gọi Gemini (hết quota, mất mạng tới Google...)
             log.warn("Lỗi khi gọi Gemini qua FastAPI (502): {}", e.getResponseBodyAsString());
             return buildErrorResponse(
                     "Trợ lý AI tạm thời không phản hồi được (có thể do hết quota miễn phí). "
                     + "Vui lòng thử lại sau ít phút.");
         } catch (WebClientRequestException e) {
-            // Lỗi kết nối THẬT: không gọi được tới FastAPI (server tắt, sai host/port, timeout...)
             log.error("Không kết nối được tới AI service (chat): {}", e.getMessage());
             return buildErrorResponse(
                     "Không kết nối được tới server AI. Vui lòng kiểm tra FastAPI đã chạy chưa.");

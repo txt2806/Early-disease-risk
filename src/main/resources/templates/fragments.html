@@ -119,6 +119,11 @@
        th:classappend="${page == 'lab-requests'} ? ' active'" class="nav-item">
       <i class="ti ti-file-analytics"></i> Yêu cầu xét nghiệm
     </a>
+
+    <a th:href="@{/staff/chatbot}"
+       th:classappend="${page == 'chatbot'} ? ' active'" class="nav-item">
+      <i class="ti ti-robot"></i> Chatbot AI
+    </a>
   </nav>
 
   <div class="sidebar-footer">
