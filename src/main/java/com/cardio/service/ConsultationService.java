@@ -520,29 +520,100 @@ public class ConsultationService {
      * không hề có tác dụng gì dù được gọi hay không. PatientAlertThreshold
      * (UC04) chưa từng thực sự ảnh hưởng tới alerts.html trước khi sửa.
      */
-    public boolean exceedsPersonalThreshold(AIRiskPrediction prediction) {
+    /**
+     * [FIX] Kiểm tra ĐẦY ĐỦ ngưỡng cảnh báo cá nhân hoá — trước đây chỉ kiểm
+     * tra riskScoreThreshold, dù maxBpm/maxSystolicBp ĐÃ được lưu và hiển thị
+     * trên giao diện thresholds.html từ lâu (bác sĩ đặt ngưỡng nhịp tim/huyết
+     * áp nhưng hệ thống KHÔNG BAO GIỜ dùng đến để đánh giá — lỗ hổng có sẵn,
+     * không phải do phần mở rộng lần này).
+     *
+     * Giờ kiểm tra đủ 6 tiêu chí: nguy cơ AI, nhịp tim (min/max), huyết áp
+     * tâm thu (min/max), cholesterol (max) — trả về CẢ lý do cụ thể, không
+     * chỉ true/false, để bác sĩ biết ngay đang vượt ngưỡng nào.
+     *
+     * Logic OR: CHỈ CẦN 1 tiêu chí vượt là coi như "vượt ngưỡng" — đúng tinh
+     * thần hệ thống cảnh báo an toàn (an toàn hơn khi báo động nhạy, tránh
+     * bỏ sót ca bất thường dù chỉ 1 chỉ số có vấn đề).
+     */
+    public ThresholdCheckResult checkPersonalThreshold(AIRiskPrediction prediction) {
+        ThresholdCheckResult result = ThresholdCheckResult.notExceeded();
+
         if (prediction.getRecord() == null) {
-            return false;
+            return result;
         }
         PatientProfile patient = prediction.getRecord().getPatient();
         DoctorProfile doctor = prediction.getRecord().getDoctor();
         if (patient == null || doctor == null) {
-            return false;
+            return result;
         }
 
         PatientAlertThreshold threshold = thresholdRepository
                 .findByPatientAndDoctor(patient, doctor)
                 .orElse(null);
         // Bác sĩ chưa cấu hình ngưỡng riêng cho bệnh nhân này → không có gì
-        // để so sánh, không đánh dấu nổi bật (khác với ngưỡng mặc định 40%
-        // hard-code, vì đó là quyết định CÓ CHỦ Ý của bác sĩ, không phải
-        // suy đoán thay họ).
-        if (threshold == null || prediction.getRiskScore() == null) {
-            return false;
+        // để so sánh, không đánh dấu nổi bật (không suy đoán thay bác sĩ).
+        if (threshold == null) {
+            return result;
         }
 
-        double riskScore = prediction.getRiskScore().doubleValue();
-        return riskScore >= threshold.getRiskScoreThreshold();
+        // ── 1. Nguy cơ AI ─────────────────────────────────
+        if (prediction.getRiskScore() != null && threshold.getRiskScoreThreshold() != null) {
+            double riskScore = prediction.getRiskScore().doubleValue();
+            if (riskScore >= threshold.getRiskScoreThreshold()) {
+                result.addViolation(String.format(
+                        "Nguy cơ AI %.1f%% ≥ ngưỡng %.0f%%", riskScore, threshold.getRiskScoreThreshold()));
+            }
+        }
+
+        // ── 2-6. Chỉ số lâm sàng (nhịp tim, huyết áp, cholesterol) ─────
+        // Lấy từ HeartClinicalMetrics của ĐÚNG lần khám tạo ra prediction này
+        // — không lấy chỉ số cũ/của lần khám khác, đảm bảo đánh giá đúng
+        // thời điểm.
+        HeartClinicalMetrics metrics = prediction.getRecord().getClinicalMetrics();
+        if (metrics != null) {
+            Integer heartRate = metrics.getMaxHeartRate();
+            if (heartRate != null) {
+                if (threshold.getMaxBpm() != null && heartRate > threshold.getMaxBpm()) {
+                    result.addViolation(String.format(
+                            "Nhịp tim %d bpm > ngưỡng tối đa %d bpm", heartRate, threshold.getMaxBpm()));
+                }
+                if (threshold.getMinBpm() != null && heartRate < threshold.getMinBpm()) {
+                    result.addViolation(String.format(
+                            "Nhịp tim %d bpm < ngưỡng tối thiểu %d bpm", heartRate, threshold.getMinBpm()));
+                }
+            }
+
+            Integer systolicBp = metrics.getRestingBP();
+            if (systolicBp != null) {
+                if (threshold.getMaxSystolicBp() != null && systolicBp > threshold.getMaxSystolicBp()) {
+                    result.addViolation(String.format(
+                            "Huyết áp %d mmHg > ngưỡng tối đa %d mmHg", systolicBp, threshold.getMaxSystolicBp()));
+                }
+                if (threshold.getMinSystolicBp() != null && systolicBp < threshold.getMinSystolicBp()) {
+                    result.addViolation(String.format(
+                            "Huyết áp %d mmHg < ngưỡng tối thiểu %d mmHg", systolicBp, threshold.getMinSystolicBp()));
+                }
+            }
+
+            Integer cholesterol = metrics.getCholesterol();
+            if (cholesterol != null && threshold.getMaxCholesterol() != null
+                    && cholesterol > threshold.getMaxCholesterol()) {
+                result.addViolation(String.format(
+                        "Cholesterol %d mg/dL > ngưỡng tối đa %d mg/dL", cholesterol, threshold.getMaxCholesterol()));
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * [Tương thích ngược] Giữ chữ ký boolean cũ cho bất kỳ nơi nào khác còn
+     * gọi trực tiếp — nay chỉ là lớp bọc mỏng gọi checkPersonalThreshold().
+     * Nơi nào cần lý do cụ thể (alerts.html) nên dùng checkPersonalThreshold()
+     * trực tiếp thay vì hàm này.
+     */
+    public boolean exceedsPersonalThreshold(AIRiskPrediction prediction) {
+        return checkPersonalThreshold(prediction).isExceeded();
     }
 
     @Transactional

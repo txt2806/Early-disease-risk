@@ -9,5 +9,4 @@ import java.util.List;
 public interface ConsultationRepository extends JpaRepository<ConsultationRecord, Integer> {
     List<ConsultationRecord> findByDoctorOrderByVisitDateDesc(DoctorProfile doctor);
     List<ConsultationRecord> findByPatientOrderByVisitDateDesc(PatientProfile patient);
-    List<ConsultationRecord> findByPatientPatientIdAndStatusOrderByVisitDateDesc(Integer patientId, String status);
 }

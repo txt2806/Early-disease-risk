@@ -409,12 +409,6 @@ input:focus, select:focus { border-color: #3b82f6; }
     </div>
     <div class="header-actions">
       <a th:href="@{/admin/reports}" class="btn-reports">📊 Báo cáo hệ thống</a>
-      
-      <form th:action="@{/admin/sync-firebase}" method="post" id="syncFirebaseForm" style="display:inline;" onsubmit="return confirm('Tiến trình này sẽ kiểm tra và dọn dẹp các tài khoản bệnh nhân không còn trên Firebase. Bạn có chắc chắn muốn tiếp tục?');">
-        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-        <button type="submit" class="btn-reports" style="background: linear-gradient(135deg, #10b981, #059669);">🔄 Đồng bộ Firebase</button>
-      </form>
-
       <form th:action="@{/logout}" method="post" id="logoutForm" style="display:inline;">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
         <button type="submit" class="logout-btn">Đăng xuất Admin</button>
@@ -422,7 +416,7 @@ input:focus, select:focus { border-color: #3b82f6; }
     </div>
   </div>
 
-  <!-- Messages from query parameters -->
+  <!-- Messages -->
   <div th:if="${param.success}" class="alert alert-success">
     <span th:switch="${param.success[0]}">
       <span th:case="'ok_locked'">🔒 Khóa tài khoản nhân sự thành công!</span>
@@ -445,10 +439,6 @@ input:focus, select:focus { border-color: #3b82f6; }
       <span th:case="*">❌ Có lỗi xảy ra, vui lòng thử lại!</span>
     </span>
   </div>
-
-  <!-- Messages from Flash Attributes (e.g., sync Firebase) -->
-  <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
-  <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
 
   <!-- Stats Grid -->
   <div class="stats-grid">
@@ -533,11 +523,6 @@ input:focus, select:focus { border-color: #3b82f6; }
                         th:data-bpm="${user.alertThresholdBpm}"
                         th:data-bp="${user.alertThresholdBp}"
                         onclick="openEditModal(this)">Sửa</button>
-                  <button class="tbl-btn" style="background:#eab308; color:#fff;"
-                         th:data-id="${user.doctorId}"
-                         th:data-username="${user.username}"
-                         th:data-role="${user.role}"
-                         onclick="openUserResetModal(this)">Đổi mật khẩu</button>
                 
                 <!-- Toggle status form (Lock/Unlock) -->
                 <form th:action="@{'/admin/user/toggle-status/' + ${user.doctorId}(role=${user.role})}" method="post" style="display:inline;">
@@ -728,7 +713,6 @@ input:focus, select:focus { border-color: #3b82f6; }
     <form th:action="@{/admin/user/edit}" method="post">
       <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
       <input type="hidden" name="doctorId" id="editDoctorId">
-      <input type="hidden" name="role" id="editUserRole">
       
       <div class="form-group">
         <label>Tên Đăng Nhập (Không thay đổi)</label>
@@ -789,33 +773,6 @@ input:focus, select:focus { border-color: #3b82f6; }
 
       <div class="modal-footer">
         <button type="button" class="btn-cancel" onclick="closePatientResetModal()">Hủy</button>
-        <button type="submit" class="action-btn">Đặt lại mật khẩu</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- Modal Reset Mật khẩu Nhân sự -->
-<div id="userResetModal" class="modal">
-  <div class="modal-content">
-    <button class="close-modal" onclick="closeUserResetModal()">×</button>
-    <div class="modal-title">Đặt lại mật khẩu Nhân sự</div>
-    <form th:action="@{/admin/user/reset-password}" method="post">
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-      <input type="hidden" name="userId" id="resetUserId">
-      <input type="hidden" name="role" id="resetUserRole">
-      
-      <div class="form-group">
-        <label>Tài khoản Nhân sự</label>
-        <input type="text" id="resetUserUsername" disabled style="opacity:0.6; cursor:not-allowed;">
-      </div>
-      <div class="form-group">
-        <label>Mật Khẩu Mới *</label>
-        <input type="password" name="newPassword" placeholder="••••••••" required>
-      </div>
-
-      <div class="modal-footer">
-        <button type="button" class="btn-cancel" onclick="closeUserResetModal()">Hủy</button>
         <button type="submit" class="action-btn">Đặt lại mật khẩu</button>
       </div>
     </form>
@@ -1035,21 +992,6 @@ function closePatientResetModal() {
   document.getElementById("patientResetModal").style.display = "none";
 }
 
-// User Reset Modals
-function openUserResetModal(btn) {
-  const id = btn.getAttribute("data-id");
-  const username = btn.getAttribute("data-username");
-  const role = btn.getAttribute("data-role");
-  
-  document.getElementById("resetUserId").value = id;
-  document.getElementById("resetUserRole").value = role;
-  document.getElementById("resetUserUsername").value = username;
-  document.getElementById("userResetModal").style.display = "flex";
-}
-function closeUserResetModal() {
-  document.getElementById("userResetModal").style.display = "none";
-}
-
 // Modals
 function openCreateModal() {
   document.getElementById("createModal").style.display = "flex";
@@ -1069,7 +1011,6 @@ function openEditModal(btn) {
   const room = btn.getAttribute("data-room");
   
   document.getElementById("editDoctorId").value = id;
-  document.getElementById("editUserRole").value = role;
   document.getElementById("editUsername").value = username;
   document.getElementById("editFullName").value = fullname;
   document.getElementById("editRoleDisplay").value = role === 'DOCTOR' ? 'Bác sĩ' : (role === 'STAFF' ? 'Nhân viên y tế' : 'Lễ tân');
@@ -1104,11 +1045,9 @@ window.onclick = function(event) {
   const cM = document.getElementById("createModal");
   const eM = document.getElementById("editModal");
   const pM = document.getElementById("patientResetModal");
-  const uM = document.getElementById("userResetModal");
   if (event.target === cM) cM.style.display = "none";
   if (event.target === eM) eM.style.display = "none";
   if (event.target === pM) pM.style.display = "none";
-  if (event.target === uM) uM.style.display = "none";
 }
 
 // Tự động giữ nguyên và chuyển sang tab Bệnh nhân hoặc Cấu hình dựa trên tham số URL thành công

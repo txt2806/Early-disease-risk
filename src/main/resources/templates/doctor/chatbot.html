@@ -9,10 +9,21 @@
 <input type="hidden" id="csrfToken" th:value="${_csrf.token}">
 <input type="hidden" id="csrfHeaderName" th:value="${_csrf.headerName}">
 
+<!-- [FIX] Username của bác sĩ đang đăng nhập — dùng làm 1 phần khoá lưu
+     lịch sử hội thoại ở sessionStorage, tránh 2 tài khoản khác nhau dùng
+     chung máy/tab nhìn thấy lịch sử chat của nhau. -->
+<input type="hidden" id="currentUsername" th:value="${username}">
+
 <!-- [D.22] Context gắn kèm khi bác sĩ bấm "Hỏi AI" từ trang chi tiết bệnh
      nhân — chuỗi JSON đã serialize sẵn ở ChatController, rỗng nếu vào
      thẳng /doctor/chatbot không qua nút đó. -->
 <input type="hidden" id="predictContextJson" th:value="${contextPredictContextJson != null ? contextPredictContextJson : ''}">
+<input type="hidden" id="contextPatientId" th:value="${contextPatient != null ? contextPatient.patientId : ''}">
+<input type="hidden" id="contextRecordId" th:value="${param.recordId != null ? param.recordId : ''}">
+
+<!-- [FIX] Số liệu tổng quan phòng khám (số bệnh nhân, cảnh báo, lịch hẹn
+     hôm nay) — để chatbot trả lời được câu hỏi tổng quan bằng dữ liệu thật. -->
+<input type="hidden" id="doctorContextJson" th:value="${doctorContextJson != null ? doctorContextJson : ''}">
 
 <div th:replace="~{fragments :: sidebar('chatbot')}"></div>
 <main class="main">
@@ -49,14 +60,20 @@
     <div class="chat-wrapper">
       <div class="chat-header">
         <div class="chat-header-icon"><i class="ti ti-robot"></i></div>
-        <div>
+        <div style="flex:1;">
           <div class="chat-header-title">Trợ lý AI CardioCare</div>
           <div class="chat-header-sub">Hỏi đáp chuyên môn về dự đoán AI, chỉ số lâm sàng, hướng dẫn sử dụng hệ thống</div>
         </div>
+        <!-- [FIX] Nút bắt đầu lại — cần thiết vì giờ lịch sử được LƯU LẠI
+             giữa các lần điều hướng, bác sĩ cần cách chủ động xoá đi khi
+             muốn hỏi 1 chủ đề mới không liên quan gì tới hội thoại cũ. -->
+        <button type="button" id="resetChatBtn" class="btn btn-ghost" style="font-size:12px;padding:6px 12px;">
+          <i class="ti ti-refresh"></i> Cuộc trò chuyện mới
+        </button>
       </div>
 
       <div id="chatMessages" class="chat-messages">
-        <div class="chat-msg chat-msg-model">
+        <div class="chat-msg chat-msg-model" id="greetingMsg">
           <div class="chat-bubble" th:if="${contextPatient == null}">
             Chào bác sĩ! Tôi có thể giúp giải thích kết quả dự đoán AI, ý nghĩa các chỉ số lâm sàng, hoặc trao đổi về giới hạn của mô hình. Bác sĩ cần hỗ trợ gì?
           </div>
@@ -148,10 +165,12 @@
 </style>
 
 <script th:inline="javascript">
-  // [D.21] Lịch sử hội thoại lưu phía CLIENT (mảng JS), gửi kèm mỗi request
-  // sang Spring Boot -> FastAPI, vì server AI không tự lưu session giữa các
-  // request (đúng như thiết kế /chat/doctor ở api_v2.py).
-  const chatHistory = [];
+  // [FIX] Lịch sử hội thoại giờ được LƯU vào sessionStorage — sống sót qua
+  // việc điều hướng sang trang khác rồi quay lại (KHÁC với trước đây: mảng
+  // JS thuần, mất sạch mỗi lần load trang). sessionStorage tự xoá khi đóng
+  // tab/trình duyệt — cân bằng hợp lý giữa tiện dụng và không lưu trữ vĩnh
+  // viễn dữ liệu hội thoại có thể chứa thông tin nhạy cảm.
+  let chatHistory = [];
 
   const chatMessages = document.getElementById('chatMessages');
   const chatForm = document.getElementById('chatForm');
@@ -159,17 +178,18 @@
   const chatSendBtn = document.getElementById('chatSendBtn');
   const chatTypingIndicator = document.getElementById('chatTypingIndicator');
   const chatDisclaimer = document.getElementById('chatDisclaimer');
+  const resetChatBtn = document.getElementById('resetChatBtn');
+  const greetingMsg = document.getElementById('greetingMsg');
 
   // [D.21][FIX] Đọc CSRF token đã render sẵn từ Thymeleaf (xem 2 input ẩn
   // ở đầu <body>) — bắt buộc phải gửi kèm, nếu không Spring Security sẽ
   // trả 403 Forbidden cho mọi request POST gọi bằng fetch().
   const csrfToken = document.getElementById('csrfToken').value;
   const csrfHeaderName = document.getElementById('csrfHeaderName').value;
+  const currentUsername = document.getElementById('currentUsername').value;
 
   // [D.22] Context dự đoán AI (nếu bác sĩ vào từ nút "Hỏi AI" ở hồ sơ bệnh
-  // nhân) — chuỗi JSON đã serialize sẵn ở ChatController, parse 1 lần để
-  // gửi kèm mọi tin nhắn trong phiên chat này, không chỉ tin đầu tiên (để
-  // bác sĩ hỏi tiếp nhiều câu về cùng 1 bệnh nhân mà không mất context).
+  // nhân) — chuỗi JSON đã serialize sẵn ở ChatController.
   const predictContextRaw = document.getElementById('predictContextJson').value;
   let predictContext = null;
   if (predictContextRaw && predictContextRaw.trim() !== '') {
@@ -178,6 +198,55 @@
     } catch (e) {
       console.warn('Không parse được predict_context:', e);
     }
+  }
+
+  // [FIX] Số liệu tổng quan phòng khám — gửi kèm MỌI tin nhắn trong phiên
+  // chat này, để chatbot trả lời được câu hỏi tổng quan bằng dữ liệu thật
+  // thay vì phải từ chối "tôi không có quyền truy cập dữ liệu".
+  const doctorContextRaw = document.getElementById('doctorContextJson').value;
+  let doctorContext = null;
+  if (doctorContextRaw && doctorContextRaw.trim() !== '') {
+    try {
+      doctorContext = JSON.parse(doctorContextRaw);
+    } catch (e) {
+      console.warn('Không parse được doctor_context:', e);
+    }
+  }
+
+  // ── [FIX] Quản lý lưu trữ lịch sử hội thoại qua sessionStorage ──────
+  // Khoá lưu trữ gồm: username (tránh lẫn giữa các tài khoản dùng chung
+  // tab/máy) + patientId/recordId nếu có (tránh lẫn hội thoại về bệnh nhân
+  // A với hội thoại chung/bệnh nhân B — mỗi ngữ cảnh có lịch sử riêng).
+  const contextPatientId = document.getElementById('contextPatientId').value || 'general';
+  const contextRecordId = document.getElementById('contextRecordId').value || '-';
+  const STORAGE_KEY = 'cardiocare_chat_history:' + currentUsername + ':' + contextPatientId + ':' + contextRecordId;
+
+  function saveHistoryToStorage() {
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(chatHistory));
+    } catch (e) {
+      // sessionStorage có thể đầy hoặc bị chặn (chế độ ẩn danh nghiêm ngặt) —
+      // không để lỗi này làm gãy luồng chat, chỉ mất tính năng lưu lại.
+      console.warn('Không lưu được lịch sử chat:', e);
+    }
+  }
+
+  function loadHistoryFromStorage() {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.warn('Không đọc được lịch sử chat đã lưu:', e);
+      return [];
+    }
+  }
+
+  function clearHistoryStorage() {
+    try {
+      sessionStorage.removeItem(STORAGE_KEY);
+    } catch (e) { /* bỏ qua */ }
   }
 
   function appendMessage(role, text) {
@@ -192,8 +261,6 @@
   }
 
   // [D.23] Gợi ý câu hỏi AI — khác nhau tùy có context bệnh nhân hay không.
-  // Khi có context (vào từ nút "Hỏi AI" ở hồ sơ), gợi ý xoay quanh CHÍNH
-  // bệnh nhân đó. Khi không có, gợi ý mang tính tổng quát về hệ thống/model.
   const quickQuestionsEl = document.getElementById('quickQuestions');
   const quickQuestionsList = predictContext
     ? [
@@ -203,10 +270,10 @@
         'Tôi nên tư vấn gì cho bệnh nhân dựa trên kết quả này?'
       ]
     : [
+        'Tôi đang phụ trách bao nhiêu bệnh nhân?',
+        'Có bao nhiêu cảnh báo cần xử lý?',
         'Độ chính xác của model hiện tại là bao nhiêu?',
-        'SHAP là gì và dùng để làm gì?',
-        'Model có giới hạn gì cần lưu ý?',
-        'Hướng dẫn cách dùng tính năng Dự đoán AI'
+        'Model có giới hạn gì cần lưu ý?'
       ];
 
   function renderQuickQuestions() {
@@ -222,13 +289,28 @@
       quickQuestionsEl.appendChild(btn);
     });
   }
-  renderQuickQuestions();
+
+  // [FIX] Khôi phục lịch sử đã lưu (nếu có) khi vào lại trang — render lại
+  // toàn bộ bong bóng chat theo đúng thứ tự, KHÔNG gọi lại API, chỉ hiển
+  // thị lại từ dữ liệu đã lưu.
+  function restoreConversation() {
+    const saved = loadHistoryFromStorage();
+    if (saved.length === 0) {
+      renderQuickQuestions();
+      return;
+    }
+    chatHistory = saved;
+    quickQuestionsEl.style.display = 'none';
+    saved.forEach(function (turn) {
+      appendMessage(turn.role === 'model' ? 'model' : 'user', turn.text);
+    });
+  }
+  restoreConversation();
 
   async function sendMessage(message) {
     if (!message) return;
 
-    // [D.23] Ẩn gợi ý sau khi đã gửi tin đầu tiên — giữ khung chat gọn,
-    // giống cách My Viettel thu nhỏ menu sau khi người dùng tương tác.
+    // [D.23] Ẩn gợi ý sau khi đã gửi tin đầu tiên — giữ khung chat gọn.
     quickQuestionsEl.style.display = 'none';
 
     appendMessage('user', message);
@@ -248,7 +330,8 @@
         body: JSON.stringify({
           message: message,
           history: chatHistory,
-          predict_context: predictContext
+          predict_context: predictContext,
+          doctor_context: doctorContext
         })
       });
 
@@ -261,6 +344,7 @@
       // Lưu lại lịch sử để gửi kèm lần sau (đúng schema ChatTurn: role/text)
       chatHistory.push({ role: 'user', text: message });
       chatHistory.push({ role: 'model', text: data.reply });
+      saveHistoryToStorage(); // [FIX] Lưu ngay sau mỗi lượt trao đổi thành công
 
       appendMessage('model', data.reply);
       if (data.disclaimer) {
@@ -281,6 +365,25 @@
     e.preventDefault();
     const message = chatInput.value.trim();
     sendMessage(message);
+  });
+
+  // [FIX] Nút "Cuộc trò chuyện mới" — cần thiết vì giờ lịch sử được lưu
+  // lại, bác sĩ cần cách chủ động bắt đầu lại khi muốn chuyển chủ đề.
+  resetChatBtn.addEventListener('click', function () {
+    if (chatHistory.length === 0) return; // chưa chat gì thì không cần hỏi
+    if (!confirm('Bắt đầu cuộc trò chuyện mới? Lịch sử hiện tại sẽ bị xoá.')) return;
+
+    chatHistory = [];
+    clearHistoryStorage();
+    // Xoá hết bong bóng chat trừ lời chào ban đầu
+    Array.from(chatMessages.children).forEach(function (child) {
+      if (child.id !== 'greetingMsg' && child.id !== 'quickQuestions') {
+        child.remove();
+      }
+    });
+    quickQuestionsEl.style.display = 'flex';
+    renderQuickQuestions();
+    chatDisclaimer.textContent = '';
   });
 </script>
 </body>

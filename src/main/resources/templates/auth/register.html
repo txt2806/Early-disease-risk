@@ -640,13 +640,7 @@
           showStatus("Xác thực SĐT thành công và Hồ sơ đã được lưu vào Cơ sở dữ liệu!", "success");
           startCountdownRedirect();
         } else {
-          const htmlText = await response.text();
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(htmlText, "text/html");
-          const errorDiv = doc.querySelector(".error");
-          const errorMsg = errorDiv ? errorDiv.innerText : "Đăng ký thất bại. Số điện thoại hoặc Email có thể đã được sử dụng.";
-          
-          showStatus(errorMsg, "error");
+          showStatus("Đăng ký thất bại. Số điện thoại hoặc Email đã được sử dụng.", "error");
           confirmOtpBtn.disabled = false;
           confirmOtpBtn.innerText = "Xác nhận";
         }
@@ -676,7 +670,7 @@
           return;
         }
 
-        const idToken = await auth.currentUser.getIdToken(true);
+        const idToken = await auth.currentUser.getIdToken();
         document.getElementById("firebaseToken").value = idToken;
 
         const formData = new FormData(form);
@@ -689,14 +683,7 @@
           showStatus("Xác thực Email thành công và Hồ sơ đã được lưu vào Cơ sở dữ liệu!", "success");
           startCountdownRedirect();
         } else {
-          // Parse HTML response to extract the specific error message from the server
-          const htmlText = await response.text();
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(htmlText, "text/html");
-          const errorDiv = doc.querySelector(".error");
-          const errorMsg = errorDiv ? errorDiv.innerText : "Đăng ký thất bại. Email hoặc Số điện thoại có thể đã được sử dụng.";
-          
-          showStatus(errorMsg, "error");
+          showStatus("Đăng ký thất bại. Email hoặc Số điện thoại đã được sử dụng.", "error");
           confirmEmailVerificationBtn.disabled = false;
           confirmEmailVerificationBtn.innerText = "Tôi đã bấm kích hoạt link - Xác nhận đăng ký";
         }
@@ -724,18 +711,6 @@
         tokenInput.name = "firebaseToken";
         tokenInput.value = idToken;
         form.appendChild(tokenInput);
-
-        const emailInput = document.createElement("input");
-        emailInput.type = "hidden";
-        emailInput.name = "email";
-        emailInput.value = result.user.email || "";
-        form.appendChild(emailInput);
-
-        const nameInput = document.createElement("input");
-        nameInput.type = "hidden";
-        nameInput.name = "fullName";
-        nameInput.value = result.user.displayName || "";
-        form.appendChild(nameInput);
 
         const csrfInput = document.createElement("input");
         csrfInput.type = "hidden";

@@ -71,13 +71,12 @@
            th:attr="data-handled=${a.isAlertSent},
                     data-patient=${a.record.patient.fullName},
                     data-risk=${a.riskLevel},
-                    data-threshold=${thresholdExceededMap[a.predictionId]}"
+                    data-threshold=${thresholdViolationsMap[a.predictionId] != null and !#lists.isEmpty(thresholdViolationsMap[a.predictionId])}"
            th:with="daysOld=${T(java.time.temporal.ChronoUnit).DAYS.between(
                         a.record.visitDate.toLocalDate(),
                         T(java.time.LocalDate).now())},
                     urgency=${urgencyMap[a.predictionId]},
-                    thresholdExceeded=${thresholdExceededMap[a.predictionId]},
-                    thresholdValue=${thresholdValueMap[a.predictionId]}">
+                    violations=${thresholdViolationsMap[a.predictionId]}">
 
         <!-- Icon mức độ -->
         <div class="alert-severity"
@@ -126,16 +125,16 @@
             HIGH
           </div>
 
-          <!-- [FIX] Badge vượt ngưỡng: hiển thị số ngưỡng cụ thể thay vì chỉ "đã đặt" -->
-          <div th:if="${thresholdExceeded != null and thresholdExceeded}"
+          <!-- [FIX] Hiển thị TỪNG lý do vượt ngưỡng cụ thể (nhịp tim/huyết
+               áp/cholesterol/nguy cơ AI) — trước đây chỉ báo "⚡ Vượt ngưỡng
+               riêng (40%)" chung chung, giờ bác sĩ thấy ngay vấn đề gì. -->
+          <div th:if="${violations != null and !#lists.isEmpty(violations)}"
                style="font-size:11px;margin-top:4px;color:#a78bfa;font-weight:600;
                background:rgba(167,139,250,0.12);border:1px solid rgba(167,139,250,0.35);
-               border-radius:6px;padding:2px 8px;display:inline-block;">
-            <span th:if="${thresholdValue != null}">
-              ⚡ Vượt ngưỡng riêng
-              (<span th:text="${#numbers.formatDecimal(thresholdValue,1,1)}">40</span>%)
-            </span>
-            <span th:if="${thresholdValue == null}">⚡ Vượt ngưỡng riêng</span>
+               border-radius:6px;padding:4px 8px;text-align:left;">
+            <div style="margin-bottom:2px;">⚡ Vượt ngưỡng riêng:</div>
+            <div th:each="v : ${violations}" th:text="'• ' + ${v}"
+                 style="font-weight:400;font-size:10.5px;line-height:1.5;color:#c4b5fd;"></div>
           </div>
 
           <!-- [FIX] Logic leo thang đúng nghiệp vụ:

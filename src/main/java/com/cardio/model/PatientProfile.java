@@ -42,12 +42,4 @@ public class PatientProfile {
     private Integer isAlert = 0;
     @Column(name = "created_at")
     private java.time.LocalDateTime createdAt = java.time.LocalDateTime.now();
-
-    // Cờ kiểm tra bệnh nhân có cần đổi mật khẩu trong lần đăng nhập đầu tiên không.
-    // Mặc định là true cho tài khoản mới.
-    @Column(name = "is_first_login")
-    private Boolean isFirstLogin = true;
-
-    @Column(name = "fcm_token")
-    private String fcmToken;
 }

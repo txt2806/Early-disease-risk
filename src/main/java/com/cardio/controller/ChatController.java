@@ -3,10 +3,12 @@ package com.cardio.controller;
 import com.cardio.dto.ChatRequest;
 import com.cardio.dto.ChatResponse;
 import com.cardio.model.AIRiskPrediction;
+import com.cardio.model.Appointment;
 import com.cardio.model.ConsultationRecord;
 import com.cardio.model.DoctorProfile;
 import com.cardio.model.PatientProfile;
 import com.cardio.model.StaffProfile;
+import com.cardio.repository.AppointmentRepository;
 import com.cardio.repository.DoctorRepository;
 import com.cardio.repository.StaffRepository;
 import com.cardio.service.ChatService;
@@ -26,7 +28,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 // ── CONTROLLER — Chatbot AI cho Bác sĩ ────────────────
@@ -40,6 +44,13 @@ import java.util.Map;
 // lần khám đó, serialize ra JSON string (theo đúng pattern
 // topFactorsJsonForForm đã có trong DoctorController), và đưa vào Model để
 // chatbot.html gửi kèm predict_context, KHÔNG còn phải gõ tay chỉ số như trước.
+//
+// [FIX] Thêm buildDoctorContext(): số liệu tổng quan phòng khám (số bệnh
+// nhân phụ trách, số cảnh báo theo mức độ, lịch hẹn hôm nay) — để chatbot
+// trả lời được các câu hỏi dạng "tôi đang phụ trách bao nhiêu bệnh nhân"
+// bằng dữ liệu THẬT thay vì phải từ chối trả lời (trước đây luôn nói
+// "không có quyền truy cập" dù dữ liệu có sẵn trong hệ thống, chỉ là
+// chưa được gửi kèm cho chatbot).
 @Controller
 @RequestMapping("/doctor/chatbot")
 @RequiredArgsConstructor
@@ -51,6 +62,7 @@ public class ChatController {
     private final StaffRepository staffRepository;
     private final ConsultationService consultationService;
     private final PatientService patientService;
+    private final AppointmentRepository appointmentRepository;
     private final ObjectMapper objectMapper;
 
     // Helper lấy doctor/staff đang đăng nhập — giữ đúng pattern getCurrentDoctor()
@@ -83,6 +95,21 @@ public class ChatController {
         DoctorProfile doctor = getCurrentDoctor(userDetails);
         model.addAttribute("doctor", doctor);
 
+        // [FIX] Username thật (không phải fullName) để dùng làm key lưu
+        // lịch sử hội thoại phía trình duyệt (sessionStorage) — tránh 2 tài
+        // khoản khác nhau dùng chung máy/tab nhìn thấy lịch sử của nhau.
+        model.addAttribute("username", userDetails.getUsername());
+
+        // [FIX] Số liệu tổng quan phòng khám — tính 1 lần khi vào trang,
+        // gửi kèm MỌI tin nhắn trong phiên chat này (giống cách predict_context
+        // hoạt động), để chatbot trả lời được câu hỏi tổng quan bằng số thật.
+        try {
+            Map<String, Object> doctorContext = buildDoctorContext(doctor);
+            model.addAttribute("doctorContextJson", objectMapper.writeValueAsString(doctorContext));
+        } catch (Exception e) {
+            log.warn("Không serialize được doctor_context cho chatbot: {}", e.getMessage());
+        }
+
         // [D.22] Nếu có patientId+recordId (bác sĩ bấm "Hỏi AI" từ hồ sơ bệnh
         // nhân), tra dữ liệu thật để gắn context — KHÔNG tin tưởng mù quáng
         // tham số URL: vẫn kiểm tra quyền truy cập giống DoctorController,
@@ -112,6 +139,68 @@ public class ChatController {
         }
 
         return "doctor/chatbot";
+    }
+
+    /**
+     * [FIX] Tính số liệu tổng quan phòng khám của bác sĩ đang đăng nhập —
+     * tái dùng ĐÚNG logic đã có ở DoctorController.dashboard() (không viết
+     * lại công thức tính alert/patient từ đầu, tránh 2 nơi tính ra 2 kết
+     * quả khác nhau cho cùng 1 khái niệm "số cảnh báo HIGH").
+     */
+    private Map<String, Object> buildDoctorContext(DoctorProfile doctor) {
+        Map<String, Object> ctx = new HashMap<>();
+
+        List<PatientProfile> patients;
+        List<AIRiskPrediction> alerts;
+        try {
+            if (doctor.getDoctorId() != null) {
+                patients = patientService.getPatientsAssignedToDoctor(doctor.getDoctorId());
+                alerts = consultationService.getAlertsByDoctor(doctor.getDoctorId());
+            } else {
+                patients = patientService.getAllPatients();
+                alerts = consultationService.getUnhandledHighAlerts();
+            }
+        } catch (Exception ex) {
+            log.warn("Lỗi khi tính doctor_context: {}", ex.getMessage());
+            patients = List.of();
+            alerts = List.of();
+        }
+
+        long highAlerts = alerts.stream()
+                .filter(a -> a != null && "HIGH".equals(a.getRiskLevel()) && !a.getIsAlertSent())
+                .count();
+        long mediumAlerts = alerts.stream()
+                .filter(a -> a != null && "MEDIUM".equals(a.getRiskLevel()) && !a.getIsAlertSent())
+                .count();
+        long lowAlerts = alerts.stream()
+                .filter(a -> a != null && "LOW".equals(a.getRiskLevel()) && !a.getIsAlertSent())
+                .count();
+        long unhandledTotal = alerts.stream()
+                .filter(a -> a != null && !a.getIsAlertSent())
+                .count();
+
+        long todayAppointments = 0;
+        try {
+            if (doctor.getDoctorId() != null) {
+                LocalDate today = LocalDate.now();
+                todayAppointments = appointmentRepository
+                        .findByDoctorOrderByScheduledDateDescTimeSlotDesc(doctor).stream()
+                        .filter(a -> a.getScheduledDate() != null && a.getScheduledDate().equals(today))
+                        .count();
+            }
+        } catch (Exception ex) {
+            log.warn("Lỗi khi đếm lịch hẹn hôm nay cho doctor_context: {}", ex.getMessage());
+        }
+
+        ctx.put("doctor_name", doctor.getFullName());
+        ctx.put("total_patients", patients.size());
+        ctx.put("high_alerts_unhandled", highAlerts);
+        ctx.put("medium_alerts_unhandled", mediumAlerts);
+        ctx.put("low_alerts_unhandled", lowAlerts);
+        ctx.put("total_alerts_unhandled", unhandledTotal);
+        ctx.put("today_appointments_count", todayAppointments);
+        ctx.put("today_date", LocalDate.now().toString());
+        return ctx;
     }
 
     /**
