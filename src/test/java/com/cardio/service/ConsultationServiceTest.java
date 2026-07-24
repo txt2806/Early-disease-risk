@@ -39,6 +39,8 @@ class ConsultationServiceTest {
     private ObjectMapper objectMapper;
     private LabRequestRepository labRequestRepository;
     private AppointmentRepository appointmentRepository;
+    private InvoiceRepository invoiceRepository;
+    private SystemSettingService systemSettingService;
 
     private ConsultationService service;
 
@@ -54,12 +56,15 @@ class ConsultationServiceTest {
         objectMapper = new ObjectMapper(); // dùng thật, không mock — test serialize JSON thật
         labRequestRepository = mock(LabRequestRepository.class);
         appointmentRepository = mock(AppointmentRepository.class);
+        invoiceRepository = mock(InvoiceRepository.class);
+        systemSettingService = mock(SystemSettingService.class);
 
         service = new ConsultationService(
                 consultationRepository, aiRiskRepository, aiService,
                 heartClinicalMetricsRepository, icdCatalogRepository,
                 recordIcdRepository, thresholdRepository, objectMapper,
-                labRequestRepository, appointmentRepository
+                labRequestRepository, appointmentRepository, invoiceRepository,
+                systemSettingService
         );
 
         // save() của JpaRepository trả về chính entity được truyền vào (mock mặc định)
