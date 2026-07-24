@@ -114,7 +114,13 @@ public class RegisterController {
                 return "auth/register";
             }
             if (phoneInput != null && !phoneInput.isEmpty()) {
-                final String searchPhone = phoneInput;
+                String cleanPhone = phoneInput.trim();
+                if (!cleanPhone.matches("^[0-9]{10}$")) {
+                    httpResponse.setStatus(400);
+                    model.addAttribute("error", "Số điện thoại phải chứa đúng 10 chữ số.");
+                    return "auth/register";
+                }
+                final String searchPhone = cleanPhone;
                 // Kiểm tra trùng SĐT trong toàn bộ bảng
                 boolean phoneExists = patientRepository.findAll().stream()
                         .anyMatch(p -> searchPhone.equalsIgnoreCase(p.getPhone()));
@@ -321,6 +327,14 @@ public class RegisterController {
                 firebaseEmail = decodedToken.getEmail();
             } catch (Exception firebaseException) {
                 System.out.println("Warning: Firebase verification skipped in profile completion");
+            }
+
+            if (phone != null && !phone.isEmpty()) {
+                String cleanPhone = phone.trim();
+                if (!cleanPhone.matches("^[0-9]{10}$")) {
+                    model.addAttribute("error", "Số điện thoại phải chứa đúng 10 chữ số.");
+                    return "auth/complete-profile";
+                }
             }
 
             // Tạo PatientProfile mới

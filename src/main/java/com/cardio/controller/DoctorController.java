@@ -1094,22 +1094,31 @@ public class DoctorController {
             app.setScheduledDate(targetDate);
 
             // Handle Check-in arrival time
+            LocalTime startVal = app.getTimeSlot();
             if (timeSlot != null && !timeSlot.isBlank()) {
-                app.setTimeSlot(LocalTime.parse(timeSlot));
-            } else if ("CheckedIn".equalsIgnoreCase(status) && app.getTimeSlot() == null) {
-                app.setTimeSlot(LocalTime.now());
+                startVal = LocalTime.parse(timeSlot);
+            } else if ("CheckedIn".equalsIgnoreCase(status) && startVal == null) {
+                startVal = LocalTime.now();
             } else if (!"CheckedIn".equalsIgnoreCase(status) && !"InProgress".equalsIgnoreCase(status) && !"Completed".equalsIgnoreCase(status)) {
-                app.setTimeSlot(null); // Reset arrival time if moved back
+                startVal = null; // Reset arrival time if moved back
             }
 
             // Handle Completed end time
+            LocalTime endVal = app.getEndTime();
             if (endTime != null && !endTime.isBlank()) {
-                app.setEndTime(LocalTime.parse(endTime));
-            } else if ("Completed".equalsIgnoreCase(status) && app.getEndTime() == null) {
-                app.setEndTime(LocalTime.now());
+                endVal = LocalTime.parse(endTime);
+            } else if ("Completed".equalsIgnoreCase(status) && endVal == null) {
+                endVal = LocalTime.now();
             } else if (!"Completed".equalsIgnoreCase(status)) {
-                app.setEndTime(null);
+                endVal = null;
             }
+
+            if (startVal != null && endVal != null && endVal.isBefore(startVal)) {
+                throw new RuntimeException("Giờ ra (giờ về) phải sau giờ vào!");
+            }
+
+            app.setTimeSlot(startVal);
+            app.setEndTime(endVal);
 
             appointmentRepository.save(app);
 

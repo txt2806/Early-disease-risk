@@ -187,20 +187,29 @@ public class ReceptionController {
             }
 
             // Handle Check-in arrival time
+            LocalTime startVal = appointment.getTimeSlot();
             if (timeSlotStr != null && !timeSlotStr.isBlank()) {
-                appointment.setTimeSlot(LocalTime.parse(timeSlotStr));
-            } else if ("CheckedIn".equalsIgnoreCase(status) && appointment.getTimeSlot() == null) {
-                appointment.setTimeSlot(LocalTime.now());
+                startVal = LocalTime.parse(timeSlotStr);
+            } else if ("CheckedIn".equalsIgnoreCase(status) && startVal == null) {
+                startVal = LocalTime.now();
             }
 
             // Handle Completed end time
+            LocalTime endVal = appointment.getEndTime();
             if (endTimeStr != null && !endTimeStr.isBlank()) {
-                appointment.setEndTime(LocalTime.parse(endTimeStr));
-            } else if ("Completed".equalsIgnoreCase(status) && appointment.getEndTime() == null) {
-                appointment.setEndTime(LocalTime.now());
+                endVal = LocalTime.parse(endTimeStr);
+            } else if ("Completed".equalsIgnoreCase(status) && endVal == null) {
+                endVal = LocalTime.now();
             } else if (!"Completed".equalsIgnoreCase(status)) {
-                appointment.setEndTime(null);
+                endVal = null;
             }
+
+            if (startVal != null && endVal != null && endVal.isBefore(startVal)) {
+                throw new RuntimeException("Giờ ra (giờ về) phải sau giờ vào!");
+            }
+
+            appointment.setTimeSlot(startVal);
+            appointment.setEndTime(endVal);
 
             appointmentRepository.save(appointment);
 
@@ -284,6 +293,9 @@ public class ReceptionController {
 
                 // Check for duplication on phone/username
                 String username = newPhone.trim();
+                if (!username.matches("^[0-9]{10}$")) {
+                    throw new RuntimeException("Số điện thoại của bệnh nhân mới phải chứa đúng 10 chữ số.");
+                }
                 boolean phoneExists = patientRepository.findByUsernameIgnoreCase(username).isPresent();
                 if (!phoneExists) {
                     phoneExists = patientRepository.findAll().stream()
