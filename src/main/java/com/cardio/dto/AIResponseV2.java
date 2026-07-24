@@ -22,6 +22,8 @@ public class AIResponseV2 {
 
     private String message;
 
+    private String explanation;
+
     // -- Trend fields (khi gọi /predict/v2/trend) --
     private String trend;
 
@@ -51,4 +53,7 @@ public class AIResponseV2 {
 
     @JsonProperty("class_names")
     private List<String> classNames;
+
+    @JsonProperty("top_factors")
+    private List<com.cardio.dto.AIResponse.TopFactor> topFactors;
 }

@@ -59,7 +59,7 @@ public class PatientService {
     public boolean isPatientAssignedToDoctor(Integer patientId, Integer doctorId) {
         return patientRepository.isPatientAssignedToDoctor(patientId, doctorId);
     }
-
+    
     public PatientProfile save(PatientProfile patient) {
         // Hash password mặc định nếu chưa có
         if (patient.getPasswordHash() == null || patient.getPasswordHash().isEmpty()) {

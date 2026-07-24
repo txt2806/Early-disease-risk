@@ -196,6 +196,14 @@ public class ConsultationService {
             return null;
         }
     }
+
+    /**
+     * [TƯƠNG THÍCH NGƯỢC] Overload giữ nguyên chữ ký CŨ (10 tham số, không có
+     * dữ liệu Model V2) — để ConsultationServiceTest.java và bất kỳ nơi nào
+     * khác đang gọi theo chữ ký cũ vẫn biên dịch được mà KHÔNG cần sửa test.
+     * Chỉ đơn thuần forward sang bản đầy đủ bên dưới với 6 tham số V2 = null
+     * (nghĩa là "lần khám này chưa chạy Model V2").
+     */
     @Transactional
     public AIRiskPrediction saveRecordAfterPrediction(
             PatientProfile patient,
@@ -208,6 +216,37 @@ public class ConsultationService {
             AIRequest aiRequest,
             String topFactorsJson,
             String trendInfoJson) {
+        return saveRecordAfterPrediction(patient, doctor, doctorNotes, treatmentPlan,
+                riskScore, riskLevel, riskExplanation, aiRequest, topFactorsJson, trendInfoJson,
+                null, null, null, null, null, null);
+    }
+
+    /**
+     * [MỚI] Lưu hồ sơ khám + kết quả AI đã phân tích trước đó (V1 luôn có,
+     * V2 tuỳ chọn — null nếu bác sĩ lưu ngay sau V1 mà chưa bấm "Chẩn đoán
+     * mức độ"). Các tham số V2 được serialize sẵn ở Controller từ
+     * AIResponseV2, vì lúc submit form save này không còn truy cập được
+     * object AIResponseV2 gốc (chỉ có dữ liệu qua hidden input).
+     */
+    @Transactional
+    public AIRiskPrediction saveRecordAfterPrediction(
+            PatientProfile patient,
+            DoctorProfile doctor,
+            String doctorNotes,
+            String treatmentPlan,
+            BigDecimal riskScore,
+            String riskLevel,
+            String riskExplanation,
+            AIRequest aiRequest,
+            String topFactorsJson,
+            String trendInfoJson,
+            // [MỚI] Kết quả Model V2 — có thể null nếu lần khám này chưa chạy V2
+            String severityV2,
+            String riskTierV2,
+            Double confidenceV2,
+            String probabilitiesV2Json,
+            String topFactorsV2Json,
+            String trendInfoV2Json) {
 
         // 1. Lưu hồ sơ khám
         ConsultationRecord record = new ConsultationRecord();
@@ -230,6 +269,15 @@ public class ConsultationService {
         prediction.setTopFactorsJson(topFactorsJson);
         prediction.setTrendInfoJson(trendInfoJson);
         prediction.setIsAlertSent(false);
+
+        // [MỚI] Kết quả Model V2, nếu có
+        prediction.setSeverityV2(severityV2);
+        prediction.setRiskTierV2(riskTierV2);
+        prediction.setConfidenceV2(confidenceV2);
+        prediction.setProbabilitiesV2Json(probabilitiesV2Json);
+        prediction.setTopFactorsV2Json(topFactorsV2Json);
+        prediction.setTrendInfoV2Json(trendInfoV2Json);
+
         aiRiskRepository.save(prediction);
 
         // 3. Lưu chỉ số lâm sàng vào Heart_Clinical_Metrics

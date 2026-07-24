@@ -616,6 +616,7 @@ public class DoctorController {
             Model model) {
         DoctorProfile doctor = getCurrentDoctor(userDetails);
         model.addAttribute("doctor", doctor);
+        model.addAttribute("modelInfo", aiService.getModelInfo());
         if (doctor.getDoctorId() != null) {
             model.addAttribute("patients", patientService.getPatientsAssignedToDoctor(doctor.getDoctorId()));
         } else {
@@ -769,6 +770,34 @@ public class DoctorController {
             );
         }
 
+        // [MỚI] Serialize kết quả Model V2 để đóng gói vào hidden input của
+        // form "Lưu vào hồ sơ", tương tự cách top_factors/trend của V1 đã
+        // làm — vì lúc submit /ai-predict/save không còn object
+        // AIResponseV2 gốc, chỉ có dữ liệu đi qua hidden input dạng chuỗi.
+        String topFactorsV2JsonForForm = null;
+        String probabilitiesV2JsonForForm = null;
+        String trendInfoV2JsonForForm = null;
+
+        if (aiResponseV2 != null) {
+            try {
+                if (aiResponseV2.getTopFactors() != null && !aiResponseV2.getTopFactors().isEmpty()) {
+                    topFactorsV2JsonForForm = objectMapper.writeValueAsString(aiResponseV2.getTopFactors());
+                }
+                if (aiResponseV2.getProbabilities() != null) {
+                    probabilitiesV2JsonForForm = objectMapper.writeValueAsString(aiResponseV2.getProbabilities());
+                }
+                if (aiResponseV2.getTrend() != null && !"UNKNOWN".equals(aiResponseV2.getTrend())) {
+                    Map<String, Object> trendInfoV2 = new HashMap<>();
+                    trendInfoV2.put("trend", aiResponseV2.getTrend());
+                    trendInfoV2.put("trend_message", aiResponseV2.getTrendMessage());
+                    trendInfoV2.put("prob_severe_history", aiResponseV2.getProbSevereHistory());
+                    trendInfoV2JsonForForm = objectMapper.writeValueAsString(trendInfoV2);
+                }
+            } catch (Exception e) {
+                log.warn("Không serialize được dữ liệu Model V2 cho form: {}", e.getMessage());
+            }
+        }
+
         model.addAttribute("doctor", doctor);
         if (doctor.getDoctorId() != null) {
             model.addAttribute("patients", patientService.getPatientsAssignedToDoctor(doctor.getDoctorId()));
@@ -781,22 +810,39 @@ public class DoctorController {
         model.addAttribute("aiResponseV2", aiResponseV2);
         model.addAttribute("topFactorsJsonForForm", topFactorsJsonForForm);
         model.addAttribute("trendInfoJsonForForm", trendInfoJsonForForm);
+        // [MỚI]
+        model.addAttribute("topFactorsV2JsonForForm", topFactorsV2JsonForForm);
+        model.addAttribute("probabilitiesV2JsonForForm", probabilitiesV2JsonForForm);
+        model.addAttribute("trendInfoV2JsonForForm", trendInfoV2JsonForForm);
         model.addAttribute("selectedPatient", patient);
         model.addAttribute("isSaved", false);
         return "doctor/ai-predict";
     }
 
     // Helper: map int → string cho ChestPainType
+    // [FIX] Phải khớp CHÍNH XÁC với chiều mã hoá lúc LƯU trong
+    // ConsultationService (CP_TYPICAL->1, CP_ATYPICAL->2, CP_NON_ANGINAL->3,
+    // CP_ASYMPTOMATIC->4). Bản cũ dùng bảng 0-based (0=asymptomatic...) hoàn
+    // toàn khác, khiến case 4 (asymptomatic) rơi vào "default -> non-anginal"
+    // — bệnh nhân chọn "Không triệu chứng" ở MỌI lần khám sẽ bị tính lại xu
+    // hướng V1 với dữ liệu SAI ("non-anginal" thay vì "asymptomatic"), gây
+    // lệch hẳn so với riskScore đã lưu trong DB (biểu đồ ở patient-detail.html
+    // không bị ảnh hưởng vì nó đọc thẳng riskScore đã lưu, không tính lại).
     private String mapCpInt(Integer cp) {
+        if (cp == null) {
+            return null;
+        }
         return switch (cp) {
-            case 0 ->
-                "asymptomatic";
             case 1 ->
                 "typical angina";
             case 2 ->
                 "atypical angina";
-            default ->
+            case 3 ->
                 "non-anginal";
+            case 4 ->
+                "asymptomatic";
+            default ->
+                null;
         };
     }
 
@@ -850,8 +896,24 @@ public class DoctorController {
             @RequestParam String riskExplanation,
             @RequestParam(required = false) String topFactorsJson,
             @RequestParam(required = false) String trendInfoJson,
+            // [MỚI] Kết quả Model V2 — required=false vì bác sĩ có thể lưu
+            // ngay sau V1 mà chưa bấm "Chẩn đoán mức độ" (chưa chạy V2).
+            @RequestParam(required = false) String severityV2,
+            @RequestParam(required = false) String riskTierV2,
+            @RequestParam(required = false) Double confidenceV2,
+            @RequestParam(required = false) String probabilitiesV2Json,
+            @RequestParam(required = false) String topFactorsV2Json,
+            @RequestParam(required = false) String trendInfoV2Json,
             @AuthenticationPrincipal UserDetails userDetails,
             Model model) {
+        // [FIX] modelInfo LUÔN cần có mặt trong Model — template card
+        // "Thông tin model" và các nhánh khác của ai-predict.html tham
+        // chiếu ${modelInfo...}; thiếu hẳn attribute này (không phải chỉ
+        // null) từng khiến trang bị cắt ngang khi render (xem thêm phần
+        // aiResponse/aiResponseV2 bên dưới — nguyên nhân gốc của lỗi "bấm
+        // Lưu vào hồ sơ sau V2 thì chả có gì hiện ra").
+        model.addAttribute("modelInfo", aiService.getModelInfo());
+
         DoctorProfile doctor = getCurrentDoctor(userDetails);
         if (doctor.getDoctorId() != null && !patientService.isPatientAssignedToDoctor(patientId, doctor.getDoctorId())) {
             model.addAttribute("error", "Bạn không có quyền lưu hồ sơ bệnh án cho bệnh nhân này!");
@@ -880,7 +942,8 @@ public class DoctorController {
         // Save records and prediction to database
         AIRiskPrediction prediction = consultationService.saveRecordAfterPrediction(
                 patient, doctor, doctorNotes, treatmentPlan, riskScore, riskLevel, riskExplanation,
-                aiRequest, topFactorsJson, trendInfoJson);
+                aiRequest, topFactorsJson, trendInfoJson,
+                severityV2, riskTierV2, confidenceV2, probabilitiesV2Json, topFactorsV2Json, trendInfoV2Json);
         model.addAttribute("doctor", doctor);
         if (doctor.getDoctorId() != null) {
             model.addAttribute("patients", patientService.getPatientsAssignedToDoctor(doctor.getDoctorId()));
@@ -891,6 +954,14 @@ public class DoctorController {
         model.addAttribute("prediction", prediction);
         model.addAttribute("selectedPatient", patient);
         model.addAttribute("isSaved", true); // Record is now saved
+
+        // [FIX] Không còn object AIResponse/AIResponseV2 gốc ở bước này (chỉ
+        // nhận dữ liệu đã serialize qua hidden input) — set null TƯỜNG MINH
+        // để rõ ý đồ. Template (ai-predict.html) đã được sửa null-safe cho
+        // mọi truy cập ${aiResponse.xxx} nên không còn crash giữa chừng.
+        model.addAttribute("aiResponse", null);
+        model.addAttribute("aiResponseV2", null);
+
         return "doctor/ai-predict";
     }
 
