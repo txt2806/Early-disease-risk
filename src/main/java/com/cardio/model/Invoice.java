@@ -24,6 +24,13 @@ public class Invoice {
     @JoinColumn(name = "PatientID")
     private PatientProfile patient;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "LabRequestID")
+    private LabRequest labRequest;
+
+    @Column(name = "Description")
+    private String description;
+
     @Column(name = "Amount", nullable = false)
     private Long amount;
 

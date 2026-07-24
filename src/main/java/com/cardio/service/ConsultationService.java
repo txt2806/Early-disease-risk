@@ -55,6 +55,8 @@ public class ConsultationService {
     private final ObjectMapper objectMapper;
     private final LabRequestRepository labRequestRepository;
     private final AppointmentRepository appointmentRepository;
+    private final InvoiceRepository invoiceRepository;
+    private final SystemSettingService systemSettingService;
 
     public List<ConsultationRecord> getByPatient(PatientProfile patient) {
         return consultationRepository.findByPatientOrderByVisitDateDesc(patient);
@@ -642,7 +644,22 @@ public class ConsultationService {
         req.setRequestNotes(requestNotes);
         req.setStatus(STATUS_PENDING);
         req.setCreatedAt(LocalDateTime.now());
-        return labRequestRepository.save(req);
+        LabRequest savedReq = labRequestRepository.save(req);
+
+        // Auto create Invoice for Lab Request
+        Invoice invoice = new Invoice();
+        invoice.setPatient(patient);
+        invoice.setLabRequest(savedReq);
+        invoice.setAmount(systemSettingService.getFeeLab());
+        invoice.setPaidAmount(0L);
+        invoice.setStatus("Unpaid");
+        invoice.setDescription("Xét nghiệm & Chẩn đoán hình ảnh: " + (requestNotes != null ? requestNotes : "Theo chỉ định bác sĩ"));
+        invoice.setCreatedDate(LocalDateTime.now());
+        invoice = invoiceRepository.save(invoice);
+        invoice.setReferenceCode("TT" + invoice.getInvoiceId());
+        invoiceRepository.save(invoice);
+
+        return savedReq;
     }
 
     @Transactional

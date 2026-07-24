@@ -18,6 +18,9 @@ public class SystemSettingService {
     @Value("${clinic.fee.specialist:300000}")
     private Long defaultFeeSpecialist;
 
+    @Value("${clinic.fee.lab:200000}")
+    private Long defaultFeeLab;
+
     public Long getFeeGeneral() {
         return repository.findById("fee_general")
                 .map(s -> {
@@ -42,6 +45,18 @@ public class SystemSettingService {
                 .orElse(defaultFeeSpecialist);
     }
 
+    public Long getFeeLab() {
+        return repository.findById("fee_lab")
+                .map(s -> {
+                    try {
+                        return Long.parseLong(s.getSettingValue());
+                    } catch (NumberFormatException e) {
+                        return defaultFeeLab;
+                    }
+                })
+                .orElse(defaultFeeLab);
+    }
+
     public void updateFeeGeneral(Long value) {
         SystemSetting setting = new SystemSetting();
         setting.setSettingKey("fee_general");
@@ -52,6 +67,13 @@ public class SystemSettingService {
     public void updateFeeSpecialist(Long value) {
         SystemSetting setting = new SystemSetting();
         setting.setSettingKey("fee_specialist");
+        setting.setSettingValue(String.valueOf(value));
+        repository.save(setting);
+    }
+
+    public void updateFeeLab(Long value) {
+        SystemSetting setting = new SystemSetting();
+        setting.setSettingKey("fee_lab");
         setting.setSettingValue(String.valueOf(value));
         repository.save(setting);
     }

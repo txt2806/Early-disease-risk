@@ -299,7 +299,7 @@ public class StaffController {
     @GetMapping("/lab-requests")
     public String listLabRequests(@AuthenticationPrincipal UserDetails userDetails, Model model) {
         StaffProfile staff = getCurrentStaff(userDetails);
-        List<LabRequest> requests = labRequestRepository.findAllByOrderByCreatedAtDesc();
+        List<LabRequest> requests = labRequestRepository.findAllByOrderByCreatedAtAsc();
         model.addAttribute("requests", requests);
         model.addAttribute("staff", staff);
         return "staff/lab-requests";

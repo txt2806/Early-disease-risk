@@ -64,10 +64,12 @@
               <td style="padding: 14px; color: #e8edf5; font-weight: 600;" th:text="'#' + ${inv.invoiceId}">#1001</td>
               <td style="padding: 14px; color: #e8edf5; font-weight: 600;" th:text="${inv.patient != null ? inv.patient.fullName : 'N/A'}">Nguyễn Văn A</td>
               <td style="padding: 14px; color: #8a96b0; font-family: monospace;" th:text="${inv.patient != null ? inv.patient.phone : 'N/A'}">0987654321</td>
-              <td style="padding: 14px; color: #8a96b0;" th:text="${inv.appointment != null ? inv.appointment.scheduledDate : 'N/A'}">2026-07-01</td>
+              <td style="padding: 14px; color: #8a96b0;" th:text="${inv.appointment != null ? inv.appointment.scheduledDate : #temporals.format(inv.createdDate, 'yyyy-MM-dd')}">2026-07-01</td>
               <td style="padding: 14px;">
-                <span th:if="${inv.appointment != null && 'Specialist'.equalsIgnoreCase(inv.appointment.bookingType)}" class="badge" style="background: rgba(139, 92, 246, 0.15); color: #c084fc; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Chuyên khoa</span>
-                <span th:if="${inv.appointment == null || !'Specialist'.equalsIgnoreCase(inv.appointment.bookingType)}" class="badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Tổng quát</span>
+                <span th:if="${inv.labRequest != null}" class="badge" style="background: rgba(220, 38, 38, 0.15); color: #f87171; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Xét nghiệm</span>
+                <span th:if="${inv.labRequest == null && inv.appointment != null && 'Specialist'.equalsIgnoreCase(inv.appointment.bookingType)}" class="badge" style="background: rgba(139, 92, 246, 0.15); color: #c084fc; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Chuyên khoa</span>
+                <span th:if="${inv.labRequest == null && (inv.appointment == null || !'Specialist'.equalsIgnoreCase(inv.appointment.bookingType))}" class="badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Tổng quát</span>
+                <div style="font-size: 11px; color: #8a96b0; margin-top: 4px;" th:text="${inv.description != null ? inv.description : ''}">Ghi chú</div>
               </td>
               <td style="padding: 14px; color: #34d399; font-weight: 700;" th:text="${#numbers.formatDecimal(inv.amount, 0, 'COMMA', 0, 'POINT')} + ' đ'">150,000 đ</td>
               <td style="padding: 14px; color: #e8edf5;" th:text="${#numbers.formatDecimal(inv.paidAmount, 0, 'COMMA', 0, 'POINT')} + ' đ'">0 đ</td>

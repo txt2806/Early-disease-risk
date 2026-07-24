@@ -36,10 +36,12 @@
               <td style="padding: 14px; color: #e8edf5; font-weight: 600;" th:text="'#' + ${inv.invoiceId}">#1001</td>
               <td style="padding: 14px; color: #8a96b0;" th:text="${#temporals.format(inv.createdDate, 'dd/MM/yyyy HH:mm')}">01/07/2026 12:00</td>
               <td style="padding: 14px; color: #e8edf5;">
-                <span th:if="${inv.appointment != null && 'Specialist'.equalsIgnoreCase(inv.appointment.bookingType)}" class="badge" style="background: rgba(139, 92, 246, 0.15); color: #c084fc; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Chuyên khoa</span>
-                <span th:if="${inv.appointment == null || !'Specialist'.equalsIgnoreCase(inv.appointment.bookingType)}" class="badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Tổng quát</span>
+                <span th:if="${inv.labRequest != null}" class="badge" style="background: rgba(220, 38, 38, 0.15); color: #f87171; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Xét nghiệm</span>
+                <span th:if="${inv.labRequest == null && inv.appointment != null && 'Specialist'.equalsIgnoreCase(inv.appointment.bookingType)}" class="badge" style="background: rgba(139, 92, 246, 0.15); color: #c084fc; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Chuyên khoa</span>
+                <span th:if="${inv.labRequest == null && (inv.appointment == null || !'Specialist'.equalsIgnoreCase(inv.appointment.bookingType))}" class="badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Tổng quát</span>
+                <div style="font-size: 11px; color: #8a96b0; margin-top: 4px;" th:text="${inv.description != null ? inv.description : ''}">Ghi chú</div>
               </td>
-              <td style="padding: 14px; color: #e8edf5;" th:text="${inv.appointment != null && inv.appointment.doctor != null ? inv.appointment.doctor.fullName : 'Chưa phân công'}">Bác sĩ A</td>
+              <td style="padding: 14px; color: #e8edf5;" th:text="${inv.labRequest != null ? (inv.labRequest.doctor != null ? inv.labRequest.doctor.fullName : 'Chưa phân công') : (inv.appointment != null && inv.appointment.doctor != null ? inv.appointment.doctor.fullName : 'Chưa phân công')}">Bác sĩ A</td>
               <td style="padding: 14px; color: #34d399; font-weight: 700;" th:text="${#numbers.formatDecimal(inv.amount, 0, 'COMMA', 0, 'POINT')} + ' đ'">150,000 đ</td>
               <td style="padding: 14px; color: #e8edf5;" th:text="${#numbers.formatDecimal(inv.paidAmount, 0, 'COMMA', 0, 'POINT')} + ' đ'">0 đ</td>
               <td style="padding: 14px; color: #8a96b0;" th:text="${inv.paymentMethod != null ? inv.paymentMethod : '—'}">Chuyển khoản</td>

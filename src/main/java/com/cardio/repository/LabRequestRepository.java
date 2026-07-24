@@ -13,4 +13,5 @@ public interface LabRequestRepository extends JpaRepository<LabRequest, Integer>
     List<LabRequest> findByDoctorOrderByCreatedAtDesc(DoctorProfile doctor);
     List<LabRequest> findByStatusOrderByCreatedAtDesc(String status);
     List<LabRequest> findAllByOrderByCreatedAtDesc();
+    List<LabRequest> findAllByOrderByCreatedAtAsc();
 }

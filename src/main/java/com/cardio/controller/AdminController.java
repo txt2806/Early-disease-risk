@@ -73,6 +73,7 @@ public class AdminController {
         model.addAttribute("newUser", new DoctorProfile());
         model.addAttribute("feeGeneral", systemSettingService.getFeeGeneral());
         model.addAttribute("feeSpecialist", systemSettingService.getFeeSpecialist());
+        model.addAttribute("feeLab", systemSettingService.getFeeLab());
         return "admin/admin-dashboard";
     }
 
@@ -376,12 +377,14 @@ public class AdminController {
     public String updateClinicFees(
             @RequestParam("feeGeneral") Long feeGeneral,
             @RequestParam("feeSpecialist") Long feeSpecialist,
+            @RequestParam("feeLab") Long feeLab,
             Principal principal,
             org.springframework.web.servlet.mvc.support.RedirectAttributes ra) {
         String actor = principal != null ? principal.getName() : "admin";
         systemSettingService.updateFeeGeneral(feeGeneral);
         systemSettingService.updateFeeSpecialist(feeSpecialist);
-        saveAuditLog(actor, "UPDATE_CLINIC_FEES", "Cập nhật giá khám tổng quát thành " + feeGeneral + "đ và chuyên khoa thành " + feeSpecialist + "đ");
+        systemSettingService.updateFeeLab(feeLab);
+        saveAuditLog(actor, "UPDATE_CLINIC_FEES", "Cập nhật giá khám tổng quát thành " + feeGeneral + "đ, chuyên khoa thành " + feeSpecialist + "đ và xét nghiệm thành " + feeLab + "đ");
         ra.addFlashAttribute("success", "ok_updated_fees");
         return "redirect:/admin/dashboard?success=ok_updated_fees";
     }
