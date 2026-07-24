@@ -13,6 +13,6 @@ public class LoginController {
 
     @GetMapping("/")
     public String root() {
-        return "redirect:/dashboard-redirect";
+        return "homepage";
     }
 }

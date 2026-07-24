@@ -58,36 +58,11 @@ public class DoctorController {
     private final PatientAlertThresholdRepository thresholdRepository;
     private final LabRequestRepository labRequestRepository;
 
-    // Helper lấy doctor hoặc staff đang đăng nhập
+    // Helper lấy doctor đang đăng nhập
     private DoctorProfile getCurrentDoctor(UserDetails userDetails) {
         String username = userDetails.getUsername();
-        var docOpt = doctorRepository.findByUsername(username);
-        if (docOpt.isPresent()) {
-            return docOpt.get();
-        }
-
-        var staffOpt = staffRepository.findByUsername(username);
-        if (staffOpt.isPresent()) {
-            StaffProfile staff = staffOpt.get();
-            DoctorProfile mockDoc = new DoctorProfile();
-            mockDoc.setDoctorId(null);
-            mockDoc.setUsername(staff.getUsername());
-            mockDoc.setFullName(staff.getFullName());
-
-            String roleText = "Nhân viên";
-            if ("RECEPTIONIST".equalsIgnoreCase(staff.getRole())) {
-                roleText = "Lễ tân";
-            } else if ("STAFF".equalsIgnoreCase(staff.getRole())) {
-                roleText = "Điều dưỡng";
-            } else if ("ADMIN".equalsIgnoreCase(staff.getRole())) {
-                roleText = "Quản trị viên";
-            }
-            mockDoc.setSpecialty(roleText);
-            mockDoc.setStatus(staff.getStatus());
-            return mockDoc;
-        }
-
-        throw new RuntimeException("Doctor or Staff profile not found for username: " + username);
+        return doctorRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Doctor profile not found for username: " + username));
     }
 
     // ── DASHBOARD ──────────────────────────────────────
@@ -99,20 +74,9 @@ public class DoctorController {
         try {
             DoctorProfile doctor = getCurrentDoctor(userDetails);
 
-            boolean isReceptionist = userDetails.getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_RECEPTIONIST"));
-            boolean isStaff = userDetails.getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_STAFF"));
-            model.addAttribute("isReceptionist", isReceptionist);
-            model.addAttribute("isStaff", isStaff);
-
             List<PatientProfile> patients = List.of();
             try {
-                if (doctor.getDoctorId() != null) {
-                    patients = patientService.getPatientsAssignedToDoctor(doctor.getDoctorId());
-                } else {
-                    patients = patientService.getAllPatients();
-                }
+                patients = patientService.getPatientsAssignedToDoctor(doctor.getDoctorId());
             } catch (Exception ex) {
                 System.err.println("Error querying patients: " + ex.getMessage());
             }
@@ -129,12 +93,17 @@ public class DoctorController {
             }
             long highAlerts = alerts.stream().filter(a -> a != null && "HIGH".equals(a.getRiskLevel())).count();
 
+            // Truy vấn Lịch hẹn an toàn cho bác sĩ
             long totalApps = 0;
             List<Appointment> appsList = List.of();
             try {
-                totalApps = appointmentRepository.count();
-                appsList = appointmentRepository.findAllByOrderByScheduledDateDescTimeSlotAsc().stream().limit(5)
+                LocalDate date = LocalDate.now();
+                appsList = appointmentRepository.findAll().stream()
+                        .filter(a -> a.getScheduledDate().equals(date) &&
+                                     a.getDoctor() != null &&
+                                     a.getDoctor().getDoctorId().equals(doctor.getDoctorId()))
                         .toList();
+                totalApps = appsList.size();
             } catch (Exception ex) {
                 System.err.println("Error querying appointments: " + ex.getMessage());
             }
@@ -234,42 +203,6 @@ public class DoctorController {
         }
     }
 
-    // ── DANH SÁCH BỆNH NHÂN ────────────────────────────
-    @GetMapping("/patients")
-    public String patients(@AuthenticationPrincipal UserDetails userDetails,
-            @RequestParam(required = false) String search,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            Model model) {
-        DoctorProfile doctor = getCurrentDoctor(userDetails);
-        if (doctor.getDoctorId() != null) {
-            return "redirect:/doctor/appointments";
-        }
-        Pageable pageable = PageRequest.of(page, size, Sort.by("fullName").ascending());
-        Page<PatientProfile> patientPage = (search != null && !search.isBlank())
-                ? patientService.searchByName(search, pageable)
-                : patientService.getAllPatients(pageable);
-
-        // Gắn mức nguy cơ AI mới nhất cho từng bệnh nhân
-        List<AIRiskPrediction> allAlerts = consultationService.getAlertsByDoctor(doctor.getDoctorId());
-        java.util.Map<Integer, String> patientRiskMap = new java.util.HashMap<>();
-        allAlerts.forEach(a -> patientRiskMap.merge(
-                a.getRecord().getPatient().getPatientId(),
-                a.getRiskLevel(),
-                (existing, newVal) -> "HIGH".equals(existing) ? existing
-                : "HIGH".equals(newVal) ? newVal
-                : "MEDIUM".equals(existing) ? existing : newVal
-        ));
-
-        model.addAttribute("doctor", doctor);
-        model.addAttribute("patients", patientPage.getContent());
-        model.addAttribute("patientRiskMap", patientRiskMap);
-        model.addAttribute("currentPage", page);
-        model.addAttribute("totalPages", patientPage.getTotalPages());
-        model.addAttribute("totalItems", patientPage.getTotalElements());
-        model.addAttribute("search", search);
-        return "doctor/patients";
-    }
 
     @GetMapping("/assigned-patients")
     public String assignedPatients(@AuthenticationPrincipal UserDetails userDetails,
@@ -308,26 +241,6 @@ public class DoctorController {
         return "doctor/assigned-patients";
     }
 
-    // ── THÊM BỆNH NHÂN ─────────────────────────────────
-    @GetMapping("/patients/new")
-    public String newPatientForm(@AuthenticationPrincipal UserDetails userDetails, Model model) {
-        model.addAttribute("doctor", getCurrentDoctor(userDetails));
-        model.addAttribute("patient", new PatientProfile());
-        return "doctor/patient-form";
-    }
-
-    @PostMapping("/patients/save")
-    public String savePatient(@ModelAttribute PatientProfile patient,
-            @AuthenticationPrincipal UserDetails userDetails,
-            RedirectAttributes ra) {
-        PatientProfile saved = patientService.save(patient);
-        // BR03: Ghi audit log
-        auditLogService.logPatientCreated(
-                userDetails.getUsername(), saved.getFullName(), saved.getPatientId()
-        );
-        ra.addFlashAttribute("success", "Đã thêm bệnh nhân " + patient.getFullName());
-        return "redirect:/doctor/patients";
-    }
 
     // ── CHI TIẾT BỆNH NHÂN ─────────────────────────────
     @GetMapping("/patients/{id}")

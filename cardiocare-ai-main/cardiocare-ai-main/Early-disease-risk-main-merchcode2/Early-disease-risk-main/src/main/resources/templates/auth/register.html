@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Đăng ký Bệnh nhân — CardioCare</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0a0f1e;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .card {
+      background: #111827;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 30px;
+      width: 100%;
+      max-width: 520px;
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .logo-icon {
+      width: 52px;
+      height: 52px;
+      background: linear-gradient(135deg, #10b981, #059669);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      margin: 0 auto 12px;
+    }
+
+    .logo-title {
+      color: #e8edf5;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .logo-sub {
+      color: #10b981;
+      font-size: 13px;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 16px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+      flex: 1;
+    }
+
+    label {
+      display: block;
+      color: #8a96b0;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    input,
+    select {
+      width: 100%;
+      background: #1a2440;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 11px 14px;
+      color: #e8edf5;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: #10b981;
+    }
+
+    .btn {
+      width: 100%;
+      background: #10b981;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: opacity 0.2s;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      text-align: center;
+      color: #8a96b0;
+      font-size: 12px;
+      margin: 20px 0;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .divider:not(:empty)::before {
+      margin-right: .5em;
+    }
+
+    .divider:not(:empty)::after {
+      margin-left: .5em;
+    }
+
+    .error {
+      background: rgba(224, 90, 90, 0.12);
+      border: 1px solid rgba(224, 90, 90, 0.3);
+      color: #ff7b7b;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    .success {
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34d399;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    .switch-auth {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 13px;
+      color: #8a96b0;
+    }
+
+    .switch-auth a {
+      color: #10b981;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .switch-auth a:hover {
+      text-decoration: underline;
+    }
+
+    .verification-box {
+      background: #1a2440;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 16px;
+      border-radius: 12px;
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+
+    .verification-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .group-toggle {
+      display: flex;
+      background: #111827;
+      padding: 4px;
+      border-radius: 8px;
+      gap: 4px;
+      width: 100%;
+    }
+
+    .toggle-btn {
+      flex: 1;
+      text-align: center;
+      padding: 8px;
+      color: #8a96b0;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .toggle-btn.active {
+      background: #3b82f6;
+      color: white;
+    }
+
+    .google-btn {
+      background: #ffffff !important;
+      color: #1f2937 !important;
+      border: 1px solid #e5e7eb !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .google-btn:hover {
+      background: #f9fafb !important;
+      opacity: 1 !important;
+    }
+
+    .google-btn img {
+      width: 18px;
+      height: 18px;
+    }
+  </style>
+</head>
+
+<body>
+  <script>
+    function selectVerification(method) {
+      document.getElementById("registerMethod").value = method;
+      const togglePhone = document.getElementById("togglePhone");
+      const toggleEmail = document.getElementById("toggleEmail");
+      const phoneArea = document.getElementById("phoneVerificationArea");
+      const emailArea = document.getElementById("emailVerificationArea");
+
+      if (method === 'phone') {
+        togglePhone.classList.add("active");
+        toggleEmail.classList.remove("active");
+        if (phoneArea) phoneArea.style.display = "block";
+        if (emailArea) emailArea.style.display = "none";
+      } else {
+        togglePhone.classList.remove("active");
+        toggleEmail.classList.add("active");
+        if (phoneArea) phoneArea.style.display = "none";
+        if (emailArea) emailArea.style.display = "block";
+      }
+    }
+  </script>
+  <div class="card">
+    <div class="logo">
+      <div class="logo-icon">🩺</div>
+      <div class="logo-title">CardioCare</div>
+      <div class="logo-sub">Đăng Ký Tài Khoản Bệnh Nhân</div>
+    </div>
+
+    <div class="error" th:if="${error}" th:text="${error}"></div>
+    <div class="success" th:if="${success}" th:text="${success}"></div>
+    <div id="statusMessage"></div>
+
+    <!-- Thông báo chuyển hướng đếm ngược -->
+    <div id="redirectMessage"
+      style="display:none; text-align:center; font-size:14px; color:#10b981; margin-bottom:15px; font-weight:bold;">
+    </div>
+
+    <form th:action="@{/register}" method="post" id="registerForm">
+
+      <!-- 1. Nhập cả Email và SĐT -->
+      <div class="form-row">
+        <div class="form-group">
+          <label>Email Đăng ký *</label>
+          <input type="email" name="emailInput" id="email" placeholder="patient@example.com" required>
+        </div>
+        <div class="form-group">
+          <label>Số điện thoại (+84...) *</label>
+          <input type="tel" name="phoneInput" id="phone" placeholder="+84912345678" required>
+        </div>
+      </div>
+
+      <!-- 2. Mật khẩu và Họ Tên -->
+      <div class="form-row">
+        <div class="form-group">
+          <label>Mật khẩu tự chọn *</label>
+          <input type="password" name="password" id="password" placeholder="••••••••" required minlength="6">
+        </div>
+        <div class="form-group">
+          <label>Họ và Tên đầy đủ *</label>
+          <input type="text" name="fullName" placeholder="Nguyễn Văn A" required>
+        </div>
+      </div>
+
+      <!-- 3. Ngày sinh và Giới tính -->
+      <div class="form-row">
+        <div class="form-group">
+          <label>Ngày sinh *</label>
+          <input type="date" name="dob" required>
+        </div>
+        <div class="form-group">
+          <label>Giới tính *</label>
+          <select name="gender" required>
+            <option value="Nam">Nam</option>
+            <option value="Nữ">Nữ</option>
+            <option value="Khác">Khác</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 4. Địa chỉ thường trú -->
+      <div class="form-group">
+        <label>Địa chỉ thường trú *</label>
+        <input type="text" name="address" placeholder="Hà Nội, Việt Nam" required>
+      </div>
+
+      <!-- 5. Khung chọn xác minh nằm ngay trên nút Đăng ký -->
+      <div class="verification-box">
+        <label
+          style="color:#10b981; font-weight:600; font-size:11px; letter-spacing:0.5px; text-transform:uppercase;">PHƯƠNG
+          ÁN XÁC THỰC TÀI KHOẢN *</label>
+        <div class="verification-actions" style="margin-bottom:12px;">
+          <div class="group-toggle">
+            <div class="toggle-btn active" id="togglePhone" onclick="selectVerification('phone')">Bằng SĐT (SMS OTP)
+            </div>
+            <div class="toggle-btn" id="toggleEmail" onclick="selectVerification('email')">Bằng Email (Link Kích Hoạt)
+            </div>
+          </div>
+        </div>
+
+        <!-- VÙNG XÁC THỰC SỐ ĐIỆN THOẠI -->
+        <div id="phoneVerificationArea" style="margin-top: 16px;">
+          <!-- Container ReCAPTCHA của Firebase -->
+          <div id="recaptcha-container" style="margin-bottom: 12px;"></div>
+
+          <!-- Nút gửi mã OTP lần đầu -->
+          <button type="button" class="btn" id="sendOtpBtn"
+            style="background: linear-gradient(135deg, #10b981, #059669); margin-top: 0; margin-bottom: 12px;">
+            📲 Gửi Mã OTP qua SMS
+          </button>
+
+          <!-- Nhập OTP & Gửi lại -->
+          <div id="otpInputGroup" style="display: none;">
+            <label style="color:#10b981; margin-bottom: 6px; display: block;">Nhập mã OTP 6 số nhận được</label>
+            <div style="display:flex; gap:8px;">
+              <input type="text" id="otpCode" placeholder="123456" maxlength="6" style="flex:1; background: #111827;">
+              <button type="button" class="btn" id="confirmOtpBtn"
+                style="margin-top:0; width:auto; padding:0 18px; background:#10b981; font-weight: 700;">Xác
+                nhận</button>
+            </div>
+
+            <!-- Hàng chứa nút gửi lại OTP -->
+            <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span id="otpCountdown" style="color: #ef4444; font-size: 12px; font-weight: 600;"></span>
+              <button type="button" id="resendOtpBtn"
+                style="background: none; border: none; color: #8a96b0; font-size: 12px; font-weight: 600; cursor: not-allowed;"
+                disabled>
+                🔄 Gửi lại mã OTP
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- VÙNG XÁC THỰC EMAIL -->
+        <div id="emailVerificationArea" style="display: none; margin-top: 16px;">
+
+          <!-- Nút gửi link kích hoạt lần đầu -->
+          <button type="button" class="btn" id="sendEmailBtn"
+            style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); margin-top: 0; margin-bottom: 12px;">
+            📧 Gửi Link Kích Hoạt qua Email
+          </button>
+
+          <!-- Trạng thái chờ kích hoạt email & Nút gửi lại -->
+          <div id="emailConfirmationGroup" style="display:none;">
+            <p
+              style="color:#93c5fd; font-size:12.5px; margin-bottom:12px; line-height:1.4; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); padding: 10px; border-radius: 8px;">
+              📬 Thư kích hoạt đã được gửi! Vui lòng mở hộp thư email của bạn, nhấp vào liên kết xác nhận từ Google, sau
+              đó click nút màu xanh dưới đây để lưu hồ sơ bệnh nhân.
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <button type="button" class="btn" id="confirmEmailVerificationBtn"
+                style="background:#10b981; margin-top:0; font-weight: 700;">
+                ✅ Tôi đã bấm kích hoạt link - Xác nhận đăng ký
+              </button>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                <span id="emailCountdown" style="color: #ef4444; font-size: 12px; font-weight: 600;"></span>
+                <button type="button" id="resendEmailBtn"
+                  style="background: none; border: none; color: #8a96b0; font-size: 12px; font-weight: 600; cursor: not-allowed;"
+                  disabled>
+                  🔄 Gửi lại Link kích hoạt
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Thuộc tính ẩn -->
+      <input type="hidden" name="registerMethod" id="registerMethod" value="phone">
+      <input type="hidden" name="firebaseToken" id="firebaseToken">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+    </form>
+
+    <div class="divider">HOẶC ĐĂNG KÝ NHANH</div>
+
+    <button type="button" class="btn google-btn" id="googleSignUpBtn">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google Logo">
+      Đăng ký bằng tài khoản Google
+    </button>
+
+    <div class="switch-auth">
+      Đã có tài khoản bác sĩ? <a th:href="@{/login}">Đăng nhập tại đây</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+    import {
+      getAuth,
+      RecaptchaVerifier,
+      signInWithPhoneNumber,
+      createUserWithEmailAndPassword,
+      sendEmailVerification,
+      GoogleAuthProvider,
+      signInWithPopup
+    } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAIQKUHU39e_XI7WPl42pyMKZ56bf6Qi_M",
+      authDomain: "disease-risk-analyst.firebaseapp.com",
+      projectId: "disease-risk-analyst",
+      storageBucket: "disease-risk-analyst.firebasestorage.app",
+      messagingSenderId: "900964683479",
+      appId: "1:900964683479:web:24d01944be3e157d712a92",
+      measurementId: "G-C5KZ770BER"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    auth.languageCode = 'vi';
+
+    let confirmationResult = null;
+    let isPhoneOtpSent = false;
+    let emailAuthUserCred = null;
+
+    // reCAPTCHA cho Số Điện Thoại
+    try {
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        'size': 'normal'
+      });
+    } catch (recaptchaError) {
+      console.warn("reCAPTCHA failed to initialize. SMS OTP might not work if offline.", recaptchaError);
+    }
+
+    // Reset OTP state callback when toggling methods
+    window.resetPhoneOtpState = function () {
+      isPhoneOtpSent = false;
+    };
+
+    const form = document.getElementById("registerForm");
+
+    function validateFields(method) {
+      const email = document.getElementById("email").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const password = document.getElementById("password").value;
+      const fullName = document.querySelector("input[name='fullName']").value.trim();
+      const dob = document.querySelector("input[name='dob']").value;
+      const address = document.querySelector("input[name='address']").value.trim();
+
+      if (method === 'email' && !email) {
+        alert("Vui lòng nhập Email.");
+        return false;
+      }
+      if (method === 'phone' && !phone) {
+        alert("Vui lòng nhập Số điện thoại.");
+        return false;
+      }
+      if (!password || password.length < 6) {
+        alert("Mật khẩu phải tối thiểu 6 ký tự.");
+        return false;
+      }
+      if (!fullName) {
+        alert("Vui lòng điền Họ và tên.");
+        return false;
+      }
+      if (!dob) {
+        alert("Vui lòng nhập Ngày sinh.");
+        return false;
+      }
+      if (!address) {
+        alert("Vui lòng điền Địa chỉ thường trú.");
+        return false;
+      }
+      return true;
+    }
+
+    async function sendOtpSMS(isResend = false) {
+      if (!validateFields('phone')) return;
+
+      let phoneNumber = document.getElementById("phone").value.trim();
+      if (phoneNumber.startsWith("0")) {
+        phoneNumber = "+84" + phoneNumber.substring(1);
+        document.getElementById("phone").value = phoneNumber;
+      }
+
+      const sendBtn = document.getElementById("sendOtpBtn");
+      const resendBtn = document.getElementById("resendOtpBtn");
+
+      if (!isResend) {
+        sendBtn.disabled = true;
+        sendBtn.innerText = "⏳ Đang gửi mã OTP...";
+      } else {
+        resendBtn.disabled = true;
+        resendBtn.innerText = "⏳ Đang gửi lại...";
+      }
+
+      try {
+        confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, window.recaptchaVerifier);
+        showStatus("Đã gửi mã xác thực SMS thành công. Vui lòng kiểm tra điện thoại.", "success");
+
+        sendBtn.style.display = "none";
+        document.getElementById("otpInputGroup").style.display = "block";
+
+        startCountdown("otp");
+      } catch (error) {
+        alert("Lỗi gửi SMS OTP: " + error.message);
+        if (!isResend) {
+          sendBtn.disabled = false;
+          sendBtn.innerText = "📲 Gửi Mã OTP qua SMS";
+        } else {
+          resendBtn.disabled = false;
+          resendBtn.innerText = "🔄 Gửi lại mã OTP";
+        }
+      }
+    }
+
+    async function sendEmailLink(isResend = false) {
+      if (!validateFields('email')) return;
+
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const sendBtn = document.getElementById("sendEmailBtn");
+      const resendBtn = document.getElementById("resendEmailBtn");
+
+      if (!isResend) {
+        sendBtn.disabled = true;
+        sendBtn.innerText = "⏳ Đang gửi link kích hoạt...";
+      } else {
+        resendBtn.disabled = true;
+        resendBtn.innerText = "⏳ Đang gửi lại...";
+      }
+
+      try {
+        if (!emailAuthUserCred) {
+          emailAuthUserCred = await createUserWithEmailAndPassword(auth, email, password);
+        }
+        await sendEmailVerification(emailAuthUserCred.user);
+        showStatus("Đã gửi link kích hoạt thành công. Vui lòng kiểm tra email của bạn.", "success");
+
+        sendBtn.style.display = "none";
+        document.getElementById("emailConfirmationGroup").style.display = "block";
+
+        startCountdown("email");
+      } catch (error) {
+        alert("Lỗi gửi email kích hoạt: " + error.message);
+        if (!isResend) {
+          sendBtn.disabled = false;
+          sendBtn.innerText = "📧 Gửi Link Kích Hoạt qua Email";
+        } else {
+          resendBtn.disabled = false;
+          resendBtn.innerText = "🔄 Gửi lại Link kích hoạt";
+        }
+      }
+    }
+
+    function startCountdown(type) {
+      let seconds = 60;
+      const countdownSpan = document.getElementById(type + "Countdown");
+      const resendBtn = document.getElementById("resend" + (type === "otp" ? "Otp" : "Email") + "Btn");
+
+      resendBtn.disabled = true;
+      resendBtn.style.color = "#8a96b0";
+      resendBtn.style.cursor = "not-allowed";
+
+      const timer = setInterval(() => {
+        seconds--;
+        if (seconds <= 0) {
+          clearInterval(timer);
+          countdownSpan.innerText = "";
+          resendBtn.disabled = false;
+          resendBtn.style.color = "#3b82f6";
+          resendBtn.style.cursor = "pointer";
+        } else {
+          countdownSpan.innerText = `Gửi lại sau ${seconds}s`;
+        }
+      }, 1000);
+    }
+
+    // Gắn sự kiện gửi và gửi lại
+    document.getElementById("sendOtpBtn").addEventListener("click", () => sendOtpSMS(false));
+    document.getElementById("resendOtpBtn").addEventListener("click", () => sendOtpSMS(true));
+
+    document.getElementById("sendEmailBtn").addEventListener("click", () => sendEmailLink(false));
+    document.getElementById("resendEmailBtn").addEventListener("click", () => sendEmailLink(true));
+
+    // PHƯƠNG ÁN 1: Xác thực mã OTP nhập vào (dành cho SĐT) -> LƯU CƠ SỞ DỮ LIỆU
+    const confirmOtpBtn = document.getElementById("confirmOtpBtn");
+    confirmOtpBtn.addEventListener("click", async () => {
+      const code = document.getElementById("otpCode").value.trim();
+      if (code.length !== 6) return alert("Mã OTP phải gồm 6 số.");
+
+      confirmOtpBtn.disabled = true;
+      confirmOtpBtn.innerText = "Xác thực...";
+
+      try {
+        const result = await confirmationResult.confirm(code);
+        const idToken = await result.user.getIdToken();
+        document.getElementById("firebaseToken").value = idToken;
+
+        const formData = new FormData(form);
+        const response = await fetch("/register", {
+          method: "POST",
+          body: formData
+        });
+
+        if (response.ok) {
+          showStatus("Xác thực SĐT thành công và Hồ sơ đã được lưu vào Cơ sở dữ liệu!", "success");
+          startCountdownRedirect();
+        } else {
+          showStatus("Đăng ký thất bại. Số điện thoại hoặc Email đã được sử dụng.", "error");
+          confirmOtpBtn.disabled = false;
+          confirmOtpBtn.innerText = "Xác nhận";
+        }
+      } catch (e) {
+        alert("Mã OTP không chính xác: " + e.message);
+        confirmOtpBtn.disabled = false;
+        confirmOtpBtn.innerText = "Xác nhận";
+      }
+    });
+
+    // PHƯƠNG ÁN 2: Người dùng kiểm tra đã click link email kích hoạt thành công -> LƯU CƠ SỞ DỮ LIỆU
+    const confirmEmailVerificationBtn = document.getElementById("confirmEmailVerificationBtn");
+    confirmEmailVerificationBtn.addEventListener("click", async () => {
+      if (!emailAuthUserCred) return alert("Chưa thực hiện gửi link đăng ký.");
+
+      confirmEmailVerificationBtn.disabled = true;
+      confirmEmailVerificationBtn.innerText = "Đang kiểm tra...";
+
+      try {
+        await auth.currentUser.reload();
+        const isVerified = auth.currentUser.emailVerified;
+
+        if (!isVerified) {
+          alert("Email của bạn vẫn chưa được kích hoạt thành công. Vui lòng mở hòm thư email và nhấp vào liên kết xác nhận!");
+          confirmEmailVerificationBtn.disabled = false;
+          confirmEmailVerificationBtn.innerText = "Tôi đã bấm kích hoạt link - Xác nhận đăng ký";
+          return;
+        }
+
+        const idToken = await auth.currentUser.getIdToken();
+        document.getElementById("firebaseToken").value = idToken;
+
+        const formData = new FormData(form);
+        const response = await fetch("/register", {
+          method: "POST",
+          body: formData
+        });
+
+        if (response.ok) {
+          showStatus("Xác thực Email thành công và Hồ sơ đã được lưu vào Cơ sở dữ liệu!", "success");
+          startCountdownRedirect();
+        } else {
+          showStatus("Đăng ký thất bại. Email hoặc Số điện thoại đã được sử dụng.", "error");
+          confirmEmailVerificationBtn.disabled = false;
+          confirmEmailVerificationBtn.innerText = "Tôi đã bấm kích hoạt link - Xác nhận đăng ký";
+        }
+      } catch (e) {
+        alert("Lỗi kiểm tra xác thực Email: " + e.message);
+        confirmEmailVerificationBtn.disabled = false;
+        confirmEmailVerificationBtn.innerText = "Tôi đã bấm kích hoạt link - Xác nhận đăng ký";
+      }
+    });
+
+    // GOOGLE SIGN UP FLOW
+    const googleBtn = document.getElementById("googleSignUpBtn");
+    googleBtn.addEventListener("click", async () => {
+      const provider = new GoogleAuthProvider();
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const idToken = await result.user.getIdToken();
+
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = "/login/profile";
+
+        const tokenInput = document.createElement("input");
+        tokenInput.type = "hidden";
+        tokenInput.name = "firebaseToken";
+        tokenInput.value = idToken;
+        form.appendChild(tokenInput);
+
+        const csrfInput = document.createElement("input");
+        csrfInput.type = "hidden";
+        csrfInput.name = "_csrf";
+        csrfInput.value = document.querySelector("input[name='_csrf']").value;
+        form.appendChild(csrfInput);
+
+        document.body.appendChild(form);
+        form.submit();
+      } catch (e) {
+        alert("Lỗi Google Auth: " + e.message);
+      }
+    });
+
+    function startCountdownRedirect() {
+      // Khóa hoàn toàn giao diện
+      document.getElementById("phone").readOnly = true;
+      document.getElementById("email").readOnly = true;
+      document.getElementById("otpInputGroup").style.display = "none";
+      document.getElementById("emailConfirmationGroup").style.display = "none";
+      document.querySelector(".verification-box").style.display = "none";
+
+      let seconds = 5;
+      const redirectMsgDiv = document.getElementById("redirectMessage");
+      redirectMsgDiv.style.display = "block";
+      redirectMsgDiv.innerText = `Chúc mừng! Hồ sơ của bạn đã được đăng ký và lưu CSDL thành công. Đang chuyển hướng về trang Đăng nhập sau ${seconds} giây...`;
+
+      const interval = setInterval(() => {
+        seconds--;
+        if (seconds <= 0) {
+          clearInterval(interval);
+          window.location.href = "/login";
+        } else {
+          redirectMsgDiv.innerText = `Chúc mừng! Hồ sơ của bạn đã được đăng ký và lưu CSDL thành công. Đang chuyển hướng về trang Đăng nhập sau ${seconds} giây...`;
+        }
+      }, 1000);
+    }
+
+    function showStatus(msg, type) {
+      const statusDiv = document.getElementById("statusMessage");
+      if (type === "success") {
+        statusDiv.innerHTML = `<div class="success">${msg}</div>`;
+      } else {
+        statusDiv.innerHTML = `<div class="error">${msg}</div>`;
+      }
+    }
+  </script>
+</body>
+
+</html>

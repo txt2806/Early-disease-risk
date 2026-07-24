@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Yêu cầu xét nghiệm')}"></head>
+<body>
+  <div th:replace="~{fragments :: staffSidebar('lab-requests')}"></div>
+  <main class="main">
+    <header th:replace="~{fragments :: staffTopbar('Danh sách yêu cầu xét nghiệm')}"></header>
+    <div class="content">
+
+      <div class="alert-success" th:if="${success}" th:text="${success}"></div>
+      <div class="alert-error" th:if="${error}" th:text="${error}"></div>
+
+      <!-- ── Thanh lọc + tìm kiếm ── -->
+      <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+        <div style="display:flex;gap:6px;">
+          <button onclick="filterRequests('all')" id="btn-all"
+                  class="btn btn-primary" style="font-size:12px;padding:6px 14px;">
+            Tất cả
+          </button>
+          <button onclick="filterRequests('Pending')" id="btn-pending"
+                  class="btn btn-ghost" style="font-size:12px;padding:6px 14px;">
+            ⏳ Đang chờ
+          </button>
+          <button onclick="filterRequests('Completed')" id="btn-completed"
+                  class="btn btn-ghost" style="font-size:12px;padding:6px 14px;">
+            ✅ Đã hoàn thành
+          </button>
+        </div>
+        <input type="text" id="requestSearch" class="form-input"
+               placeholder="🔍 Tìm bệnh nhân..."
+               style="max-width:220px;padding:6px 12px;font-size:13px;"
+               oninput="filterRequests()">
+      </div>
+
+      <!-- ── Danh sách yêu cầu ── -->
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div th:each="r : ${requests}"
+             class="alert-full-item"
+             th:classappend="${r.status == 'Pending' ? 'MEDIUM' : 'LOW'}"
+             th:attr="data-status=${r.status},
+                      data-patient=${r.patient.fullName}"
+             style="display: flex; align-items: center; justify-content: space-between; border-left: 4px solid; padding: 16px; border-radius: 8px; background: rgba(255,255,255,0.03); border-color: th:text='${r.status == &quot;Pending&quot; ? &quot;#f59e0b&quot; : &quot;#10b981&quot;}';">
+          
+          <!-- Trạng thái icon -->
+          <div style="width:40px; height:40px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; margin-right:16px;"
+               th:style="${r.status == 'Pending'} ? 'background:rgba(245,158,11,0.15); color:#f59e0b;' : 'background:rgba(16,185,129,0.15); color:#10b981;'">
+            <i th:class="${r.status == 'Pending'} ? 'ti ti-hourglass' : 'ti ti-circle-check'"></i>
+          </div>
+
+          <!-- Chi tiết yêu cầu -->
+          <div style="flex: 1; margin-right: 16px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <span style="font-size: 15px; font-weight: 700; color: #e8edf5;" th:text="${r.patient.fullName}">Tên bệnh nhân</span>
+              <span style="color:#8a96b0; font-size:12px;" th:text="'(#BN' + ${r.patient.patientId} + ')'">#BN001</span>
+            </div>
+            
+            <div style="font-size: 13px; color: #cbd5e1; margin-bottom: 6px;">
+              <strong>Yêu cầu:</strong> <span th:text="${r.requestNotes}">Nội dung yêu cầu xét nghiệm</span>
+            </div>
+
+            <div style="font-size: 12px; color: #8a96b0; display: flex; gap: 12px;">
+              <span th:text="'BS yêu cầu: ' + ${r.doctor.fullName}">Bác sĩ yêu cầu</span>
+              <span th:text="'Gửi lúc: ' + ${#temporals.format(r.createdAt, 'dd/MM/yyyy HH:mm')}">Thời gian tạo</span>
+              <span th:if="${r.completedAt != null}" th:text="'Hoàn thành: ' + ${#temporals.format(r.completedAt, 'dd/MM/yyyy HH:mm')}">Thời gian hoàn thành</span>
+            </div>
+
+            <!-- Kết quả ghi nhận từ Staff -->
+            <div th:if="${r.status == 'Completed'}" style="margin-top: 8px; padding: 8px 12px; background: rgba(0,0,0,0.2); border-radius: 6px; border-left: 3px solid #10b981;">
+              <div style="font-size: 12px; color: #8a96b0; font-weight: 600; text-transform: uppercase;">Kết quả lâm sàng</div>
+              <div style="font-size: 13px; color: #a7f3d0;" th:text="${r.resultNotes ?: 'Đã hoàn thành nhập chỉ số.'}">Ghi chú kết quả</div>
+            </div>
+          </div>
+
+          <!-- Nút hành động -->
+          <div style="flex-shrink: 0; display: flex; gap: 8px;">
+            <!-- Chi tiết bệnh án -->
+            <a th:href="@{/staff/patients/{id}(id=${r.patient.patientId})}" class="btn btn-ghost" style="font-size: 12px; padding: 6px 12px;">
+              <i class="ti ti-user"></i> Hồ sơ
+            </a>
+
+            <!-- Dành cho Staff: Nhập chỉ số xét nghiệm -->
+            <a th:if="${r.status == 'Pending'}" 
+               th:href="@{/staff/patients/{id}/vitals(id=${r.patient.patientId}, requestId=${r.requestId})}"
+               class="btn" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; font-size: 12px; padding: 6px 12px; cursor: pointer; display: flex; align-items: center; gap: 4px; text-decoration: none;">
+              <i class="ti ti-activity-heartbeat"></i> Thực hiện
+            </a>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Trạng thái trống -->
+      <div th:if="${#lists.isEmpty(requests)}"
+           style="text-align:center;padding:60px;color:#8a96b0;">
+        <i class="ti ti-file-off"
+           style="font-size:48px;display:block;margin-bottom:12px;opacity:0.3;"></i>
+        Không có yêu cầu xét nghiệm nào
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    function filterRequests(status) {
+      const btnAll = document.getElementById('btn-all');
+      const btnPending = document.getElementById('btn-pending');
+      const btnCompleted = document.getElementById('btn-completed');
+      const searchInput = document.getElementById('requestSearch');
+      const searchValue = searchInput.value.toLowerCase().trim();
+
+      // Update button states if status passed
+      if (status) {
+        btnAll.classList.replace('btn-primary', 'btn-ghost');
+        btnPending.classList.replace('btn-primary', 'btn-ghost');
+        btnCompleted.classList.replace('btn-primary', 'btn-ghost');
+
+        if (status === 'all') {
+          btnAll.classList.replace('btn-ghost', 'btn-primary');
+          btnAll.dataset.active = "true";
+          btnPending.dataset.active = "false";
+          btnCompleted.dataset.active = "false";
+        } else if (status === 'Pending') {
+          btnPending.classList.replace('btn-ghost', 'btn-primary');
+          btnAll.dataset.active = "false";
+          btnPending.dataset.active = "true";
+          btnCompleted.dataset.active = "false";
+        } else if (status === 'Completed') {
+          btnCompleted.classList.replace('btn-ghost', 'btn-primary');
+          btnAll.dataset.active = "false";
+          btnPending.dataset.active = "false";
+          btnCompleted.dataset.active = "true";
+        }
+      }
+
+      // Get active status
+      let activeStatus = 'all';
+      if (btnPending.dataset.active === "true") activeStatus = 'Pending';
+      if (btnCompleted.dataset.active === "true") activeStatus = 'Completed';
+
+      const items = document.querySelectorAll('.alert-full-item');
+      items.forEach(item => {
+        const itemStatus = item.getAttribute('data-status');
+        const itemPatient = item.getAttribute('data-patient').toLowerCase();
+
+        const matchesStatus = (activeStatus === 'all' || itemStatus === activeStatus);
+        const matchesSearch = (itemPatient.includes(searchValue));
+
+        if (matchesStatus && matchesSearch) {
+          item.style.display = 'flex';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    }
+
+    // Initialize dataset attrs
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('btn-all').dataset.active = "true";
+      document.getElementById('btn-pending').dataset.active = "false";
+      document.getElementById('btn-completed').dataset.active = "false";
+    });
+  </script>
+</body>
+</html>

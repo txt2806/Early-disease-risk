@@ -22,27 +22,42 @@ import lombok.extern.slf4j.Slf4j;
 public class ChatService {
 
     private final WebClient webClient;
+    private final String chatUrl;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ChatService(@Value("${ai.api.chat.url}") String chatUrl) {
-        // chatUrl đã là full URL (vd. http://host:8000/chat/doctor), nên
-        // dùng trực tiếp làm baseUrl và gọi uri(""), khác với AIService
-        // (baseUrl bỏ "/predict" rồi append lại path con cho từng endpoint),
-        // vì ChatService chỉ có đúng 1 endpoint duy nhất, không cần tách.
-        this.webClient = WebClient.builder()
-                .baseUrl(chatUrl)
-                .build();
+        this.chatUrl = chatUrl;
+        this.webClient = WebClient.builder().build();
     }
 
     /**
-     * Gửi tin nhắn sang FastAPI /chat/doctor. Trả về ChatResponse nếu thành
-     * công, hoặc 1 ChatResponse "fallback" mang nội dung lỗi dễ hiểu nếu
-     * thất bại — KHÔNG throw exception ra ngoài, để Controller luôn nhận
-     * được object hợp lệ và hiển thị cho bác sĩ một cách rõ ràng.
+     * Tương thích ngược cho bác sĩ
      */
     public ChatResponse sendMessage(ChatRequest request) {
+        return sendMessage(request, "doctor");
+    }
+
+    /**
+     * Gửi tin nhắn sang FastAPI với endpoint động dựa theo role.
+     */
+    public ChatResponse sendMessage(ChatRequest request, String role) {
+        String targetUrl = chatUrl;
+        
+        if ("staff".equalsIgnoreCase(role)) {
+            // Do máy chủ AI chạy production từ xa (Render) không có sẵn endpoint /chat/staff và ta không thể tự deploy lên Render của phòng khám,
+            // chúng ta sẽ gọi vào endpoint /chat/doctor hiện hữu và chèn thêm chỉ thị vai trò (Prompt Injection) vào tin nhắn để định hình phản hồi của AI.
+            String originalMessage = request.getMessage();
+            String staffPrompt = 
+                "[HỆ THỐNG NHẮC NHỞ CHUYÊN MÔN: Bạn đang trả lời ĐIỀU DƯỠNG / NHÂN VIÊN Y TẾ (Medical Staff) của phòng khám CardioCare, không phải Bác sĩ. "
+                + "Hãy điều chỉnh câu trả lời phù hợp: tập trung giải thích chỉ số sinh tồn (huyết áp, nhịp tim, đường huyết), hướng dẫn nhập liệu, nhắc nhở họ KHÔNG tự ý chẩn đoán hoặc kê đơn vì đó là quyền hạn của Bác sĩ. "
+                + "Trả lời ngắn gọn, thân thiện, tiếng Việt.]\n\n"
+                + "[Câu hỏi của Điều dưỡng]: " + originalMessage;
+            request.setMessage(staffPrompt);
+        }
+
         try {
             return webClient.post()
+                    .uri(targetUrl)
                     .bodyValue(request)
                     .retrieve()
                     .bodyToMono(ChatResponse.class)
@@ -53,14 +68,8 @@ public class ChatService {
                     "Trợ lý AI chưa được cấu hình trên server (thiếu API key Gemini). "
                     + "Vui lòng liên hệ quản trị hệ thống.");
         } catch (WebClientResponseException.BadGateway e) {
-            // [FIX] Trước đây LUÔN hiển thị 1 message chung chung "có thể do hết
-            // quota" cho MỌI loại lỗi 502 — kể cả khi FastAPI đã trả về "detail"
-            // rất cụ thể (ví dụ: "Câu trả lời bị cắt do vượt giới hạn độ dài...
-            // thử lại với câu hỏi ngắn gọn hơn"). Giờ ưu tiên hiển thị đúng
-            // "detail" đó cho bác sĩ — hành động khắc phục rõ ràng hơn nhiều
-            // so với đoán mò "có thể do hết quota".
-            String detail = extractDetail(e.getResponseBodyAsString());
             log.warn("Lỗi khi gọi Gemini qua FastAPI (502): {}", e.getResponseBodyAsString());
+            String detail = extractDetail(e.getResponseBodyAsString());
             if (detail != null && !detail.isBlank()) {
                 return buildErrorResponse("Trợ lý AI gặp sự cố: " + detail);
             }

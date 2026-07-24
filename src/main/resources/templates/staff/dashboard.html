@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Dashboard')}"></head>
+<body>
+<div th:replace="~{fragments :: staffSidebar('dashboard')}"></div>
+<main class="main">
+  <header th:replace="~{fragments :: staffTopbar('Dashboard')}"></header>
+  <div class="content">
+    <div class="alert-success" th:if="${success}" th:text="${success}"></div>
+    <div class="stats-grid">
+      <div class="stat-card red">
+        <div class="stat-icon"><i class="ti ti-users"></i></div>
+        <div class="stat-value" th:text="${#lists.size(patients)}">0</div>
+        <div class="stat-label">Tổng số bệnh nhân</div>
+      </div>
+      <div class="stat-card blue">
+        <div class="stat-icon"><i class="ti ti-alert-triangle"></i></div>
+        <div class="stat-value" th:text="${highAlertCount}">0</div>
+        <div class="stat-label">Cảnh báo HIGH</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-icon"><i class="ti ti-bell"></i></div>
+        <div class="stat-value" th:text="${#lists.size(alerts)}">0</div>
+        <div class="stat-label">Tổng cảnh báo</div>
+      </div>
+      <div class="stat-card yellow">
+        <div class="stat-icon"><i class="ti ti-brain"></i></div>
+        <div class="stat-value">92%</div>
+        <div class="stat-label">Độ chính xác AI</div>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="ti ti-users"></i> Bệnh nhân (ưu tiên theo nguy cơ)</div>
+          <a th:href="@{/staff/patients}" class="card-action">Xem tất cả →</a>
+        </div>
+        <table class="patient-table">
+          <thead>
+            <tr><th>Bệnh nhân</th><th>Nguy cơ</th><th>Ngày sinh</th><th>Giới tính</th><th></th></tr>
+          </thead>
+          <tbody>
+            <tr th:each="p : ${patients}">
+              <td>
+                <div class="patient-name-cell">
+                  <div class="patient-avatar" th:text="${p.fullName != null && !p.fullName.isEmpty() ? p.fullName.charAt(0) : 'U'}">A</div>
+                  <div>
+                    <div class="patient-fullname" th:text="${p.fullName != null ? p.fullName : ''}">Tên</div>
+                    <div class="patient-id" th:text="'#BN' + ${p.patientId}">BN001</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span th:if="${patientRiskMap[p.patientId] != null}"
+                      class="risk-badge"
+                      th:classappend="'risk-' + ${patientRiskMap[p.patientId]}"
+                      th:text="${patientRiskMap[p.patientId]}">HIGH</span>
+                <span th:if="${patientRiskMap[p.patientId] == null}"
+                      style="color:#4a5568;font-size:12px;">Chưa có</span>
+              </td>
+              <td th:text="${#temporals.format(p.dob, 'dd/MM/yyyy')}" style="font-size:12px;color:#8a96b0;">--</td>
+              <td th:text="${p.gender}" style="color:#8a96b0;font-size:13px;">Nam</td>
+              <td><a th:href="@{/staff/patients/{id}(id=${p.patientId})}" class="action-btn primary">Xem</a></td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(patients)}">
+              <td colspan="5" style="text-align:center;color:#8a96b0;padding:20px;">Chưa có bệnh nhân nào</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <!-- Pagination -->
+        <div class="pagination-container" th:if="${totalPages != null and totalPages > 0}" style="padding: 14px 20px; border-top: 1px solid var(--border);">
+          <div class="pagination-info">
+            Trang <span th:text="${currentPage + 1}">1</span> / <span th:text="${totalPages}">1</span>
+          </div>
+          <div class="pagination-buttons">
+            <!-- Trang trước -->
+            <a th:href="@{/staff/dashboard(page=${currentPage - 1})}"
+               class="page-btn" th:classappend="${currentPage == 0} ? 'disabled' : ''">
+              ‹
+            </a>
+            <!-- Các số trang -->
+            <a th:each="i : ${#numbers.sequence(0, totalPages - 1)}"
+               th:if="${totalPages > 0 and i >= currentPage - 2 && i <= currentPage + 2}"
+               th:href="@{/staff/dashboard(page=${i})}"
+               class="page-btn"
+               th:classappend="${currentPage == i} ? 'active' : ''"
+               th:text="${i + 1}">
+              1
+            </a>
+            <!-- Trang sau -->
+            <a th:href="@{/staff/dashboard(page=${currentPage + 1})}"
+               class="page-btn" th:classappend="${currentPage == totalPages - 1} ? 'disabled' : ''">
+              ›
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="ti ti-bell-ringing"></i> Cảnh báo mới</div>
+          <a th:href="@{/staff/alerts}" class="card-action">Xem tất cả</a>
+        </div>
+        <div class="alert-list">
+          <div class="alert-item" th:each="a : ${alerts}">
+            <div class="alert-severity"
+                 th:classappend="${a.riskLevel == 'HIGH'} ? ' sev-HIGH' : (${a.riskLevel == 'MEDIUM'} ? ' sev-MEDIUM' : ' sev-LOW')"
+                 th:text="${a.riskLevel == 'HIGH'} ? '🔴' : (${a.riskLevel == 'MEDIUM'} ? '🟡' : '🟢')">🔴</div>
+            <div class="alert-body">
+              <div class="alert-patient" th:text="${a.record != null && a.record.patient != null ? a.record.patient.fullName : 'Không rõ'}">Bệnh nhân</div>
+              <div class="alert-desc" th:text="${a.riskExplanation}">Mô tả</div>
+              <div class="alert-time"
+                   th:text="${a.record != null && a.record.visitDate != null ? #temporals.format(a.record.visitDate, 'dd/MM/yyyy HH:mm') : ''}">Thời gian</div>
+            </div>
+          </div>
+          <div th:if="${#lists.isEmpty(alerts)}" style="text-align:center;padding:20px;color:#8a96b0;font-size:13px;">
+            Không có cảnh báo mới
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+<script th:src="@{/js/main.js}"></script>
+</body>
+</html>

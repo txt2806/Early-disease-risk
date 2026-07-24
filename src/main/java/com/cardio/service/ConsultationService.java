@@ -473,10 +473,13 @@ public class ConsultationService {
         return icdCatalogRepository.findById(code);
     }
     public double calcUrgencyScore(AIRiskPrediction p) {
-        if (p.getIsAlertSent()) {
+        if (p == null) {
+            return 0;
+        }
+        if (p.getIsAlertSent() != null && p.getIsAlertSent()) {
             return 0; // Đã xử lý → ưu tiên = 0
         }
-        double base = p.getRiskScore().doubleValue();
+        double base = p.getRiskScore() != null ? p.getRiskScore().doubleValue() : 0.0;
         long daysUnhandled = 0;
 
         if (p.getRecord() != null && p.getRecord().getVisitDate() != null) {
@@ -496,11 +499,13 @@ public class ConsultationService {
     public List<AIRiskPrediction> getAlertsByDoctorSorted(Integer doctorId) {
         List<AIRiskPrediction> all = aiRiskRepository.findByDoctorId(doctorId);
         all.sort((a, b) -> {
+            boolean sentA = a != null && a.getIsAlertSent() != null && a.getIsAlertSent();
+            boolean sentB = b != null && b.getIsAlertSent() != null && b.getIsAlertSent();
             // Chưa xử lý lên trước
-            if (!a.getIsAlertSent() && b.getIsAlertSent()) {
+            if (!sentA && sentB) {
                 return -1;
             }
-            if (a.getIsAlertSent() && !b.getIsAlertSent()) {
+            if (sentA && !sentB) {
                 return 1;
             }
             // Cùng trạng thái → sort theo urgencyScore
@@ -649,5 +654,68 @@ public class ConsultationService {
             req.setResultNotes(resultNotes);
             labRequestRepository.save(req);
         });
+    }
+
+    @Transactional
+    public void runAutoAIPrediction(ConsultationRecord record, HeartClinicalMetrics vitals) {
+        try {
+            AIRequest aiRequest = new AIRequest();
+            aiRequest.setAge(vitals.getAge() != null ? vitals.getAge().doubleValue() : 50.0);
+            aiRequest.setSex(vitals.getSex() != null ? vitals.getSex() : "Male");
+            
+            // Map cp
+            String cpStr = "asymptomatic";
+            if (vitals.getChestPainType() != null) {
+                switch (vitals.getChestPainType()) {
+                    case 1 -> cpStr = CP_TYPICAL;
+                    case 2 -> cpStr = CP_ATYPICAL;
+                    case 3 -> cpStr = CP_NON_ANGINAL;
+                    default -> cpStr = CP_ASYMPTOMATIC;
+                }
+            }
+            aiRequest.setCp(cpStr);
+
+            aiRequest.setTrestbps(vitals.getRestingBP() != null ? vitals.getRestingBP().doubleValue() : 120.0);
+            aiRequest.setChol(vitals.getCholesterol() != null ? vitals.getCholesterol().doubleValue() : 200.0);
+            aiRequest.setFbs(vitals.getFastingBloodSugar() != null ? (vitals.getFastingBloodSugar() ? "1.0" : "0.0") : "0.0");
+            
+            // Map restecg
+            String restecgStr = "normal";
+            if (vitals.getRestingECG() != null) {
+                switch (vitals.getRestingECG()) {
+                    case 0 -> restecgStr = ECG_NORMAL;
+                    case 1 -> restecgStr = ECG_ABNORMALITY;
+                    case 2 -> restecgStr = ECG_HYPERTROPHY;
+                    default -> restecgStr = ECG_NORMAL;
+                }
+            }
+            aiRequest.setRestecg(restecgStr);
+
+            aiRequest.setThalch(vitals.getMaxHeartRate() != null ? vitals.getMaxHeartRate().doubleValue() : 150.0);
+            aiRequest.setExang(vitals.getExerciseAngina() != null ? (vitals.getExerciseAngina() ? "1.0" : "0.0") : "0.0");
+            aiRequest.setOldpeak(vitals.getOldpeak() != null ? vitals.getOldpeak() : 0.0);
+            aiRequest.setSlope(vitals.getSlope() != null ? vitals.getSlope() : "flat");
+            aiRequest.setCa(vitals.getCa() != null ? vitals.getCa().doubleValue() : 0.0);
+            aiRequest.setThal(vitals.getThal() != null ? vitals.getThal() : "normal");
+
+            // Chạy AI dự đoán
+            AIResponse aiResponse = aiService.predict(aiRequest);
+
+            // Lưu cảnh báo AI
+            AIRiskPrediction prediction = new AIRiskPrediction();
+            prediction.setRecord(record);
+            prediction.setRiskScore(java.math.BigDecimal.valueOf(aiResponse.getProbability() * 100));
+            prediction.setRiskLevel(aiResponse.getRisk_level());
+            prediction.setRiskExplanation(aiResponse.getMessage());
+            prediction.setTopFactorsJson(serializeTopFactors(aiResponse));
+            prediction.setTrendInfoJson(serializeTrendInfo(aiResponse));
+            prediction.setIsAlertSent(false);
+            aiRiskRepository.save(prediction);
+
+            log.info("Tự động chạy AI phân tích nguy cơ cho hồ sơ #{} thành công. Mức nguy cơ: {}, Điểm nguy cơ: {}%", 
+                    record.getRecordId(), prediction.getRiskLevel(), prediction.getRiskScore());
+        } catch (Exception e) {
+            log.error("Lỗi khi tự động chạy AI phân tích nguy cơ: ", e);
+        }
     }
 }

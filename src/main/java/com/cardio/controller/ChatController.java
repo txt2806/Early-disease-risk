@@ -65,25 +65,11 @@ public class ChatController {
     private final AppointmentRepository appointmentRepository;
     private final ObjectMapper objectMapper;
 
-    // Helper lấy doctor/staff đang đăng nhập — giữ đúng pattern getCurrentDoctor()
-    // đã có trong DoctorController, viết lại gọn ở đây để tránh phụ thuộc
-    // chéo không cần thiết giữa 2 controller.
+    // Helper lấy doctor đang đăng nhập — giữ đúng pattern getCurrentDoctor()
     private DoctorProfile getCurrentDoctor(UserDetails userDetails) {
         String username = userDetails.getUsername();
-        var docOpt = doctorRepository.findByUsername(username);
-        if (docOpt.isPresent()) {
-            return docOpt.get();
-        }
-        var staffOpt = staffRepository.findByUsername(username);
-        if (staffOpt.isPresent()) {
-            StaffProfile staff = staffOpt.get();
-            DoctorProfile mockDoc = new DoctorProfile();
-            mockDoc.setUsername(staff.getUsername());
-            mockDoc.setFullName(staff.getFullName());
-            mockDoc.setSpecialty("Nhân viên");
-            return mockDoc;
-        }
-        throw new RuntimeException("Doctor or Staff profile not found for username: " + username);
+        return doctorRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Doctor profile not found for username: " + username));
     }
 
     // ── Hiển thị trang chatbot ─────────────────────────
@@ -228,6 +214,38 @@ public class ChatController {
             // lồng trong text, không cần parse lại thành object ở đây.
             ctx.put("top_factors", prediction.getTopFactorsJson());
             ctx.put("trend_info", prediction.getTrendInfoJson());
+        }
+
+        // Bổ sung các chỉ số sinh tồn thực tế để chatbot bác sĩ có thể phân tích trực tiếp
+        com.cardio.model.HeartClinicalMetrics metrics = record.getClinicalMetrics();
+        if (metrics == null) {
+            metrics = consultationService.getMetricsByRecord(record.getRecordId()).orElse(null);
+        }
+        if (metrics != null) {
+            ctx.put("tuổi", metrics.getAge());
+            ctx.put("giới_tính", "Male".equalsIgnoreCase(metrics.getSex()) || "Nam".equalsIgnoreCase(metrics.getSex()) ? "Nam" : "Nữ");
+            ctx.put("huyết_áp_lúc_nghỉ", metrics.getRestingBP() != null ? metrics.getRestingBP() + " mmHg" : "chưa ghi nhận");
+            ctx.put("cholesterol", metrics.getCholesterol() != null ? metrics.getCholesterol() + " mg/dl" : "chưa ghi nhận");
+            ctx.put("đường_huyết_lúc_đói", metrics.getFastingBloodSugar() != null ? (metrics.getFastingBloodSugar() ? "> 120 mg/dl" : "<= 120 mg/dl") : "chưa ghi nhận");
+            ctx.put("nhịp_tim_tối_đa", metrics.getMaxHeartRate() != null ? metrics.getMaxHeartRate() + " bpm" : "chưa ghi nhận");
+            ctx.put("nhiệt_độ", metrics.getTemperature() != null ? metrics.getTemperature() + " °C" : "chưa ghi nhận");
+            ctx.put("spo2", metrics.getSpO2() != null ? metrics.getSpO2() + " %" : "chưa ghi nhận");
+            
+            String ecgStr = "Bình thường";
+            if (metrics.getRestingECG() != null) {
+                if (metrics.getRestingECG() == 1) ecgStr = "Bất thường ST-T";
+                else if (metrics.getRestingECG() == 2) ecgStr = "Phì đại thất trái";
+            }
+            ctx.put("kết_quả_ecg", ecgStr);
+
+            String cpStr = "Không triệu chứng";
+            if (metrics.getChestPainType() != null) {
+                if (metrics.getChestPainType() == 1) cpStr = "Điển hình";
+                else if (metrics.getChestPainType() == 2) cpStr = "Không điển hình";
+                else if (metrics.getChestPainType() == 3) cpStr = "Không đau ngực";
+            }
+            ctx.put("loại_đau_ngực", cpStr);
+            ctx.put("đau_ngực_gắng_sức", metrics.getExerciseAngina() != null && metrics.getExerciseAngina() ? "Có" : "Không");
         }
         return ctx;
     }

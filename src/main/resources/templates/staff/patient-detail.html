@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Chi tiết bệnh nhân')}"></head>
+<body>
+  <div th:replace="~{fragments :: staffSidebar('patients')}"></div>
+  <main class="main">
+    <header th:replace="~{fragments :: staffTopbar('Chi tiết hồ sơ bệnh nhân')}"></header>
+    <div class="content">
+
+      <div class="alert-success" th:if="${success}" th:text="${success}"></div>
+      <div class="alert-error" th:if="${error}" th:text="${error}" style="background:rgba(224,90,90,0.12);border:1px solid rgba(224,90,90,0.3);color:#ff7b7b;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;"></div>
+
+      <!-- Patient header -->
+      <div class="detail-header">
+        <div class="detail-info">
+          <div class="detail-avatar"
+            th:text="${patient != null && patient.fullName != null && !patient.fullName.isEmpty() ? patient.fullName.charAt(0) : 'U'}"
+            style="background:linear-gradient(135deg,#e05a5a,#c0392b);">A</div>
+          <div>
+            <div class="detail-name" th:text="${patient != null ? patient.fullName : ''}">Tên bệnh nhân</div>
+            <div class="detail-meta">
+              <span th:text="${patient.dob != null} ? 'Sinh: ' + ${#temporals.format(patient.dob, 'dd/MM/yyyy')} : 'Sinh: --'">Sinh:</span>
+              <span th:text="${patient.gender}">Nam</span>
+              <span th:text="${patient.phone}">SĐT</span>
+              <span th:text="${patient.address}">Địa chỉ</span>
+            </div>
+          </div>
+        </div>
+        <div class="detail-actions">
+          <a th:href="@{/staff/patients/{id}/vitals(id=${patient.patientId})}" class="btn"
+            style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+            <i class="ti ti-activity-heartbeat"></i> Nhập chỉ số & Xét nghiệm
+          </a>
+          <a th:href="@{/staff/patients}" class="btn btn-ghost">← Danh sách bệnh nhân</a>
+        </div>
+      </div>
+
+      <!-- Danh sách yêu cầu xét nghiệm của bệnh nhân này -->
+      <div class="card" th:if="${labRequests != null and !#lists.isEmpty(labRequests)}" style="margin-bottom: 24px;">
+        <div class="card-header">
+          <div class="card-title"><i class="ti ti-file-analytics"></i> Yêu cầu xét nghiệm hiện tại</div>
+        </div>
+        <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+          <div th:each="req : ${labRequests}" 
+               style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 12px 16px; border-radius: 8px;">
+            <div>
+              <div style="font-size: 13px; color: #cbd5e1; font-weight: 600;">
+                <span th:text="${req.requestNotes}">Nội dung yêu cầu</span>
+              </div>
+              <div style="font-size: 11px; color: #8a96b0; margin-top: 4px;">
+                <span th:text="'BS chỉ định: ' + ${req.doctor != null ? req.doctor.fullName : 'Hệ thống'}">Bác sĩ</span> · 
+                <span th:text="${req.createdAt != null ? #temporals.format(req.createdAt, 'dd/MM/yyyy HH:mm') : '--'}">Thời gian</span>
+              </div>
+              <div th:if="${req.status == 'Completed'}" style="margin-top: 6px; padding: 6px 10px; background: rgba(16,185,129,0.08); border-radius: 4px; font-size: 12px; color: #a7f3d0; border-left: 2px solid #10b981;">
+                <strong>Kết quả xét nghiệm:</strong> <span th:text="${req.resultNotes}">Ghi chú kết quả</span>
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span th:if="${req.status == 'Pending'}" class="risk-badge risk-MEDIUM" style="font-size: 11px; padding: 4px 10px; margin: 0;">⏳ Đang chờ</span>
+              <a th:if="${req.status == 'Pending'}" th:href="@{/staff/patients/{id}/vitals(id=${patient.patientId}, requestId=${req.requestId})}" class="btn" style="padding: 4px 10px; font-size: 11px; background: #10b981; color: white; border: none; cursor: pointer; text-decoration: none;">Thực hiện</a>
+              <span th:if="${req.status == 'Completed'}" class="risk-badge risk-LOW" style="font-size: 11px; padding: 4px 10px; margin: 0;">✅ Hoàn thành</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lịch sử khám -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="ti ti-clipboard-list"></i> Lịch sử khám</div>
+          <span style="font-size:12px;color:#8a96b0;" th:text="${records.size()} + ' lần khám'">0 lần khám</span>
+        </div>
+
+        <!-- Từng lần khám -->
+        <div th:each="r : ${records}" style="border-bottom:1px solid rgba(255,255,255,0.07);padding:20px;">
+
+          <!-- Header lần khám -->
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+            <div>
+              <div style="font-size:13px;font-weight:600;color:#e8edf5;">
+                Lần khám: <span th:text="${#temporals.format(r.visitDate, 'dd/MM/yyyy HH:mm')}"
+                  style="font-family:monospace;color:#60a5fa;">--</span>
+              </div>
+              <div style="margin-top:4px;">
+                <span th:if="${r.aiRiskPrediction != null}" class="risk-badge"
+                  th:classappend="'risk-' + ${r.aiRiskPrediction.riskLevel}"
+                  th:text="${r.aiRiskPrediction.riskLevel + ' · ' + (r.aiRiskPrediction.riskScore != null ? #numbers.formatDecimal(r.aiRiskPrediction.riskScore, 1, 1) + '%' : '0%')}">--</span>
+                <span th:if="${r.aiRiskPrediction == null}" style="color:#4a5568;font-size:12px;">Chưa có AI</span>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:8px;align-items:center;">
+              <!-- Hỏi AI button -->
+              <a th:if="${r.aiRiskPrediction != null}"
+                 th:href="@{/staff/chatbot(patientId=${patient.patientId}, recordId=${r.recordId})}"
+                 class="btn"
+                 style="padding: 6px 12px; font-size: 11px; background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 4px; text-decoration: none;">
+                🤖 Hỏi AI
+              </a>
+              <!-- Chi tiết button -->
+              <button class="btn"
+                style="padding: 6px 12px; font-size: 11px; background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 4px;"
+                th:data-date="${#temporals.format(r.visitDate, 'dd/MM/yyyy HH:mm')}"
+                th:data-notes="${r.consultationNotes}" th:data-treatment-plan="${r.treatmentPlan}"
+                th:data-risk-level="${r.aiRiskPrediction != null ? r.aiRiskPrediction.riskLevel : 'Chưa có'}"
+                th:data-risk-score="${r.aiRiskPrediction != null and r.aiRiskPrediction.riskScore != null ? #numbers.formatDecimal(r.aiRiskPrediction.riskScore, 1, 1) + '%' : '--'}"
+                th:data-risk-exp="${r.aiRiskPrediction != null ? r.aiRiskPrediction.riskExplanation : '--'}"
+                th:data-bp="${r.clinicalMetrics != null ? r.clinicalMetrics.restingBP : '--'}"
+                th:data-chol="${r.clinicalMetrics != null ? r.clinicalMetrics.cholesterol : '--'}"
+                th:data-fbs="${r.clinicalMetrics != null ? (r.clinicalMetrics.fastingBloodSugar != null and r.clinicalMetrics.fastingBloodSugar ? 'Có' : 'Không') : '--'}"
+                th:data-ecg="${r.clinicalMetrics != null ? r.clinicalMetrics.restingECG : '--'}"
+                th:data-hr="${r.clinicalMetrics != null ? r.clinicalMetrics.maxHeartRate : '--'}"
+                th:data-exang="${r.clinicalMetrics != null ? (r.clinicalMetrics.exerciseAngina != null and r.clinicalMetrics.exerciseAngina ? 'Có' : 'Không') : '--'}"
+                th:data-cp="${r.clinicalMetrics != null ? r.clinicalMetrics.chestPainType : '--'}"
+                th:data-oldpeak="${r.clinicalMetrics != null ? r.clinicalMetrics.oldpeak : '--'}"
+                th:data-slope="${r.clinicalMetrics != null ? r.clinicalMetrics.slope : '--'}"
+                th:data-ca="${r.clinicalMetrics != null ? r.clinicalMetrics.ca : '--'}"
+                th:data-thal="${r.clinicalMetrics != null ? r.clinicalMetrics.thal : '--'}"
+                th:data-age="${r.clinicalMetrics != null ? r.clinicalMetrics.age : '--'}"
+                th:data-sex="${r.clinicalMetrics != null ? r.clinicalMetrics.sex : '--'}"
+                th:data-temp="${r.clinicalMetrics != null ? r.clinicalMetrics.temperature : '--'}"
+                th:data-spo2="${r.clinicalMetrics != null ? r.clinicalMetrics.spO2 : '--'}"
+                th:data-blood-test="${r.clinicalMetrics != null ? r.clinicalMetrics.bloodTest : '--'}"
+                th:data-urine-test="${r.clinicalMetrics != null ? r.clinicalMetrics.urineTest : '--'}"
+                th:data-xray="${r.clinicalMetrics != null ? r.clinicalMetrics.xray : '--'}"
+                th:data-mri="${r.clinicalMetrics != null ? r.clinicalMetrics.mri : '--'}"
+                th:data-ct="${r.clinicalMetrics != null ? r.clinicalMetrics.ct : '--'}"
+                th:data-ultrasound="${r.clinicalMetrics != null ? r.clinicalMetrics.ultrasound : '--'}"
+                onclick="viewDetails(this)">
+                🔍 Chi tiết
+              </button>
+            </div>
+          </div>
+
+          <!-- Hiển thị ghi chú hiện tại -->
+          <div th:id="'view-' + ${r.recordId}">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+              <div>
+                <div style="font-size:11px;color:#8a96b0;text-transform:uppercase;margin-bottom:4px;">Ghi chú lâm sàng</div>
+                <div style="font-size:13px;color:#cbd5e1;background:#0f1628;padding:10px;border-radius:8px;min-height:40px;"
+                  th:text="${r.consultationNotes ?: 'Chưa có ghi chú'}">--</div>
+              </div>
+              <div>
+                <div style="font-size:11px;color:#8a96b0;text-transform:uppercase;margin-bottom:4px;">Phác đồ điều trị</div>
+                <div style="font-size:13px;color:#cbd5e1;background:#0f1628;padding:10px;border-radius:8px;min-height:40px;"
+                  th:text="${r.treatmentPlan ?: 'Chưa có phác đồ'}">--</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chẩn đoán ICD-10 -->
+          <div style="margin-top:14px;">
+            <div style="font-size:11px;color:#8a96b0;text-transform:uppercase;margin-bottom:8px;">
+              Chẩn đoán ICD-10
+            </div>
+            <div th:if="${recordDiagnosesMap[r.recordId] != null and !#lists.isEmpty(recordDiagnosesMap[r.recordId])}"
+              style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+              <div th:each="d : ${recordDiagnosesMap[r.recordId]}"
+                style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:6px;padding:4px 10px;font-size:12px;color:#34d399;">
+                <span th:text="${d.icdCatalog.icdCode}" style="font-family:monospace;font-weight:600;">I10</span>
+                — <span th:text="${d.icdCatalog.diseaseName}">Tên bệnh</span>
+                <span th:if="${d.notes}" style="color:#8a96b0;" th:text="' (' + ${d.notes} + ')'"></span>
+              </div>
+            </div>
+            <div th:if="${recordDiagnosesMap[r.recordId] == null or #lists.isEmpty(recordDiagnosesMap[r.recordId])}"
+              style="font-size:12px;color:#4a5568;margin-bottom:10px;">
+              Chưa ghi nhận chẩn đoán ICD-10 cho đợt khám này.
+            </div>
+          </div>
+
+        </div>
+        <div th:if="${#lists.isEmpty(records)}" style="text-align:center;padding:30px;color:#8a96b0;">
+          Chưa có lịch sử lần khám nào.
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal Chi tiết Hồ sơ Khám -->
+  <div id="detailsModal" class="modal"
+    style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,15,30,0.85);backdrop-filter:blur(4px);align-items:center;justify-content:center;z-index:1000;">
+    <div class="modal-content"
+      style="background:#111827;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;max-width:650px;width:90%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);color:#e8edf5;">
+      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px;margin-bottom:16px;">
+        <h3 style="font-size:18px;font-weight:700;color:#e8edf5;"><i class="ti ti-report-medical" style="color:#10b981;"></i> Chi tiết hồ sơ khám</h3>
+        <span onclick="closeModal()" style="font-size:24px;cursor:pointer;color:#8a96b0;line-height:1;">&times;</span>
+      </div>
+
+      <!-- Thông tin chung & AI -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;background:#1e293b;padding:16px;border-radius:12px;border:1px solid rgba(255,255,255,0.04);">
+        <div>
+          <div style="font-size:11px;color:#8a96b0;text-transform:uppercase;">Ngày khám</div>
+          <div id="modalDate" style="font-size:14px;font-weight:600;color:#e8edf5;margin-top:2px;">--</div>
+          <div style="font-size:11px;color:#8a96b0;text-transform:uppercase;margin-top:10px;">Bệnh nhân</div>
+          <div style="font-size:14px;font-weight:600;color:#e8edf5;margin-top:2px;" th:text="${patient.fullName}">--</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:#8a96b0;text-transform:uppercase;">Nguy cơ AI</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">
+            <span id="modalRiskBadge" class="risk-badge">--</span>
+            <strong id="modalRiskScore" style="font-family:monospace;color:#e8edf5;">0%</strong>
+          </div>
+          <div style="font-size:11px;color:#8a96b0;text-transform:uppercase;margin-top:10px;">Lý giải thuật toán</div>
+          <div id="modalRiskExplanation" style="font-size:12px;color:#cbd5e1;margin-top:2px;line-height:1.4;">--</div>
+        </div>
+      </div>
+
+      <!-- Chỉ số lâm sàng -->
+      <h4 style="font-size:14px;font-weight:700;color:#8a96b0;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Chỉ số lâm sàng đã điền</h4>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(135px, 1fr));gap:12px;margin-bottom:20px;background:#0f172a;padding:16px;border-radius:12px;">
+        <div>
+          <span style="font-size:11px;color:#64748b;display:block;">Tuổi / Giới tính</span>
+          <span id="modalAgeSex" style="font-size:13px;font-weight:600;color:#e8edf5;">--</span>
+        </div>
+        <div>
+          <span style="font-size:11px;color:#64748b;display:block;">Huyết áp lúc nghỉ</span>
+          <span id="modalBP" style="font-size:13px;font-weight:600;color:#e8edf5;">--</span>
+        </div>
+        <div>
+          <span style="font-size:11px;color:#64748b;display:block;">Cholesterol</span>
+          <span id="modalChol" style="font-size:13px;font-weight:600;color:#e8edf5;">--</span>
+        </div>
+        <div>
+          <span style="font-size:11px;color:#64748b;display:block;">Đường huyết > 120</span>
+          <span id="modalFBS" style="font-size:13px;font-weight:600;color:#e8edf5;">--</span>
+        </div>
+        <div>
+          <span style="font-size:11px;color:#64748b;display:block;">Kết quả ECG</span>
+          <span id="modalECG" style="font-size:13px;font-weight:600;color:#e8edf5;">--</span>
+        </div>
+        <div>
+          <span style="font-size:11px;color:#64748b;display:block;">Nhịp tim tối đa</span>
+          <span id="modalHR" style="font-size:13px;font-weight:600;color:#e8edf5;">--</span>
+        </div>
+        <div>
+          <span style="font-size:11px;color:#64748b;display:block;">Đau ngực gắng sức</span>
+          <span id="modalExang" style="font-size:13px;font-weight:600;color:#e8edf5;">--</span>
+        </div>
+        <div>
+          <span style="font-size:11px;color:#64748b;display:block;">Loại đau ngực</span>
+          <span id="modalCP" style="font-size:13px;font-weight:600;color:#e8edf5;">--</span>
+        </div>
+        <div>
+          <span style="font-size:11px;color:#64748b;display:block;">ST Oldpeak</span>
+          <span id="modalOldpeak" style="font-size:13px;font-weight:600;color:#e8edf5;">--</span>
+        </div>
+        <div>
+          <span style="font-size:11px;color:#64748b;display:block;">Độ dốc ST</span>
+          <span id="modalSlope" style="font-size:13px;font-weight:600;color:#e8edf5;">--</span>
+        </div>
+        <div>
+          <span style="font-size:11px;color:#64748b;display:block;">Mạch vành tắc (ca)</span>
+          <span id="modalCa" style="font-size:13px;font-weight:600;color:#e8edf5;">--</span>
+        </div>
+        <div>
+          <span style="font-size:11px;color:#64748b;display:block;">Thalassemia</span>
+          <span id="modalThal" style="font-size:13px;font-weight:600;color:#e8edf5;">--</span>
+        </div>
+      </div>
+
+      <!-- Chỉ số sinh tồn (Vitals) -->
+      <h4 style="font-size:14px;font-weight:700;color:#8a96b0;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Chỉ số sinh tồn</h4>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(135px, 1fr));gap:12px;margin-bottom:20px;background:#0f172a;padding:16px;border-radius:12px;">
+        <div>
+          <span style="font-size:11px;color:#64748b;display:block;">Nhiệt độ</span>
+          <span id="modalTemp" style="font-size:13px;font-weight:600;color:#e8edf5;">--</span>
+        </div>
+        <div>
+          <span style="font-size:11px;color:#64748b;display:block;">SpO2</span>
+          <span id="modalSpO2" style="font-size:13px;font-weight:600;color:#e8edf5;">--</span>
+        </div>
+      </div>
+
+      <!-- Kết quả xét nghiệm & Chẩn đoán hình ảnh -->
+      <h4 style="font-size:14px;font-weight:700;color:#8a96b0;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Kết quả xét nghiệm & chẩn đoán hình ảnh</h4>
+      <div style="background:#0f172a;padding:16px;border-radius:12px;margin-bottom:20px;font-size:13px;color:#e8edf5;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <span style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">Xét nghiệm máu</span>
+          <span id="modalBlood" style="font-weight:600;color:#cbd5e1;white-space:pre-wrap;">--</span>
+        </div>
+        <div>
+          <span style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">Xét nghiệm nước tiểu</span>
+          <span id="modalUrine" style="font-weight:600;color:#cbd5e1;white-space:pre-wrap;">--</span>
+        </div>
+        <div>
+          <span style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">Chụp X-quang</span>
+          <span id="modalXray" style="font-weight:600;color:#cbd5e1;white-space:pre-wrap;">--</span>
+        </div>
+        <div>
+          <span style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">Chụp siêu âm</span>
+          <span id="modalUltrasound" style="font-weight:600;color:#cbd5e1;white-space:pre-wrap;">--</span>
+        </div>
+        <div style="grid-column: span 2;">
+          <span style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">Chụp MRI / CT</span>
+          <div style="display:flex;gap:24px;">
+            <div>
+              <span style="font-size:11px;color:#475569;">MRI: </span><span id="modalMRI" style="font-weight:600;color:#cbd5e1;">--</span>
+            </div>
+            <div>
+              <span style="font-size:11px;color:#475569;">CT: </span><span id="modalCT" style="font-weight:600;color:#cbd5e1;">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ghi chú chẩn đoán bác sĩ -->
+      <h4 style="font-size:14px;font-weight:700;color:#8a96b0;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Ghi chú chẩn đoán bác sĩ</h4>
+      <div id="modalNotes" style="font-size:13px;color:#cbd5e1;line-height:1.5;background:#1e293b;padding:16px;border-radius:12px;white-space:pre-wrap;border-left:4px solid #10b981;">--</div>
+
+      <!-- Phác đồ điều trị -->
+      <h4 style="font-size:14px;font-weight:700;color:#8a96b0;margin-top:16px;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Phác đồ điều trị</h4>
+      <div id="modalTreatmentPlan" style="font-size:13px;color:#cbd5e1;line-height:1.5;background:#1e293b;padding:16px;border-radius:12px;white-space:pre-wrap;border-left:4px solid #3b82f6;">--</div>
+
+      <div style="display:flex;justify-content:flex-end;margin-top:20px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px;">
+        <button onclick="closeModal()" class="btn btn-ghost" style="padding:8px 20px;cursor:pointer;">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function viewDetails(btn) {
+      const date = btn.getAttribute("data-date");
+      const notes = btn.getAttribute("data-notes");
+      const treatmentPlan = btn.getAttribute("data-treatment-plan");
+      const riskLevel = btn.getAttribute("data-risk-level");
+      const riskScore = btn.getAttribute("data-risk-score");
+      const riskExp = btn.getAttribute("data-risk-exp");
+      const bp = btn.getAttribute("data-bp");
+      const chol = btn.getAttribute("data-chol");
+      const fbs = btn.getAttribute("data-fbs");
+      const ecg = btn.getAttribute("data-ecg");
+      const hr = btn.getAttribute("data-hr");
+      const exang = btn.getAttribute("data-exang");
+      const cp = btn.getAttribute("data-cp");
+      const oldpeak = btn.getAttribute("data-oldpeak");
+      const slope = btn.getAttribute("data-slope");
+      const ca = btn.getAttribute("data-ca");
+      const thal = btn.getAttribute("data-thal");
+      const age = btn.getAttribute("data-age");
+      const sex = btn.getAttribute("data-sex");
+      const temp = btn.getAttribute("data-temp");
+      const spo2 = btn.getAttribute("data-spo2");
+      const blood = btn.getAttribute("data-blood-test");
+      const urine = btn.getAttribute("data-urine-test");
+      const xray = btn.getAttribute("data-xray");
+      const mri = btn.getAttribute("data-mri");
+      const ct = btn.getAttribute("data-ct");
+      const ultrasound = btn.getAttribute("data-ultrasound");
+
+      let ecgText = ecg;
+      if (ecg === "0") ecgText = "Bình thường (0)";
+      else if (ecg === "1") ecgText = "Bất thường ST-T (1)";
+      else if (ecg === "2") ecgText = "Phì đại thất trái (2)";
+
+      let cpText = cp;
+      if (cp === "1") cpText = "Điển hình (1)";
+      else if (cp === "2") cpText = "Không điển hình (2)";
+      else if (cp === "3") cpText = "Không đau ngực (3)";
+      else if (cp === "4") cpText = "Không triệu chứng (4)";
+
+      let thalText = thal;
+      if (thal === "normal") thalText = "Bình thường";
+      else if (thal === "fixed defect") thalText = "Khiếm khuyết cố định";
+      else if (thal === "reversable defect") thalText = "Khiếm khuyết hồi phục";
+
+      let slopeText = slope;
+      if (slope === "flat") slopeText = "Phẳng";
+      else if (slope === "upsloping") slopeText = "Dốc lên";
+      else if (slope === "downsloping") slopeText = "Dốc xuống";
+
+      document.getElementById("modalDate").textContent = date;
+      document.getElementById("modalNotes").textContent = notes || "Không có ghi chép chẩn đoán.";
+      document.getElementById("modalTreatmentPlan").textContent = treatmentPlan || "Không có phác đồ điều trị.";
+      document.getElementById("modalRiskScore").textContent = riskScore;
+      document.getElementById("modalRiskExplanation").textContent = riskExp || "Chưa có lý giải nguy cơ.";
+
+      // Age / Sex
+      document.getElementById("modalAgeSex").textContent = `${age} / ${sex === 'Male' ? 'Nam' : 'Nữ'}`;
+      document.getElementById("modalBP").textContent = bp + " mmHg";
+      document.getElementById("modalChol").textContent = chol + " mg/dl";
+      document.getElementById("modalFBS").textContent = fbs;
+      document.getElementById("modalECG").textContent = ecgText;
+      document.getElementById("modalHR").textContent = hr + " bpm";
+      document.getElementById("modalExang").textContent = exang;
+      document.getElementById("modalCP").textContent = cpText;
+      document.getElementById("modalOldpeak").textContent = oldpeak;
+      document.getElementById("modalSlope").textContent = slopeText;
+      document.getElementById("modalCa").textContent = ca;
+      document.getElementById("modalThal").textContent = thalText;
+
+      // Vitals
+      document.getElementById("modalTemp").textContent = temp !== '--' && temp ? temp + " °C" : '--';
+      document.getElementById("modalSpO2").textContent = spo2 !== '--' && spo2 ? spo2 + " %" : '--';
+
+      // Tests
+      const getFileLink = (path, label) => {
+        if (!path || path === '--') return '--';
+        return `<a href="${path}" target="_blank" style="color:#60a5fa;text-decoration:underline;">📄 Xem file ${label}</a>`;
+      };
+      document.getElementById("modalBlood").innerHTML = getFileLink(blood, "Xét nghiệm máu");
+      document.getElementById("modalUrine").innerHTML = getFileLink(urine, "Xét nghiệm nước tiểu");
+      document.getElementById("modalXray").innerHTML = getFileLink(xray, "X-quang");
+      document.getElementById("modalUltrasound").innerHTML = getFileLink(ultrasound, "Siêu âm");
+      document.getElementById("modalMRI").innerHTML = getFileLink(mri, "MRI");
+      document.getElementById("modalCT").innerHTML = getFileLink(ct, "CT");
+
+      // Risk level badge class
+      const badge = document.getElementById("modalRiskBadge");
+      badge.textContent = riskLevel;
+      badge.className = "risk-badge risk-" + riskLevel;
+
+      document.getElementById("detailsModal").style.display = "flex";
+    }
+
+    function closeModal() {
+      document.getElementById("detailsModal").style.display = "none";
+    }
+  </script>
+</body>
+</html>

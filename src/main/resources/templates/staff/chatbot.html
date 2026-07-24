@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Chatbot AI')}"></head>
+<body>
+<input type="hidden" id="csrfToken" th:value="${_csrf.token}">
+<input type="hidden" id="csrfHeaderName" th:value="${_csrf.headerName}">
+
+<input type="hidden" id="predictContextJson" th:value="${contextPredictContextJson != null ? contextPredictContextJson : ''}">
+
+<div th:replace="~{fragments :: staffSidebar('chatbot')}"></div>
+<main class="main">
+  <header th:replace="~{fragments :: staffTopbar('Trợ lý AI')}"></header>
+  <div class="content">
+
+    <!-- Banner context — chỉ hiện khi có bệnh nhân được gắn kèm -->
+    <div th:if="${contextPatient != null}" class="chat-context-banner">
+      <i class="ti ti-user-circle"></i>
+      Đang hỏi về bệnh nhân: <strong th:text="${contextPatient.fullName}">Tên bệnh nhân</strong>
+      — dữ liệu lần khám gần nhất đã được gắn kèm tự động.
+    </div>
+
+    <!-- Nhóm điều hướng nhanh cho Điều dưỡng -->
+    <div class="quick-nav-grid">
+      <a th:href="@{/staff/patients}" class="quick-nav-card">
+        <i class="ti ti-users"></i> Danh sách bệnh nhân
+      </a>
+      <a th:href="@{/staff/alerts}" class="quick-nav-card">
+        <i class="ti ti-bell-ringing"></i> Cảnh báo mới
+      </a>
+      <a th:href="@{/staff/appointments}" class="quick-nav-card">
+        <i class="ti ti-calendar-event"></i> Lịch làm việc
+      </a>
+      <a th:href="@{/staff/lab-requests}" class="quick-nav-card">
+        <i class="ti ti-file-analytics"></i> Yêu cầu xét nghiệm
+      </a>
+    </div>
+
+    <!-- Khung chatbot -->
+    <div class="chat-wrapper">
+      <div class="chat-header">
+        <div class="chat-header-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);"><i class="ti ti-robot"></i></div>
+        <div>
+          <div class="chat-header-title">Trợ lý AI CardioCare (Điều dưỡng)</div>
+          <div class="chat-header-sub">Hỏi đáp về các chỉ số sinh tồn cơ bản, quy trình nhập liệu và hướng dẫn cảnh báo nguy cơ</div>
+        </div>
+      </div>
+
+      <div id="chatMessages" class="chat-messages">
+        <div class="chat-msg chat-msg-model">
+          <div class="chat-bubble" th:if="${contextPatient == null}">
+            Chào điều dưỡng! Tôi có thể giúp giải thích ý nghĩa các chỉ số sinh tồn cơ bản, hướng dẫn quy trình nhập liệu hoặc cách xử lý khi có cảnh báo đỏ/vàng. Bạn cần hỗ trợ gì?
+          </div>
+          <div class="chat-bubble" th:if="${contextPatient != null}"
+               th:text="'Tôi đã có dữ liệu lần khám gần nhất của bệnh nhân ' + ${contextPatient.fullName} + '. Bạn muốn hỏi gì về kết quả này?'">
+          </div>
+        </div>
+
+        <div id="quickQuestions" class="quick-questions"></div>
+      </div>
+
+      <div id="chatTypingIndicator" class="chat-typing" style="display:none;">
+        <div class="chat-bubble chat-bubble-typing">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+
+      <form id="chatForm" class="chat-input-row">
+        <input type="text" id="chatInput" class="form-input chat-input"
+               placeholder="Nhập câu hỏi của bạn..." autocomplete="off" required>
+        <button type="submit" class="btn btn-ai" id="chatSendBtn" style="background: linear-gradient(135deg, #f59e0b, #d97706); border: none;">
+          <i class="ti ti-send"></i> Gửi
+        </button>
+      </form>
+
+      <div class="chat-disclaimer" id="chatDisclaimer"></div>
+    </div>
+
+  </div>
+</main>
+<script th:src="@{/js/main.js}"></script>
+
+<style>
+  .chat-wrapper{max-width:820px;margin:0 auto;background:var(--card);border:1px solid var(--border);
+    border-radius:var(--radius);display:flex;flex-direction:column;height:calc(100vh - 160px);}
+  .chat-header{display:flex;align-items:center;gap:14px;padding:18px 22px;border-bottom:1px solid var(--border);}
+  .chat-context-banner{max-width:820px;margin:0 auto 14px;padding:10px 16px;background:rgba(245,158,11,0.1);
+    border:1px solid rgba(245,158,11,0.25);border-radius:var(--radius-sm);font-size:12.5px;color:#f59e0b;
+    display:flex;align-items:center;gap:8px;}
+
+  .quick-nav-grid{max-width:820px;margin:0 auto 16px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .quick-nav-card{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;
+    background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);
+    color:var(--text2);font-size:11.5px;text-align:center;text-decoration:none;transition:all 0.2s;}
+  .quick-nav-card:hover{border-color:var(--border2);color:var(--text);background:var(--card2);}
+  .quick-nav-card i{font-size:22px;color:#f59e0b;}
+
+  .quick-questions{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;}
+  .quick-question-btn{padding:8px 14px;background:var(--bg3);border:1px solid var(--border);
+    border-radius:20px;color:#f59e0b;font-size:12.5px;cursor:pointer;transition:all 0.2s;
+    font-family:'Segoe UI',sans-serif;}
+  .quick-question-btn:hover{border-color:#f59e0b;background:rgba(245,158,11,0.1);}
+  .chat-header-icon{width:42px;height:42px;border-radius:12px;
+    display:flex;align-items:center;justify-content:center;font-size:20px;color:white;flex-shrink:0;}
+  .chat-header-title{font-size:15px;font-weight:600;}
+  .chat-header-sub{font-size:12px;color:var(--text2);margin-top:2px;}
+
+  .chat-messages{flex:1;overflow-y:auto;padding:20px 22px;display:flex;flex-direction:column;gap:14px;}
+  .chat-msg{display:flex;}
+  .chat-msg-user{justify-content:flex-end;}
+  .chat-msg-model{justify-content:flex-start;}
+  .chat-bubble{max-width:72%;padding:11px 15px;border-radius:14px;font-size:13.5px;line-height:1.55;
+    white-space:pre-wrap;word-wrap:break-word;}
+  .chat-msg-model .chat-bubble{background:var(--bg3);color:var(--text);border:1px solid var(--border);
+    border-bottom-left-radius:4px;}
+  .chat-msg-user .chat-bubble{background:linear-gradient(135deg,#f59e0b,#d97706);color:white;
+    border-bottom-right-radius:4px;}
+  .chat-msg-error .chat-bubble{background:rgba(224,90,90,0.12);border:1px solid rgba(224,90,90,0.3);color:var(--accent2);}
+
+  .chat-typing{padding:0 22px 6px;}
+  .chat-bubble-typing{display:inline-flex;gap:4px;padding:13px 16px;background:var(--bg3);
+    border:1px solid var(--border);border-radius:14px;border-bottom-left-radius:4px;}
+  .chat-bubble-typing span{width:6px;height:6px;border-radius:50%;background:var(--text2);
+    animation:chatTypingBlink 1.2s infinite ease-in-out;}
+  .chat-bubble-typing span:nth-child(2){animation-delay:0.2s;}
+  .chat-bubble-typing span:nth-child(3){animation-delay:0.4s;}
+  @keyframes chatTypingBlink{0%,80%,100%{opacity:0.25;}40%{opacity:1;}}
+
+  .chat-input-row{display:flex;gap:10px;padding:16px 22px;border-top:1px solid var(--border);}
+  .chat-input{flex:1;}
+  .chat-disclaimer{padding:0 22px 14px;font-size:11px;color:var(--text3);text-align:center;}
+</style>
+
+<script th:inline="javascript">
+  const chatHistory = [];
+
+  const chatMessages = document.getElementById('chatMessages');
+  const chatForm = document.getElementById('chatForm');
+  const chatInput = document.getElementById('chatInput');
+  const chatSendBtn = document.getElementById('chatSendBtn');
+  const chatTypingIndicator = document.getElementById('chatTypingIndicator');
+  const chatDisclaimer = document.getElementById('chatDisclaimer');
+
+  const csrfToken = document.getElementById('csrfToken').value;
+  const csrfHeaderName = document.getElementById('csrfHeaderName').value;
+
+  const predictContextRaw = document.getElementById('predictContextJson').value;
+  let predictContext = null;
+  if (predictContextRaw && predictContextRaw.trim() !== '') {
+    try {
+      predictContext = JSON.parse(predictContextRaw);
+    } catch (e) {
+      console.warn('Không parse được predict_context:', e);
+    }
+  }
+
+  function appendMessage(role, text) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'chat-msg chat-msg-' + role;
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble';
+    bubble.textContent = text;
+    wrapper.appendChild(bubble);
+    chatMessages.appendChild(wrapper);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  const quickQuestionsEl = document.getElementById('quickQuestions');
+  const quickQuestionsList = predictContext
+    ? [
+        'Chỉ số sinh tồn của bệnh nhân này có gì bất thường không?',
+        'Giải thích mức nguy cơ AI của ca khám này',
+        'Khi nào tôi cần báo cáo ngay ca bệnh này cho bác sĩ?',
+        'Tôi nên lưu ý gì khi chăm sóc/theo dõi bệnh nhân này?'
+      ]
+    : [
+        'Chỉ số huyết áp và nhịp tim thế nào là bất thường?',
+        'Làm sao để ghi nhận kết quả xét nghiệm cho bệnh nhân?',
+        'Quy trình xử lý khi phát hiện cảnh báo đỏ (HIGH)?',
+        'Hướng dẫn cách xem danh sách bệnh nhân cần khám'
+      ];
+
+  function renderQuickQuestions() {
+    quickQuestionsEl.innerHTML = '';
+    quickQuestionsList.forEach(function (q) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'quick-question-btn';
+      btn.textContent = q;
+      btn.addEventListener('click', function () {
+        sendMessage(q);
+      });
+      quickQuestionsEl.appendChild(btn);
+    });
+  }
+  renderQuickQuestions();
+
+  async function sendMessage(message) {
+    if (!message) return;
+
+    quickQuestionsEl.style.display = 'none';
+
+    appendMessage('user', message);
+    chatInput.value = '';
+    chatInput.disabled = true;
+    chatSendBtn.disabled = true;
+    chatTypingIndicator.style.display = 'block';
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    try {
+      const response = await fetch('/staff/chatbot/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          [csrfHeaderName]: csrfToken
+        },
+        body: JSON.stringify({
+          message: message,
+          history: chatHistory,
+          predict_context: predictContext
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('HTTP ' + response.status);
+      }
+
+      const data = await response.json();
+
+      chatHistory.push({ role: 'user', text: message });
+      chatHistory.push({ role: 'model', text: data.reply });
+
+      appendMessage('model', data.reply);
+      if (data.disclaimer) {
+        chatDisclaimer.textContent = data.disclaimer;
+      }
+    } catch (err) {
+      appendMessage('error', 'Không thể kết nối tới trợ lý AI. Vui lòng thử lại sau.');
+      console.error('Lỗi chatbot:', err);
+    } finally {
+      chatInput.disabled = false;
+      chatSendBtn.disabled = false;
+      chatTypingIndicator.style.display = 'none';
+      chatInput.focus();
+    }
+  }
+
+  chatForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const message = chatInput.value.trim();
+    sendMessage(message);
+  });
+</script>
+</body>
+</html>

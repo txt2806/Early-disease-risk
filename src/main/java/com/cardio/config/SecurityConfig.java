@@ -28,21 +28,14 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.ignoringRequestMatchers("/api/sepay/webhook"))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/login/profile", "/register", "/register/**", "/css/**", "/js/**",
+                        .requestMatchers("/", "/login", "/login/profile", "/register", "/register/**", "/css/**", "/js/**",
                                 "/api/sepay/webhook")
                         .permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/reception/**").hasAnyRole("RECEPTIONIST", "ADMIN")
                         .requestMatchers("/patient/**").hasAnyRole("PATIENT", "ADMIN")
-                        .requestMatchers("/doctor/ai-predict/**").hasAnyRole("DOCTOR", "ADMIN")
-                        .requestMatchers("/doctor/alerts/**").hasAnyRole("DOCTOR", "STAFF", "ADMIN")
-                        .requestMatchers("/doctor/patients/*/vitals/**").hasAnyRole("STAFF", "DOCTOR", "ADMIN")
-                        .requestMatchers("/doctor/patients/new", "/doctor/patients/save")
-                        .hasAnyRole("RECEPTIONIST", "DOCTOR", "ADMIN")
-                        .requestMatchers("/doctor/appointments/*/details").hasAnyRole("DOCTOR", "STAFF", "ADMIN")
-                        .requestMatchers("/doctor/appointments/**")
-                        .hasAnyRole("RECEPTIONIST", "DOCTOR", "STAFF", "ADMIN")
-                        .requestMatchers("/doctor/**").hasAnyRole("DOCTOR", "STAFF", "ADMIN")
+                        .requestMatchers("/staff/**").hasAnyRole("STAFF", "ADMIN")
+                        .requestMatchers("/doctor/**").hasAnyRole("DOCTOR", "ADMIN")
                         .anyRequest().authenticated())
                 .formLogin(form -> form
                         .loginPage("/login")

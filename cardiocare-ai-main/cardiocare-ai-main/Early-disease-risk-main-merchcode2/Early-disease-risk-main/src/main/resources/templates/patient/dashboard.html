@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Dashboard Bệnh nhân')}"></head>
+<body>
+<div th:replace="~{fragments :: patientSidebar('dashboard')}"></div>
+
+<main class="main">
+  <header th:replace="~{fragments :: simpleTopbar('Dashboard Bệnh nhân')}"></header>
+  <div class="content">
+
+    <!-- Flash messages -->
+    <div class="alert-success" th:if="${success}" th:text="${success}" style="padding: 12px; margin-bottom: 20px; border-radius: 8px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);"></div>
+    <div class="alert-danger" th:if="${error}" th:text="${error}" style="padding: 12px; margin-bottom: 20px; border-radius: 8px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);"></div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card green">
+        <div class="stat-icon"><i class="ti ti-activity"></i></div>
+        <div class="stat-value" th:text="${latestHeartRate != null ? latestHeartRate + ' BPM' : 'Chưa có'}">--</div>
+        <div class="stat-label">Nhịp tim gần nhất</div>
+      </div>
+      <div class="stat-card" th:classappend="${latestRiskLevel == 'HIGH'} ? 'red' : (${latestRiskLevel == 'MEDIUM'} ? 'yellow' : 'blue')">
+        <div class="stat-icon"><i class="ti ti-brain"></i></div>
+        <div class="stat-value" th:text="${latestRiskLevel + ' (' + latestRiskScore + '%)'}">--</div>
+        <div class="stat-label">Đánh giá rủi ro AI</div>
+      </div>
+      <div class="stat-card blue">
+        <div class="stat-icon"><i class="ti ti-calendar"></i></div>
+        <div class="stat-value" th:text="${totalAppointments}">0</div>
+        <div class="stat-label">Tổng số lần khám</div>
+      </div>
+      <div class="stat-card" th:classappend="${hasActiveAlert} ? 'red' : 'green'">
+        <div class="stat-icon">
+          <i class="ti" th:classappend="${hasActiveAlert} ? 'ti-alert-octagon' : 'ti-circle-check'"></i>
+        </div>
+        <div class="stat-value" th:text="${hasActiveAlert ? '🚨 Cảnh báo' : '🟢 Bình thường'}">Ổn định</div>
+        <div class="stat-label">Trạng thái hiện tại</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <!-- Lịch hẹn khám gần đây -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="ti ti-calendar-time"></i> Lịch hẹn & Khám gần đây</div>
+          <a th:href="@{/patient/book-appointment}" class="card-action" style="color: #3b82f6; font-weight: 600;">+ Đặt lịch mới</a>
+        </div>
+        <table class="patient-table">
+          <thead>
+            <tr>
+              <th>Bác sĩ</th>
+              <th>Ngày khám</th>
+              <th>Giờ vào / ra</th>
+              <th>Phòng & STT</th>
+              <th>Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr th:each="a : ${appointments}">
+              <td>
+                <div class="patient-name-cell">
+                  <div class="patient-avatar" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);" th:text="${a.doctor != null ? a.doctor.fullName.charAt(0) : '🔑'}">B</div>
+                  <div>
+                    <div class="patient-fullname" th:text="${a.doctor != null ? a.doctor.fullName : 'Hệ thống tự phân công'}">Tên</div>
+                    <div class="patient-id" th:text="${a.doctor != null ? a.doctor.specialty : 'Khám tổng quát'}">Chuyên khoa</div>
+                  </div>
+                </div>
+              </td>
+              <td th:text="${#temporals.format(a.scheduledDate, 'dd/MM/yyyy')}">--</td>
+              <td>
+                <div th:text="${a.timeSlot != null ? 'Vào: ' + a.timeSlot : 'Chờ Check-in'}">--</div>
+                <div th:if="${a.endTime != null}" th:text="'Ra: ' + ${a.endTime}" style="font-size:11px;color:#8a96b0;">--</div>
+              </td>
+              <td>
+                <strong style="color: #e8edf5; display: block;" th:text="${a.roomNumber != null && !a.roomNumber.isEmpty() ? a.roomNumber : 'Chờ xếp phòng'}">--</strong>
+                <span th:if="${a.queueNumber != null}" style="font-size:11px;color:#60a5fa;font-weight:600;" th:text="'STT: #' + ${a.queueNumber}">STT: --</span>
+              </td>
+              <td>
+                <span class="risk-badge" 
+                      th:classappend="${a.status == 'Pending'} ? 'risk-MEDIUM' : (${a.status == 'Confirmed' || a.status == 'CheckedIn' || a.status == 'InProgress'} ? 'risk-LOW' : (${a.status == 'Completed'} ? 'risk-LOW' : 'risk-HIGH'))" 
+                      th:text="${a.status == 'Pending' ? 'Chờ duyệt' : (a.status == 'Confirmed' ? 'Đã xác nhận' : (a.status == 'CheckedIn' ? 'Đã đến' : (a.status == 'InProgress' ? 'Đang khám' : (a.status == 'Completed' ? 'Đã khám' : 'Đã hủy'))))}">Pending</span>
+              </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(appointments)}">
+              <td colspan="5" style="text-align:center;color:#8a96b0;padding:20px;">
+                Chưa có lịch hẹn khám nào.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Nhật ký chỉ số sinh tồn gần đây -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="ti ti-activity"></i> Khai báo Vital gần đây</div>
+          <a th:href="@{/patient/self-declare}" class="card-action">Xem nhật ký →</a>
+        </div>
+        <div class="alert-list">
+          <div class="alert-item" th:each="log : ${selfLogs}">
+            <div class="alert-severity" th:classappend="${log.TriggeredAlert} ? ' sev-HIGH' : ' sev-LOW'" th:text="${log.TriggeredAlert} ? '🔴' : '🟢'">🟢</div>
+            <div class="alert-body">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="alert-patient" style="font-weight:700; color:#e8edf5;" th:text="${log.CurrentHeartRate + ' BPM'}">72 BPM</span>
+                <span class="alert-time" th:text="${#strings.substring(log.LogDate, 0, 16)}">Thời gian</span>
+              </div>
+              <div class="alert-desc" style="margin-top:4px;" th:text="${log.Symptoms != null && !log.Symptoms.isEmpty() ? 'Triệu chứng: ' + log.Symptoms : 'Không có triệu chứng bất thường'}">Triệu chứng</div>
+            </div>
+          </div>
+          <div th:if="${#lists.isEmpty(selfLogs)}" style="text-align:center;padding:35px 20px;color:#8a96b0;font-size:13px;">
+            <p>Chưa có dữ liệu tự khai báo.</p>
+            <a th:href="@{/patient/self-declare}" class="btn" style="display:inline-block; width:auto; margin-top:10px; padding:6px 16px; font-size:12px; background: rgba(59,130,246,0.15); color:#60a5fa; border: 1px solid rgba(59,130,246,0.3);">Khai báo ngay</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+<script th:src="@{/js/main.js}"></script>
+</body>
+</html>
