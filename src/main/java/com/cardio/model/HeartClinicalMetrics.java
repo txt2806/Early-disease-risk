@@ -14,7 +14,7 @@ public class HeartClinicalMetrics {
     @Column(name = "MetricID")
     private Integer metricId;
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "RecordID")
     private ConsultationRecord record;
 

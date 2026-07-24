@@ -6,7 +6,10 @@ import java.time.LocalDate;
 
 @Data
 @Entity
-@Table(name = "Patient_Profile")
+@Table(name = "Patient_Profile", indexes = {
+    @Index(name = "idx_patient_phone", columnList = "Phone"),
+    @Index(name = "idx_patient_status", columnList = "Status")
+})
 public class PatientProfile {
 
     @Id
@@ -42,4 +45,20 @@ public class PatientProfile {
     private Integer isAlert = 0;
     @Column(name = "created_at")
     private java.time.LocalDateTime createdAt = java.time.LocalDateTime.now();
+
+    // Cờ kiểm tra bệnh nhân có cần đổi mật khẩu trong lần đăng nhập đầu tiên không.
+    // Mặc định là true cho tài khoản mới.
+    @Column(name = "is_first_login")
+    private Boolean isFirstLogin = true;
+
+    @Column(name = "fcm_token")
+    private String fcmToken;
+
+    public Boolean isFirstLogin() {
+        return isFirstLogin != null && isFirstLogin;
+    }
+
+    public void setFirstLogin(Boolean firstLogin) {
+        this.isFirstLogin = firstLogin;
+    }
 }

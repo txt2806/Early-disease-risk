@@ -2,6 +2,7 @@ package com.cardio.repository;
 
 import com.cardio.model.Appointment;
 import com.cardio.model.PatientProfile;
+import com.cardio.dto.AppointmentViewDTO;
 import com.cardio.model.DoctorProfile;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -39,4 +40,14 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     boolean existsByDoctorAndStatus(DoctorProfile doctor, String status);
 
     boolean existsByDoctorAndScheduledDateAndStatusAndAppointmentIdNot(DoctorProfile doctor, java.time.LocalDate scheduledDate, String status, Integer appointmentId);
+
+    // --- METHOD ADDED FROM USER'S MERGE REQUEST ---
+    // This query is used by the AppointmentController for the patient mobile app.
+    @Query(value = "SELECT d.FullName AS doctorName, d.Specialty AS specialty, " +
+                   "a.ScheduledDate AS scheduledDate, a.TimeSlot AS timeSlot, a.Status AS status " +
+                   "FROM Appointment a " +
+                   "JOIN Doctor_Profile d ON a.DoctorID = d.DoctorID " +
+                   "WHERE a.PatientID = :patientId " +
+                   "ORDER BY a.ScheduledDate DESC, a.TimeSlot DESC", nativeQuery = true)
+    List<AppointmentViewDTO> findAppointmentDetailsByPatientId(@Param("patientId") Integer patientId);
 }

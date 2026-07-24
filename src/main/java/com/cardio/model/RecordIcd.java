@@ -11,12 +11,12 @@ public class RecordIcd {
     @EmbeddedId
     private RecordIcdKey id = new RecordIcdKey();
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("recordId")
     @JoinColumn(name = "RecordID")
     private ConsultationRecord record;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("icdCode")
     @JoinColumn(name = "ICDCode")
     private IcdCatalog icdCatalog;

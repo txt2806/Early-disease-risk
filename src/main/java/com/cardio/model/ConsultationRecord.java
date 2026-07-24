@@ -6,7 +6,9 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "Consultation_Record")
+@Table(name = "Consultation_Record", indexes = {
+    @Index(name = "idx_record_date", columnList = "VisitDate")
+})
 public class ConsultationRecord {
 
     @Id
@@ -14,11 +16,11 @@ public class ConsultationRecord {
     @Column(name = "RecordID")
     private Integer recordId;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "PatientID")
     private PatientProfile patient;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "DoctorID")
     private DoctorProfile doctor;
 
@@ -34,9 +36,9 @@ public class ConsultationRecord {
     @Column(name = "Status")
     private String status;
 
-    @OneToOne(mappedBy = "record", cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "record", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private HeartClinicalMetrics clinicalMetrics;
 
-    @OneToOne(mappedBy = "record", cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "record", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private AIRiskPrediction aiRiskPrediction;
 }

@@ -13,11 +13,11 @@ public class PatientAlertThreshold {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer thresholdId;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "PatientID", nullable = false)
     private PatientProfile patient;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "DoctorID", nullable = false)
     private DoctorProfile doctor;
 

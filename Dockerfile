@@ -15,4 +15,4 @@ EXPOSE 8080
 
 # Cấu hình tối ưu hóa DNS và mạng IPv4
 # Sử dụng SerialGC và TieredStopAtLevel=1 để tối ưu bộ nhớ & CPU trên container nhỏ (giảm RAM và giảm độ trễ phản hồi)
-ENTRYPOINT ["java", "-XX:+UseSerialGC", "-XX:TieredStopAtLevel=1", "-Djava.net.preferIPv4Stack=true", "-Dsun.net.inetaddr.ttl=30", "-Dsun.net.inetaddr.negative.ttl=0", "-Xmx350m", "-Xms350m", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Djava.net.preferIPv4Stack=true", "-Dsun.net.inetaddr.ttl=30", "-Dsun.net.inetaddr.negative.ttl=0", "-Xmx350m", "-Xms350m", "-jar", "app.jar"]

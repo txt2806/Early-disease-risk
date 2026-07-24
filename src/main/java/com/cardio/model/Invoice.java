@@ -6,7 +6,9 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "Invoice")
+@Table(name = "Invoice", indexes = {
+    @Index(name = "idx_invoice_status", columnList = "Status")
+})
 public class Invoice {
 
     @Id
@@ -14,11 +16,11 @@ public class Invoice {
     @Column(name = "InvoiceID")
     private Integer invoiceId;
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "AppointmentID")
     private Appointment appointment;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "PatientID")
     private PatientProfile patient;
 

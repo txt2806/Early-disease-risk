@@ -14,7 +14,7 @@ public class AIRiskPrediction {
     @Column(name = "PredictionID")
     private Integer predictionId;
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "RecordID")
     private ConsultationRecord record;
 

@@ -8,7 +8,10 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "Appointment")
+@Table(name = "Appointment", indexes = {
+    @Index(name = "idx_appointment_date", columnList = "ScheduledDate"),
+    @Index(name = "idx_appointment_status", columnList = "Status")
+})
 public class Appointment {
 
     @Id
@@ -16,11 +19,11 @@ public class Appointment {
     @Column(name = "AppointmentID")
     private Integer appointmentId;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "PatientID")
     private PatientProfile patient;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "DoctorID")
     private DoctorProfile doctor;
 

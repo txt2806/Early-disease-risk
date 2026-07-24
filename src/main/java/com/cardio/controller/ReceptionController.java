@@ -64,7 +64,7 @@ public class ReceptionController {
             @RequestParam(value = "dateStr", required = false) String dateStr,
             @RequestParam(value = "search", required = false) String search,
             @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "10") int size,
+            @RequestParam(value = "size", defaultValue = "5") int size,
             Model model) {
         StaffProfile staff = getCurrentStaff(userDetails);
         
