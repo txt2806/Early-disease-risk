@@ -98,11 +98,7 @@ public class DoctorController {
             List<Appointment> appsList = List.of();
             try {
                 LocalDate date = LocalDate.now();
-                appsList = appointmentRepository.findAll().stream()
-                        .filter(a -> a.getScheduledDate().equals(date) &&
-                                     a.getDoctor() != null &&
-                                     a.getDoctor().getDoctorId().equals(doctor.getDoctorId()))
-                        .toList();
+                appsList = appointmentRepository.findByDoctorAndScheduledDate(doctor, date);
                 totalApps = appsList.size();
             } catch (Exception ex) {
                 System.err.println("Error querying appointments: " + ex.getMessage());
@@ -161,24 +157,31 @@ public class DoctorController {
                     });
 
             // Nguồn 2: Lịch hẹn mới đặt (dựa theo thời điểm ĐẶT lịch, không phải ngày khám)
-            appointmentRepository.findAll().stream()
-                    .filter(a -> a.getRequestTime() != null)
-                    .filter(a -> {
-                        LocalDate d = a.getRequestTime().toLocalDate();
-                        return !d.isBefore(fromDate) && !d.isAfter(toDate);
-                    })
-                    .filter(a -> doctor.getDoctorId() == null
-                    || (a.getDoctor() != null && a.getDoctor().getDoctorId().equals(doctor.getDoctorId())))
-                    .forEach(a -> {
-                        java.util.Map<String, Object> item = new java.util.HashMap<>();
-                        item.put("type", "appointment");
-                        item.put("time", a.getRequestTime());
-                        item.put("title", "Lịch hẹn mới: "
-                                + (a.getPatient() != null ? a.getPatient().getFullName() : "Không rõ"));
-                        item.put("detail", "Ngày khám: " + a.getScheduledDate());
-                        item.put("link", "/doctor/appointments");
-                        activityTimeline.add(item);
-                    });
+            try {
+                LocalDateTime startDateTime = fromDate.atStartOfDay();
+                LocalDateTime endDateTime = toDate.atTime(LocalTime.MAX);
+                List<Appointment> timelineApps;
+                if (doctor.getDoctorId() == null) {
+                    timelineApps = appointmentRepository.findAll().stream()
+                            .filter(a -> a.getRequestTime() != null)
+                            .filter(a -> !a.getRequestTime().isBefore(startDateTime) && !a.getRequestTime().isAfter(endDateTime))
+                            .toList();
+                } else {
+                    timelineApps = appointmentRepository.findByDoctorAndRequestTimeBetween(doctor, startDateTime, endDateTime);
+                }
+                timelineApps.forEach(a -> {
+                    java.util.Map<String, Object> item = new java.util.HashMap<>();
+                    item.put("type", "appointment");
+                    item.put("time", a.getRequestTime());
+                    item.put("title", "Lịch hẹn mới: "
+                            + (a.getPatient() != null ? a.getPatient().getFullName() : "Không rõ"));
+                    item.put("detail", "Ngày khám: " + a.getScheduledDate());
+                    item.put("link", "/doctor/appointments");
+                    activityTimeline.add(item);
+                });
+            } catch (Exception ex) {
+                System.err.println("Error querying timeline appointments: " + ex.getMessage());
+            }
 
             activityTimeline.sort((x, y)
                     -> ((LocalDateTime) y.get("time")).compareTo((LocalDateTime) x.get("time")));

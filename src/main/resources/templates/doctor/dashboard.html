@@ -13,8 +13,7 @@
         <div class="stat-card red">
           <div class="stat-icon"><i class="ti ti-users"></i></div>
           <div class="stat-value" th:text="${totalPatients}">0</div>
-          <div class="stat-label" th:text="${isReceptionist ? 'Bệnh nhân đăng ký' : 'Bệnh nhân phụ trách'}">Bệnh nhân
-            phụ trách</div>
+          <div class="stat-label">Bệnh nhân phụ trách</div>
         </div>
         <!-- Chỉ hiện cho Bác sĩ, Nhân viên y tế -->
         <div class="stat-card blue" sec:authorize="hasAnyRole('DOCTOR', 'STAFF', 'ADMIN')">

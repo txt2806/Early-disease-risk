@@ -41,6 +41,10 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
 
     boolean existsByDoctorAndScheduledDateAndStatusAndAppointmentIdNot(DoctorProfile doctor, java.time.LocalDate scheduledDate, String status, Integer appointmentId);
 
+    List<Appointment> findByDoctorAndScheduledDate(DoctorProfile doctor, java.time.LocalDate scheduledDate);
+
+    List<Appointment> findByDoctorAndRequestTimeBetween(DoctorProfile doctor, java.time.LocalDateTime start, java.time.LocalDateTime end);
+
     // --- METHOD ADDED FROM USER'S MERGE REQUEST ---
     // This query is used by the AppointmentController for the patient mobile app.
     @Query(value = "SELECT d.FullName AS doctorName, d.Specialty AS specialty, " +
