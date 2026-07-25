@@ -79,9 +79,13 @@
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
             <div class="form-group">
-              <label style="color:#8a96b0; font-size:11px; font-weight:600; margin-bottom:4px;">Ngày sinh</label>
-              <input type="date" name="newDob" id="newDob" 
-                     style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 13px; outline: none;">
+              <label style="color:#8a96b0; font-size:11px; font-weight:600; margin-bottom:4px;">Ngày sinh *</label>
+              <div style="display: flex; gap: 6px;">
+                <select id="newDobDay" style="flex: 1; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 12px; outline: none; cursor:pointer;"></select>
+                <select id="newDobMonth" style="flex: 1; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 12px; outline: none; cursor:pointer;"></select>
+                <select id="newDobYear" style="flex: 1.5; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 12px; outline: none; cursor:pointer;"></select>
+              </div>
+              <input type="hidden" name="newDob" id="newDob">
             </div>
             <div class="form-group">
               <label style="color:#8a96b0; font-size:11px; font-weight:600; margin-bottom:4px;">Giới tính</label>
@@ -223,27 +227,31 @@ function switchPatientType(type) {
     patientIdInput.setAttribute('required', 'required');
     newFullName.removeAttribute('required');
     newPhone.removeAttribute('required');
-    newDob.removeAttribute('required');
+    document.getElementById('newDobDay').removeAttribute('required');
+    document.getElementById('newDobMonth').removeAttribute('required');
+    document.getElementById('newDobYear').removeAttribute('required');
     newGender.removeAttribute('required');
     newAddress.removeAttribute('required');
   } else {
     existingSection.style.display = 'none';
     newSection.style.display = 'block';
-
+ 
     // Style tabs
     tabNew.style.background = '#3b82f6';
     tabNew.style.color = 'white';
     tabNew.style.border = 'none';
-
+ 
     tabExisting.style.background = '#1a2440';
     tabExisting.style.color = '#8a96b0';
     tabExisting.style.border = '1px solid rgba(255,255,255,0.08)';
-
+ 
     // Set requirements
     patientIdInput.removeAttribute('required');
     newFullName.setAttribute('required', 'required');
     newPhone.setAttribute('required', 'required');
-    newDob.setAttribute('required', 'required');
+    document.getElementById('newDobDay').setAttribute('required', 'required');
+    document.getElementById('newDobMonth').setAttribute('required', 'required');
+    document.getElementById('newDobYear').setAttribute('required', 'required');
     newGender.setAttribute('required', 'required');
     newAddress.setAttribute('required', 'required');
   }
@@ -298,6 +306,49 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Set initial default state
   switchPatientType('existing');
+ 
+  // Initialize DOB dropdowns
+  const daySelect = document.getElementById('newDobDay');
+  const monthSelect = document.getElementById('newDobMonth');
+  const yearSelect = document.getElementById('newDobYear');
+  const hiddenDob = document.getElementById('newDob');
+
+  // Populate days
+  let dayHtml = '<option value="">Ngày</option>';
+  for (let i = 1; i <= 31; i++) {
+    dayHtml += `<option value="${i}">${i}</option>`;
+  }
+  daySelect.innerHTML = dayHtml;
+
+  // Populate months
+  let monthHtml = '<option value="">Tháng</option>';
+  for (let i = 1; i <= 12; i++) {
+    monthHtml += `<option value="${i}">${i}</option>`;
+  }
+  monthSelect.innerHTML = monthHtml;
+
+  // Populate years
+  let yearHtml = '<option value="">Năm</option>';
+  const currentYear = new Date().getFullYear();
+  for (let i = currentYear; i >= 1900; i--) {
+    yearHtml += `<option value="${i}">${i}</option>`;
+  }
+  yearSelect.innerHTML = yearHtml;
+
+  function updateNewDob() {
+    const d = daySelect.value;
+    const m = monthSelect.value;
+    const y = yearSelect.value;
+    if (d && m && y) {
+      hiddenDob.value = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    } else {
+      hiddenDob.value = '';
+    }
+  }
+
+  daySelect.addEventListener('change', updateNewDob);
+  monthSelect.addEventListener('change', updateNewDob);
+  yearSelect.addEventListener('change', updateNewDob);
 
   if (searchInput && dropdownMenu) {
     // Show dropdown on focus

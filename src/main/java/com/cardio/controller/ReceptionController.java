@@ -544,13 +544,31 @@ public class ReceptionController {
             int n2 = "Cancelled".equalsIgnoreCase(a2.getStatus()) ? 0 : 1;
             if (n1 != n2) return Integer.compare(n1, n2);
 
-             // Fallback: ID
-             if (a1.getAppointmentId() != null && a2.getAppointmentId() != null) {
-                 return a1.getAppointmentId().compareTo(a2.getAppointmentId());
-             }
-             return 0;
-         }).collect(Collectors.toList());
-     }
+            // If same status, sort chronologically: scheduledDate ASC, then timeSlot ASC, then requestTime ASC
+            if (a1.getScheduledDate() != null && a2.getScheduledDate() != null) {
+                int dateComp = a1.getScheduledDate().compareTo(a2.getScheduledDate());
+                if (dateComp != 0) return dateComp;
+            }
+            if (a1.getTimeSlot() != null && a2.getTimeSlot() != null) {
+                int timeComp = a1.getTimeSlot().compareTo(a2.getTimeSlot());
+                if (timeComp != 0) return timeComp;
+            } else if (a1.getTimeSlot() != null) {
+                return -1;
+            } else if (a2.getTimeSlot() != null) {
+                return 1;
+            }
+            if (a1.getRequestTime() != null && a2.getRequestTime() != null) {
+                int reqComp = a1.getRequestTime().compareTo(a2.getRequestTime());
+                if (reqComp != 0) return reqComp;
+            }
+
+            // Fallback: ID
+            if (a1.getAppointmentId() != null && a2.getAppointmentId() != null) {
+                return a1.getAppointmentId().compareTo(a2.getAppointmentId());
+            }
+            return 0;
+        }).collect(java.util.stream.Collectors.toList());
+    }
 
     @GetMapping("/invoices")
     public String viewInvoices(

@@ -26,10 +26,10 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/sepay/webhook"))
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/sepay/webhook", "/api/appointments/public-save"))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/login", "/login/profile", "/register", "/register/**", "/css/**", "/js/**",
-                                "/api/sepay/webhook")
+                                "/api/sepay/webhook", "/api/appointments/public-save")
                         .permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/reception/**").hasAnyRole("RECEPTIONIST", "ADMIN")
@@ -57,7 +57,9 @@ public class SecurityConfig {
                         .invalidateHttpSession(true)
                         .clearAuthentication(true)
                         .deleteCookies("JSESSIONID")
-                        .permitAll());
+                        .permitAll())
+                .exceptionHandling(exception -> exception
+                        .accessDeniedPage("/dashboard-redirect"));
         return http.build();
     }
 

@@ -377,6 +377,8 @@
       const [formData, setFormData] = useState({
         fullName: '',
         phone: '',
+        dob: '',
+        gender: '',
         specialty: '',
         doctor: '',
         date: '',
@@ -385,6 +387,30 @@
 
       const [status, setStatus] = useState({ type: '', message: '' });
       const [loading, setLoading] = useState(false);
+      const [dobDay, setDobDay] = useState('');
+      const [dobMonth, setDobMonth] = useState('');
+      const [dobYear, setDobYear] = useState('');
+
+      const days = Array.from({ length: 31 }, (_, i) => i + 1);
+      const months = Array.from({ length: 12 }, (_, i) => i + 1);
+      const currentYear = new Date().getFullYear();
+      const years = Array.from({ length: 100 }, (_, i) => currentYear - i);
+
+      const handleDobChange = (type, val) => {
+        let d = dobDay;
+        let m = dobMonth;
+        let y = dobYear;
+        if (type === 'day') { setDobDay(val); d = val; }
+        if (type === 'month') { setDobMonth(val); m = val; }
+        if (type === 'year') { setDobYear(val); y = val; }
+        
+        if (d && m && y) {
+          const formattedDob = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+          setFormData(prev => ({ ...prev, dob: formattedDob }));
+        } else {
+          setFormData(prev => ({ ...prev, dob: '' }));
+        }
+      };
 
       const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -406,15 +432,52 @@
           setLoading(false);
           return;
         }
+        if (!formData.dob) {
+          setStatus({ type: 'error', message: 'Vui lòng chọn ngày sinh.' });
+          setLoading(false);
+          return;
+        }
+        if (!formData.gender) {
+          setStatus({ type: 'error', message: 'Vui lòng chọn giới tính.' });
+          setLoading(false);
+          return;
+        }
 
         try {
-          // Giả lập gửi API tới server Spring Boot
-          await new Promise(resolve => setTimeout(resolve, 1200));
-          setStatus({
-            type: 'success',
-            message: '🎉 Đăng ký đặt lịch khám thành công! Bộ phận lễ tân sẽ liên hệ xác nhận qua điện thoại trong vài phút.'
+          const params = new URLSearchParams();
+          params.append('fullName', formData.fullName);
+          params.append('phone', formData.phone);
+          params.append('dob', formData.dob);
+          params.append('gender', formData.gender);
+          params.append('specialty', formData.specialty);
+          params.append('doctor', formData.doctor);
+          params.append('date', formData.date);
+          params.append('timeSlot', formData.timeSlot);
+
+          const response = await fetch('/api/appointments/public-save', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: params.toString()
           });
-          setFormData({ fullName: '', phone: '', specialty: '', doctor: '', date: '', timeSlot: '' });
+
+          const data = await response.json();
+          if (response.ok && data.status === 'success') {
+            setStatus({
+              type: 'success',
+              message: data.message || '🎉 Đăng ký đặt lịch khám thành công! Bộ phận lễ tân sẽ liên hệ xác nhận qua điện thoại trong vài phút.'
+            });
+            setFormData({ fullName: '', phone: '', dob: '', gender: '', specialty: '', doctor: '', date: '', timeSlot: '' });
+            setDobDay('');
+            setDobMonth('');
+            setDobYear('');
+          } else {
+            setStatus({
+              type: 'error',
+              message: data.message || 'Lỗi đặt lịch hẹn.'
+            });
+          }
         } catch (err) {
           setStatus({ type: 'error', message: 'Có lỗi xảy ra. Vui lòng liên hệ hotline cấp cứu.' });
         } finally {
@@ -453,6 +516,35 @@
                     <div className="relative">
                       <i data-lucide="phone" className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500"></i>
                       <input type="tel" name="phone" required value={formData.phone} onChange={handleInputChange} placeholder="Ví dụ: 0912345678" className="w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-medical-coral focus:ring-1 focus:ring-medical-coral text-sm font-semibold" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Ngày sinh *</label>
+                    <div className="flex gap-2">
+                      <select required value={dobDay} onChange={(e) => handleDobChange('day', e.target.value)} className="w-1/4 bg-slate-900 border border-white/10 rounded-2xl py-3.5 px-3 text-white focus:outline-none focus:border-medical-coral focus:ring-1 focus:ring-medical-coral text-sm font-semibold cursor-pointer">
+                        <option value="">Ngày</option>
+                        {days.map(d => <option key={d} value={d} className="bg-slate-900 text-white">{d}</option>)}
+                      </select>
+                      <select required value={dobMonth} onChange={(e) => handleDobChange('month', e.target.value)} className="w-1/4 bg-slate-900 border border-white/10 rounded-2xl py-3.5 px-3 text-white focus:outline-none focus:border-medical-coral focus:ring-1 focus:ring-medical-coral text-sm font-semibold cursor-pointer">
+                        <option value="">Tháng</option>
+                        {months.map(m => <option key={m} value={m} className="bg-slate-900 text-white">{m}</option>)}
+                      </select>
+                      <select required value={dobYear} onChange={(e) => handleDobChange('year', e.target.value)} className="w-1/2 bg-slate-900 border border-white/10 rounded-2xl py-3.5 px-3 text-white focus:outline-none focus:border-medical-coral focus:ring-1 focus:ring-medical-coral text-sm font-semibold cursor-pointer">
+                        <option value="">Năm</option>
+                        {years.map(y => <option key={y} value={y} className="bg-slate-900 text-white">{y}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Giới tính *</label>
+                    <div className="relative">
+                      <i data-lucide="user" className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500"></i>
+                      <select name="gender" required value={formData.gender} onChange={handleInputChange} className="w-full bg-slate-900 border border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-white focus:outline-none focus:border-medical-coral focus:ring-1 focus:ring-medical-coral text-sm font-semibold cursor-pointer">
+                        <option value="">-- Chọn giới tính --</option>
+                        <option value="Nam">Nam</option>
+                        <option value="Nữ">Nữ</option>
+                        <option value="Khác">Khác</option>
+                      </select>
                     </div>
                   </div>
                   <div className="flex flex-col gap-2">

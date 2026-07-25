@@ -372,10 +372,14 @@ public class DoctorController {
         String ctPath = saveUploadedFile(ctFile, "ct");
 
         // Cập nhật
-        consultationService.updateRecord(recordId, consultationNotes, treatmentPlan,
+        ConsultationRecord updatedRecord = consultationService.updateRecord(recordId, consultationNotes, treatmentPlan,
                 restingBP, maxHeartRate, temperature, spO2,
                 bloodPath, urinePath, xrayPath, ultrasoundPath, mriPath, ctPath,
                 chestPainType, cholesterol, fastingBloodSugar, restingECG, exerciseAngina, oldpeak, slope, ca, thal);
+        if (updatedRecord != null && updatedRecord.getDoctor() == null && doctor.getDoctorId() != null) {
+            updatedRecord.setDoctor(doctor);
+            consultationRepository.save(updatedRecord);
+        }
 
         // BR03: Ghi audit log
         auditLogService.logRecordUpdate(
@@ -403,6 +407,17 @@ public class DoctorController {
         }
         try {
             consultationService.addDiagnosis(recordId, icdCode, diagnosisNotes);
+            
+            // Tự động gán bác sĩ cho hồ sơ khám nếu chưa gán
+            java.util.Optional<ConsultationRecord> recordOpt = consultationRepository.findById(recordId);
+            if (recordOpt.isPresent()) {
+                ConsultationRecord record = recordOpt.get();
+                if (record.getDoctor() == null && doctor.getDoctorId() != null) {
+                    record.setDoctor(doctor);
+                    consultationRepository.save(record);
+                }
+            }
+
             // BR03: Ghi audit log chẩn đoán
             String diseaseName = consultationService.findIcd(icdCode)
                     .map(i -> i.getDiseaseName()).orElse("Unknown");
@@ -814,9 +829,55 @@ public class DoctorController {
     @GetMapping("/appointments")
     public String appointments(@AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(required = false) String dateStr,
+            @RequestParam(required = false) Integer appointmentId,
             Model model) {
         DoctorProfile doctor = getCurrentDoctor(userDetails);
-        LocalDate date = (dateStr != null && !dateStr.isBlank()) ? LocalDate.parse(dateStr) : LocalDate.now();
+        
+        LocalDate date = null;
+        if (dateStr != null && !dateStr.isBlank()) {
+            try {
+                date = LocalDate.parse(dateStr);
+            } catch (Exception e) {
+                log.error("Lỗi định dạng ngày khám: {}", dateStr);
+            }
+        } else if (appointmentId != null) {
+            java.util.Optional<Appointment> appOpt = appointmentRepository.findById(appointmentId);
+            if (appOpt.isPresent()) {
+                date = appOpt.get().getScheduledDate();
+            }
+        }
+        
+        if (date == null) {
+            LocalDate today = LocalDate.now();
+            boolean hasAppointmentsToday = appointmentRepository.findAll().stream()
+                    .anyMatch(a -> a.getScheduledDate().equals(today)
+                    && a.getDoctor() != null
+                    && a.getDoctor().getDoctorId().equals(doctor.getDoctorId()));
+            if (hasAppointmentsToday) {
+                date = today;
+            } else {
+                // Tìm ngày hẹn khám tiếp theo trong tương lai
+                java.util.Optional<LocalDate> upcomingDate = appointmentRepository.findAll().stream()
+                        .filter(a -> a.getScheduledDate().isAfter(today)
+                        && a.getDoctor() != null
+                        && a.getDoctor().getDoctorId().equals(doctor.getDoctorId()))
+                        .map(Appointment::getScheduledDate)
+                        .min(LocalDate::compareTo);
+                if (upcomingDate.isPresent()) {
+                    date = upcomingDate.get();
+                } else {
+                    // Tìm ngày hẹn khám gần nhất trong quá khứ
+                    java.util.Optional<LocalDate> pastDate = appointmentRepository.findAll().stream()
+                            .filter(a -> a.getScheduledDate().isBefore(today)
+                            && a.getDoctor() != null
+                            && a.getDoctor().getDoctorId().equals(doctor.getDoctorId()))
+                            .map(Appointment::getScheduledDate)
+                            .max(LocalDate::compareTo);
+                    date = pastDate.orElse(today);
+                }
+            }
+        }
+        final LocalDate targetDate = date;
 
         List<Appointment> appointments;
         List<DoctorProfile> doctors;
@@ -824,7 +885,7 @@ public class DoctorController {
         if (doctor.getDoctorId() != null) {
             // Doctors only view their own schedule
             appointments = appointmentRepository.findAll().stream()
-                    .filter(a -> a.getScheduledDate().equals(date)
+                    .filter(a -> a.getScheduledDate().equals(targetDate)
                     && a.getDoctor() != null
                     && a.getDoctor().getDoctorId().equals(doctor.getDoctorId()))
                     .sorted((a1, a2) -> {
@@ -859,7 +920,7 @@ public class DoctorController {
         } else {
             // Staff / Receptionists see all
             appointments = appointmentRepository.findAll().stream()
-                    .filter(a -> a.getScheduledDate().equals(date))
+                    .filter(a -> a.getScheduledDate().equals(targetDate))
                     .sorted((a1, a2) -> {
                         LocalTime t1 = a1.getTimeSlot();
                         LocalTime t2 = a2.getTimeSlot();

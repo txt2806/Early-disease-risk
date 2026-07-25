@@ -16,7 +16,7 @@
       <p style="font-size: 12px; color: #8a96b0; margin: 4px 0 0 0;">Nhập các chỉ số sinh tồn và tải kết quả xét nghiệm cận lâm sàng của bệnh nhân.</p>
     </div>
 
-    <form th:action="@{/staff/patients/{id}/vitals/save(id=${patient.patientId})}" th:object="${vitals}" method="post" enctype="multipart/form-data">
+    <form th:action="@{/staff/patients/{id}/vitals/save(id=${patient.patientId})}" th:object="${vitals}" method="post" enctype="multipart/form-data" onsubmit="this.querySelector('button[type=submit]').disabled=true; this.querySelector('button[type=submit]').innerText='Đang lưu...';">
       <input type="hidden" name="requestId" th:value="${requestId}">
       <div class="two-col" style="grid-template-columns: 1fr 1fr; gap: 20px;">
         

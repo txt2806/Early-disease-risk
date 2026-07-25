@@ -141,15 +141,12 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div class="flex flex-col gap-1.5">
           <label class="text-xs font-bold text-medical-gray uppercase tracking-wider">Ngày sinh *</label>
-          <div class="relative">
-            <i data-lucide="calendar" class="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-medical-gray"></i>
-            <input 
-              type="date" 
-              name="dob" 
-              required
-              class="w-full bg-[#161e2e] border border-medical-border rounded-2xl py-3 pl-11 pr-4 text-white focus:outline-none focus:border-medical-trust focus:ring-1 focus:ring-medical-trust text-sm font-semibold"
-            />
+          <div style="display: flex; gap: 8px;">
+            <select id="dobDay" required class="w-1/4 bg-[#161e2e] border border-medical-border rounded-2xl py-3 px-3 text-white focus:outline-none focus:border-medical-trust focus:ring-1 focus:ring-medical-trust text-sm font-semibold cursor-pointer"></select>
+            <select id="dobMonth" required class="w-1/4 bg-[#161e2e] border border-medical-border rounded-2xl py-3 px-3 text-white focus:outline-none focus:border-medical-trust focus:ring-1 focus:ring-medical-trust text-sm font-semibold cursor-pointer"></select>
+            <select id="dobYear" required class="w-1/2 bg-[#161e2e] border border-medical-border rounded-2xl py-3 px-3 text-white focus:outline-none focus:border-medical-trust focus:ring-1 focus:ring-medical-trust text-sm font-semibold cursor-pointer"></select>
           </div>
+          <input type="hidden" name="dob" id="dob">
         </div>
         <div class="flex flex-col gap-1.5">
           <label class="text-xs font-bold text-medical-gray uppercase tracking-wider">Giới tính *</label>
@@ -406,6 +403,50 @@
     window.resetPhoneOtpState = function () {
       isPhoneOtpSent = false;
     };
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const daySelect = document.getElementById('dobDay');
+      const monthSelect = document.getElementById('dobMonth');
+      const yearSelect = document.getElementById('dobYear');
+      const hiddenDob = document.getElementById('dob');
+
+      // Populate days
+      let dayHtml = '<option value="">Ngày</option>';
+      for (let i = 1; i <= 31; i++) {
+        dayHtml += `<option value="${i}">${i}</option>`;
+      }
+      daySelect.innerHTML = dayHtml;
+
+      // Populate months
+      let monthHtml = '<option value="">Tháng</option>';
+      for (let i = 1; i <= 12; i++) {
+        monthHtml += `<option value="${i}">${i}</option>`;
+      }
+      monthSelect.innerHTML = monthHtml;
+
+      // Populate years
+      let yearHtml = '<option value="">Năm</option>';
+      const currentYear = new Date().getFullYear();
+      for (let i = currentYear; i >= 1900; i--) {
+        yearHtml += `<option value="${i}">${i}</option>`;
+      }
+      yearSelect.innerHTML = yearHtml;
+
+      function updateDob() {
+        const d = daySelect.value;
+        const m = monthSelect.value;
+        const y = yearSelect.value;
+        if (d && m && y) {
+          hiddenDob.value = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        } else {
+          hiddenDob.value = '';
+        }
+      }
+
+      daySelect.addEventListener('change', updateDob);
+      monthSelect.addEventListener('change', updateDob);
+      yearSelect.addEventListener('change', updateDob);
+    });
 
     const form = document.getElementById("registerForm");
 
