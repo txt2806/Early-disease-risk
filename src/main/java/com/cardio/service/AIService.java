@@ -31,7 +31,7 @@ public class AIService {
     @Value("${gemini.api.key:}")
     private String geminiApiKey;
 
-    @Value("${gemini.model:gemini-2.5-flash}")
+    @Value("${gemini.model:gemini-3.5-flash}")
     private String geminiModel;
 
     public AIService(
@@ -206,6 +206,71 @@ public class AIService {
             result.put("nutrition_advice", "Hệ thống AI tạm thời bận. Vui lòng ăn uống cân bằng.");
         }
         return result;
+    }
+
+    public Map<String, String> getSymptomAdvice(String symptoms, Integer severityScore, String duration, String notes) {
+        try {
+            if (geminiApiKey == null || geminiApiKey.isBlank()) {
+                throw new IllegalStateException("Missing GEMINI_API_KEY.");
+            }
+
+            String promptText = String.format(
+                    "Đóng vai bác sĩ tim mạch và trợ lý y tế thông minh CardioCare. Bệnh nhân vừa báo cáo triệu chứng: %s.\n" +
+                    "Mức độ đau/khó chịu: %d/10.\n" +
+                    "Thời gian kéo dài: %s.\n" +
+                    "Mô tả thêm: %s.\n" +
+                    "QUY TẮC AN TOÀN QUAN TRỌNG: Nếu triệu chứng có 'Đau ngực dữ dội', 'Khó thở', 'Đau lan ra vai' hoặc mức độ >= 8, phải khuyến cáo cấp cứu ngay. Nếu có dấu hiệu tiêu cực, tuyệt vọng, muốn tự tử trong mô tả, phải khuyên liên hệ ngay tổng đài tâm lý hoặc người thân 115!\n" +
+                    "Trả về ĐÚNG MỘT đối tượng JSON (không markdown, không bọc trong ```json) với 2 trường:\n" +
+                    "{\n" +
+                    "  \"aiRiskAssessment\": \"Đánh giá nguy cơ ngắn gọn 1 câu (VD: NGUY CƠ CẤP TÍNH CAO: Hệ thống khuyến cáo đến ngay cơ sở y tế gần nhất!)\",\n" +
+                    "  \"aiAdvice\": \"Lời khuyên chi tiết xử lý tại chỗ, gạch đầu dòng rõ ràng, bao gồm cảnh báo cấp cứu nếu cần.\"\n" +
+                    "}",
+                    symptoms, severityScore, duration, (notes != null && !notes.isBlank() ? notes : "Không có")
+            );
+
+            Map<String, Object> part = new HashMap<>();
+            part.put("text", promptText);
+
+            Map<String, Object> content = new HashMap<>();
+            content.put("role", "user");
+            content.put("parts", List.of(part));
+
+            Map<String, Object> generationConfig = new HashMap<>();
+            generationConfig.put("temperature", 0.3);
+            generationConfig.put("maxOutputTokens", 2048);
+            generationConfig.put("responseMimeType", "application/json");
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("contents", List.of(content));
+            requestBody.put("generationConfig", generationConfig);
+
+            String responseBody = geminiWebClient.post()
+                    .uri("/v1beta/models/" + geminiModel + ":generateContent?key=" + geminiApiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+
+            JsonNode rootNode = mapper.readTree(responseBody);
+            String rawAiText = rootNode.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText().trim();
+            
+            if (rawAiText.startsWith("```json")) {
+                rawAiText = rawAiText.substring(7, rawAiText.lastIndexOf("```")).trim();
+            } else if (rawAiText.startsWith("```")) {
+                rawAiText = rawAiText.substring(3, rawAiText.lastIndexOf("```")).trim();
+            }
+            
+            @SuppressWarnings("unchecked")
+            Map<String, String> parsed = mapper.readValue(rawAiText, Map.class);
+            return parsed;
+        } catch (Exception e) {
+            log.error("[AIService] Gemini Symptom Advice Error: {}", e.getMessage());
+            Map<String, String> fallback = new HashMap<>();
+            fallback.put("aiRiskAssessment", "Không thể phân tích rủi ro bằng AI lúc này.");
+            fallback.put("aiAdvice", "Hệ thống AI đang bận. Nếu bạn cảm thấy đau ngực dữ dội hoặc khó thở, hãy gọi cấp cứu ngay lập tức.");
+            return fallback;
+        }
     }
 
     public String mapRiskTierToVietnamese(String riskTier) {

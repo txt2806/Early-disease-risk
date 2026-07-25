@@ -18,3 +18,13 @@ Thumbs.db
 # Environment
 .env
 firebase-service-account.json
+
+# Scratch & Temporary test files
+test_*.py
+test_*.txt
+*.json
+!patient_app/**
+!src/**
+check_cols.py
+ngrok.exe
+gemini_result.txt
