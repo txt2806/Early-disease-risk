@@ -230,7 +230,6 @@
 
           <div style="color: #8a96b0; font-size: 12px; display:flex; gap:12px;">
             <span>📌 Chú thích màu:</span>
-            <span style="color:#fbbf24;">● Chờ duyệt</span>
             <span style="color:#10b981;">● Đã duyệt</span>
             <span style="color:#8b5cf6;">● Bệnh nhân đến</span>
             <span style="color:#ec4899;">● Đang khám</span>
@@ -337,8 +336,9 @@
         <!-- Phân bác sĩ -->
         <div class="form-group" style="margin-bottom: 14px;">
           <label>Bác sĩ điều phối</label>
-          <select name="doctorId" id="modalDoctorId" required
+          <select name="doctorId" id="modalDoctorId"
             style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 14px; outline: none;">
+            <option value="">-- Chưa phân công Bác sĩ --</option>
             <option th:each="doc : ${doctors}" th:value="${doc.doctorId}" th:data-room="${doc.roomNumber}"
               th:text="${doc.fullName + ' - Tim mạch'}"></option>
           </select>
@@ -373,8 +373,7 @@
           <label>Trạng thái</label>
           <select name="status" id="modalStatus" required
             style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 14px; outline: none;">
-            <option value="Pending">Chờ duyệt (Pending)</option>
-            <option value="Confirmed">Đã duyệt & xếp lịch (Confirmed)</option>
+            <option value="Confirmed" selected>Đã duyệt & xếp lịch (Confirmed)</option>
             <option value="CheckedIn">Bệnh nhân đã đến (CheckedIn)</option>
             <option value="InProgress">Đang khám (InProgress)</option>
             <option value="Completed">Đã khám xong (Completed)</option>

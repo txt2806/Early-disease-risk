@@ -100,12 +100,12 @@
                   <div>
                     <div style="display:flex; align-items:center; gap:8px;">
                       <div class="patient-fullname" th:text="${a.patient.fullName}">Nguyễn Văn A</div>
-                      <span th:if="${a.queueNumber != null}" class="risk-badge risk-LOW" 
+                      <span th:if="${a.appointmentId != null}" class="risk-badge risk-LOW" 
                             style="background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); font-size:10px; padding: 1px 5px; font-weight:700;" 
-                            th:text="'STT: ' + ${a.queueNumber}">STT: 1</span>
-                      <span th:if="${a.activeQueueNumber != null}" class="risk-badge" 
+                            th:text="'STT: ' + ${a.appointmentId}">STT: 1</span>
+                      <span th:if="${a.queueNumber != null}" class="risk-badge" 
                             style="background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); font-size:10px; padding: 1px 5px; font-weight:700;" 
-                            th:text="'STT Khám: ' + ${a.activeQueueNumber}">STT Khám: 1</span>
+                            th:text="'STT KHÁM: ' + ${a.queueNumber}">STT KHÁM: 1</span>
                     </div>
                     <div class="patient-id" th:text="${a.patient.phone != null ? a.patient.phone : 'Không có SĐT'}">0912345678</div>
                   </div>
@@ -268,8 +268,7 @@
           <label>Trạng thái lịch khám</label>
           <select name="status" id="modalStatus" required
             style="width: 100%; background: #1a2440; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; color: #e8edf5; font-size: 14px; outline: none;">
-            <option value="Pending">Chờ duyệt (Pending)</option>
-            <option value="Confirmed">Đã duyệt & xếp lịch (Confirmed)</option>
+            <option value="Confirmed" selected>Đã duyệt & xếp lịch (Confirmed)</option>
             <option value="CheckedIn">Bệnh nhân đã đến (CheckedIn)</option>
             <option value="InProgress">Đang khám (InProgress)</option>
             <option value="Completed">Đã khám xong (Completed)</option>
@@ -306,21 +305,33 @@
       document.getElementById("modalAppointmentId").value = id;
       document.getElementById("modalPatientName").textContent = name;
 
-      // Set booking type and trigger filtering
+      // Set booking type
       const modalBookingType = document.getElementById("modalBookingType");
       if (modalBookingType) {
         modalBookingType.value = bookingType;
-        modalBookingType.dispatchEvent(new Event('change'));
       }
 
-      document.getElementById("modalDoctorId").value = doctorId;
-      document.getElementById("modalRoomNumber").value = room;
-      document.getElementById("modalDate").value = date;
+      let cleanRoom = (room && room !== "Chưa xếp") ? room : "";
+
+      const docSelect = document.getElementById("modalDoctorId");
+      if (docSelect) {
+        docSelect.value = doctorId || "";
+        if (docSelect.selectedIndex >= 0 && docSelect.options[docSelect.selectedIndex]) {
+          const selectedOption = docSelect.options[docSelect.selectedIndex];
+          const docRoom = selectedOption.getAttribute("data-room");
+          if (!cleanRoom && docRoom && docRoom !== "Chưa xếp") {
+            cleanRoom = docRoom;
+          }
+        }
+      }
+
+      document.getElementById("modalRoomNumber").value = cleanRoom;
+      document.getElementById("modalDate").value = date || "";
 
       // Extract HH:mm from timeSlot and endTime
       document.getElementById("modalTimeSlot").value = time ? time.substring(0, 5) : "";
       document.getElementById("modalEndTime").value = endTime ? endTime.substring(0, 5) : "";
-      document.getElementById("modalStatus").value = status;
+      document.getElementById("modalStatus").value = status || "Confirmed";
 
       document.getElementById("assignModal").style.display = "flex";
     }

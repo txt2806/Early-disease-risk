@@ -167,9 +167,12 @@ public class AppointmentController {
             appointment.setPatient(patientProfile);
             appointment.setDoctor(doctorOpt.get());
             appointment.setScheduledDate(LocalDate.parse(dateStr));
-            appointment.setTimeSlot(LocalTime.parse(timeStr));
-            appointment.setStatus("Pending");
+            appointment.setStatus("Confirmed");
             appointment.setBookingType("General");
+
+            if (appointment.getDbQueueNumber() == null) {
+                appointment.setDbQueueNumber(appointmentRepository.findMaxDbQueueNumber() + 1);
+            }
 
             appointmentRepository.save(appointment);
 

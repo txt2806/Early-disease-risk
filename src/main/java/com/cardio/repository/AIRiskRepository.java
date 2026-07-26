@@ -14,8 +14,8 @@ public interface AIRiskRepository extends JpaRepository<AIRiskPrediction, Intege
     @Query("SELECT p FROM AIRiskPrediction p WHERE p.riskLevel = 'HIGH' AND p.isAlertSent = false")
     List<AIRiskPrediction> findUnhandledHighAlerts();
 
-    // Lấy cảnh báo theo bác sĩ
-    @Query("SELECT p FROM AIRiskPrediction p WHERE p.record.doctor.doctorId = :doctorId ORDER BY p.riskScore DESC")
+    // Lấy cảnh báo theo bác sĩ (bao gồm cả bệnh nhân đã từng khám/đặt lịch với bác sĩ)
+    @Query("SELECT p FROM AIRiskPrediction p WHERE (p.record.doctor.doctorId = :doctorId OR p.record.patient.patientId IN (SELECT DISTINCT a.patient.patientId FROM Appointment a WHERE a.doctor.doctorId = :doctorId)) ORDER BY p.predictionId DESC")
     List<AIRiskPrediction> findByDoctorId(Integer doctorId);
 
     // Lấy tất cả kết quả chẩn đoán AI của bệnh nhân

@@ -59,15 +59,29 @@ public class ReceptionController {
                         () -> new RuntimeException("Staff profile not found for user: " + userDetails.getUsername()));
     }
 
+    private void autoCancelExpiredAppointments() {
+        try {
+            List<Appointment> expired = appointmentRepository.findByScheduledDateBeforeAndStatusIn(
+                    LocalDate.now(), List.of("Pending", "Confirmed"));
+            for (Appointment app : expired) {
+                app.setStatus("Cancelled");
+                appointmentRepository.save(app);
+            }
+        } catch (Exception e) {
+            log.error("Lỗi tự động hủy lịch quá hạn: {}", e.getMessage());
+        }
+    }
+
     @GetMapping("/dashboard")
     public String dashboard(@AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(value = "dateStr", required = false) String dateStr,
             @RequestParam(value = "search", required = false) String search,
             @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "5") int size,
+            @RequestParam(value = "size", defaultValue = "10") int size,
             Model model) {
+        autoCancelExpiredAppointments();
         StaffProfile staff = getCurrentStaff(userDetails);
-        
+
         LocalDate filterDate = null;
         if (dateStr != null && !dateStr.isBlank()) {
             try {
@@ -76,7 +90,7 @@ public class ReceptionController {
                 log.error("Invalid date format: " + dateStr);
             }
         }
-        
+
         final LocalDate finalFilterDate = filterDate;
         List<Appointment> allSortedAppointments = sortAppointmentsForQueue(
                 appointmentRepository.findAll().stream()
@@ -89,35 +103,43 @@ public class ReceptionController {
                         .filter(a -> {
                             if (search != null && !search.isBlank()) {
                                 String s = search.toLowerCase();
-                                boolean matchName = a.getPatient() != null && a.getPatient().getFullName() != null 
+                                boolean matchName = a.getPatient() != null && a.getPatient().getFullName() != null
                                         && a.getPatient().getFullName().toLowerCase().contains(s);
-                                boolean matchPhone = a.getPatient() != null && a.getPatient().getPhone() != null 
+                                boolean matchPhone = a.getPatient() != null && a.getPatient().getPhone() != null
                                         && a.getPatient().getPhone().toLowerCase().contains(s);
                                 return matchName || matchPhone;
                             }
                             return true;
                         })
-                        .filter(a -> !"Completed".equalsIgnoreCase(a.getStatus())
-                                && !"Cancelled".equalsIgnoreCase(a.getStatus())
-                                && !"Đã khám".equalsIgnoreCase(a.getStatus())
-                                && !"Đã khám xong".equalsIgnoreCase(a.getStatus()))
-                        .collect(Collectors.toList())
-        );
-        
+                        .filter(a -> {
+                            if (finalFilterDate != null) {
+                                return true; // Khi chọn ngày cụ thể: Hiện tất cả kể cả đã hủy hoặc đã khám xong
+                            }
+                            // Khi không chọn ngày: Chỉ hiện các ca chưa khám
+                            return !"Completed".equalsIgnoreCase(a.getStatus())
+                                    && !"Cancelled".equalsIgnoreCase(a.getStatus())
+                                    && !"Đã khám".equalsIgnoreCase(a.getStatus())
+                                    && !"Đã khám xong".equalsIgnoreCase(a.getStatus());
+                        })
+                        .collect(Collectors.toList()));
+
         List<Appointment> allReference = appointmentRepository.findAll();
         Appointment.populateQueueNumbers(allSortedAppointments, allReference);
 
         int totalItems = allSortedAppointments.size();
         int totalPages = (int) Math.ceil((double) totalItems / size);
-        if (totalPages == 0) totalPages = 1;
-        if (page < 0) page = 0;
-        if (page >= totalPages) page = totalPages - 1;
-        
+        if (totalPages == 0)
+            totalPages = 1;
+        if (page < 0)
+            page = 0;
+        if (page >= totalPages)
+            page = totalPages - 1;
+
         int fromIndex = Math.max(0, page * size);
         int toIndex = Math.min(fromIndex + size, totalItems);
-        
-        List<Appointment> pageAppointments = (fromIndex < totalItems) 
-                ? allSortedAppointments.subList(fromIndex, toIndex) 
+
+        List<Appointment> pageAppointments = (fromIndex < totalItems)
+                ? allSortedAppointments.subList(fromIndex, toIndex)
                 : List.of();
 
         List<DoctorProfile> doctors = doctorRepository.findAll();
@@ -152,10 +174,10 @@ public class ReceptionController {
             @RequestParam("appointmentId") Integer appointmentId,
             @RequestParam(value = "doctorId", required = false) Integer doctorId,
             @RequestParam(value = "roomNumber", required = false) String roomNumber,
-            @RequestParam("scheduledDate") String scheduledDateStr,
+            @RequestParam(value = "scheduledDate", required = false) String scheduledDateStr,
             @RequestParam(value = "timeSlot", required = false) String timeSlotStr,
             @RequestParam(value = "endTime", required = false) String endTimeStr,
-            @RequestParam("status") String status,
+            @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "bookingType", required = false) String bookingType,
             @RequestParam(value = "redirectSource", required = false, defaultValue = "dashboard") String redirectSource,
             @RequestParam(value = "redirectDate", required = false) String redirectDate,
@@ -166,21 +188,32 @@ public class ReceptionController {
             Appointment appointment = appointmentRepository.findById(appointmentId)
                     .orElseThrow(() -> new RuntimeException("Appointment not found"));
 
-            LocalDate date = LocalDate.parse(scheduledDateStr);
-            LocalDate targetDate = date;
+            LocalDate targetDate = appointment.getScheduledDate();
+            if (scheduledDateStr != null && !scheduledDateStr.isBlank()) {
+                try {
+                    targetDate = LocalDate.parse(scheduledDateStr);
+                } catch (Exception e) {
+                    log.warn("Form date parse failed: " + scheduledDateStr);
+                }
+            }
+            if (targetDate == null) {
+                targetDate = LocalDate.now();
+            }
             boolean wasShifted = false;
 
             if (doctorId != null) {
                 DoctorProfile doctor = doctorRepository.findById(doctorId)
                         .orElseThrow(() -> new RuntimeException("Doctor not found"));
 
-                // Auto-overflow logic: find next consecutive day where doctor has < 8 appointments
+                // Auto-overflow logic: find next consecutive day where doctor has < 8
+                // appointments
                 boolean isSameDoctorAndDate = appointment.getDoctor() != null &&
                         appointment.getDoctor().getDoctorId().equals(doctorId) &&
                         appointment.getScheduledDate().equals(targetDate) &&
                         !"Cancelled".equalsIgnoreCase(appointment.getStatus());
 
-                long bookedCount = appointmentRepository.countByDoctorAndScheduledDateAndStatusNot(doctor, targetDate, "Cancelled");
+                long bookedCount = appointmentRepository.countByDoctorAndScheduledDateAndStatusNot(doctor, targetDate,
+                        "Cancelled");
                 if (bookedCount >= 8 && !isSameDoctorAndDate) {
                     while (true) {
                         targetDate = targetDate.plusDays(1);
@@ -188,7 +221,8 @@ public class ReceptionController {
                                 appointment.getDoctor().getDoctorId().equals(doctorId) &&
                                 appointment.getScheduledDate().equals(targetDate) &&
                                 !"Cancelled".equalsIgnoreCase(appointment.getStatus());
-                        long nextBookedCount = appointmentRepository.countByDoctorAndScheduledDateAndStatusNot(doctor, targetDate, "Cancelled");
+                        long nextBookedCount = appointmentRepository.countByDoctorAndScheduledDateAndStatusNot(doctor,
+                                targetDate, "Cancelled");
                         if (nextBookedCount < 8 || isSameOnNext) {
                             break;
                         }
@@ -200,13 +234,23 @@ public class ReceptionController {
                 appointment.setDoctor(null);
             }
 
+            if (roomNumber != null && ("Chưa xếp".equalsIgnoreCase(roomNumber.trim()) || roomNumber.trim().isEmpty())) {
+                roomNumber = null;
+            }
             if (appointment.getDoctor() != null && (roomNumber == null || roomNumber.isBlank())) {
-                appointment.setRoomNumber(appointment.getDoctor().getRoomNumber());
+                String docRoom = appointment.getDoctor().getRoomNumber();
+                if (docRoom != null && !"Chưa xếp".equalsIgnoreCase(docRoom.trim())) {
+                    appointment.setRoomNumber(docRoom.trim());
+                } else {
+                    appointment.setRoomNumber(null);
+                }
             } else {
-                appointment.setRoomNumber(roomNumber);
+                appointment.setRoomNumber(roomNumber != null ? roomNumber.trim() : null);
             }
             appointment.setScheduledDate(targetDate);
-            appointment.setStatus(status);
+            if (status != null && !status.isBlank()) {
+                appointment.setStatus(status);
+            }
             if (bookingType != null) {
                 appointment.setBookingType(bookingType);
             }
@@ -214,7 +258,13 @@ public class ReceptionController {
             // Handle Check-in arrival time
             LocalTime startVal = appointment.getTimeSlot();
             if (timeSlotStr != null && !timeSlotStr.isBlank()) {
-                startVal = LocalTime.parse(timeSlotStr);
+                try {
+                    String clean = timeSlotStr.trim();
+                    if (clean.length() == 5) clean += ":00";
+                    startVal = LocalTime.parse(clean);
+                } catch (Exception e) {
+                    log.warn("Could not parse timeSlotStr: {}", timeSlotStr);
+                }
             } else if ("CheckedIn".equalsIgnoreCase(status) && startVal == null) {
                 startVal = LocalTime.now();
             }
@@ -222,7 +272,13 @@ public class ReceptionController {
             // Handle Completed end time
             LocalTime endVal = appointment.getEndTime();
             if (endTimeStr != null && !endTimeStr.isBlank()) {
-                endVal = LocalTime.parse(endTimeStr);
+                try {
+                    String clean = endTimeStr.trim();
+                    if (clean.length() == 5) clean += ":00";
+                    endVal = LocalTime.parse(clean);
+                } catch (Exception e) {
+                    log.warn("Could not parse endTimeStr: {}", endTimeStr);
+                }
             } else if ("Completed".equalsIgnoreCase(status) && endVal == null) {
                 endVal = LocalTime.now();
             } else if (!"Completed".equalsIgnoreCase(status)) {
@@ -230,7 +286,7 @@ public class ReceptionController {
             }
 
             if (startVal != null && endVal != null && endVal.isBefore(startVal)) {
-                throw new RuntimeException("Giờ ra (giờ về) phải sau giờ vào!");
+                log.warn("Giờ ra trước giờ vào, bỏ qua kiểm tra endTime");
             }
 
             appointment.setTimeSlot(startVal);
@@ -247,21 +303,26 @@ public class ReceptionController {
                     + (appointment.getDoctor() != null ? appointment.getDoctor().getFullName() : "Chưa phân công") +
                     ", Phòng: " + (appointment.getRoomNumber() != null ? appointment.getRoomNumber() : "Chưa xếp") +
                     ", Ngày: " + targetDate.toString() +
-                    ", Giờ đến: " + (appointment.getTimeSlot() != null ? appointment.getTimeSlot().toString() : "Chưa đến") +
-                    ", Giờ về: " + (appointment.getEndTime() != null ? appointment.getEndTime().toString() : "Chưa về") +
+                    ", Giờ đến: "
+                    + (appointment.getTimeSlot() != null ? appointment.getTimeSlot().toString() : "Chưa đến") +
+                    ", Giờ về: " + (appointment.getEndTime() != null ? appointment.getEndTime().toString() : "Chưa về")
+                    +
                     ", Trạng thái: " + status);
             sysLog.setTimestamp(LocalDateTime.now());
             systemLogRepository.save(sysLog);
 
             if (wasShifted) {
-                ra.addFlashAttribute("success", "Đã cập nhật lịch khám! Do bác sĩ đã đầy lịch vào ngày được chọn, ngày khám được tự động chuyển sang ngày " + targetDate.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ".");
+                ra.addFlashAttribute("success",
+                        "Đã cập nhật lịch khám! Do bác sĩ đã đầy lịch vào ngày được chọn, ngày khám được tự động chuyển sang ngày "
+                                + targetDate.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ".");
             } else {
                 ra.addFlashAttribute("success", "Cập nhật và xếp lịch cho bệnh nhân thành công!");
             }
         } catch (Exception e) {
             log.error("Error assigning appointment: ", e);
             String message = e.getMessage();
-            if (message != null && (message.contains("unique_doctor_slot") || message.contains("unique_patient_slot") || message.contains("ConstraintViolation") || message.contains("duplicate key"))) {
+            if (message != null && (message.contains("unique_doctor_slot") || message.contains("unique_patient_slot")
+                    || message.contains("ConstraintViolation") || message.contains("duplicate key"))) {
                 ra.addFlashAttribute("error", "Lỗi xếp lịch khám: đã có lịch hẹn được đặt trước đó");
             } else {
                 ra.addFlashAttribute("error", "Lỗi xếp lịch khám: " + e.getMessage());
@@ -373,12 +434,15 @@ public class ReceptionController {
                 DoctorProfile doctor = doctorRepository.findById(doctorId)
                         .orElseThrow(() -> new RuntimeException("Doctor not found"));
 
-                // Auto-overflow logic: find next consecutive day where doctor has < 8 appointments
-                long bookedCount = appointmentRepository.countByDoctorAndScheduledDateAndStatusNot(doctor, targetDate, "Cancelled");
+                // Auto-overflow logic: find next consecutive day where doctor has < 8
+                // appointments
+                long bookedCount = appointmentRepository.countByDoctorAndScheduledDateAndStatusNot(doctor, targetDate,
+                        "Cancelled");
                 if (bookedCount >= 8) {
                     while (true) {
                         targetDate = targetDate.plusDays(1);
-                        long nextBookedCount = appointmentRepository.countByDoctorAndScheduledDateAndStatusNot(doctor, targetDate, "Cancelled");
+                        long nextBookedCount = appointmentRepository.countByDoctorAndScheduledDateAndStatusNot(doctor,
+                                targetDate, "Cancelled");
                         if (nextBookedCount < 8) {
                             break;
                         }
@@ -389,7 +453,7 @@ public class ReceptionController {
             }
 
             appointment.setScheduledDate(targetDate);
-            
+
             // Set timeSlot
             if (timeSlotStr != null && !timeSlotStr.isBlank()) {
                 appointment.setTimeSlot(LocalTime.parse(timeSlotStr));
@@ -403,14 +467,21 @@ public class ReceptionController {
             } else {
                 appointment.setRoomNumber(roomNumber);
             }
-            appointment.setPreliminaryStatus(preliminaryStatus);
+            if (status == null || status.isBlank() || "Pending".equalsIgnoreCase(status)) {
+                status = "Confirmed";
+            }
             appointment.setStatus(status);
             appointment.setRequestTime(LocalDateTime.now());
+
+            if (appointment.getDbQueueNumber() == null) {
+                appointment.setDbQueueNumber(appointmentRepository.findMaxDbQueueNumber() + 1);
+            }
 
             appointmentRepository.save(appointment);
 
             // Tự động tạo hóa đơn tương ứng với lịch khám
-            Long fee = "Specialist".equalsIgnoreCase(bookingType) ? systemSettingService.getFeeSpecialist() : systemSettingService.getFeeGeneral();
+            Long fee = "Specialist".equalsIgnoreCase(bookingType) ? systemSettingService.getFeeSpecialist()
+                    : systemSettingService.getFeeGeneral();
             Invoice invoice = new Invoice();
             invoice.setAppointment(appointment);
             invoice.setPatient(patient);
@@ -419,7 +490,7 @@ public class ReceptionController {
             invoice.setStatus("Unpaid");
             invoice.setCreatedDate(LocalDateTime.now());
             invoice = invoiceRepository.save(invoice);
-            
+
             // Cập nhật mã nội dung chuyển khoản bảo mật dạng TT{id}
             invoice.setReferenceCode("TT" + invoice.getInvoiceId());
             invoiceRepository.save(invoice);
@@ -438,14 +509,18 @@ public class ReceptionController {
             systemLogRepository.save(sysLog);
 
             if (wasShifted) {
-                ra.addFlashAttribute("success", "Đã tạo lịch khám thành công! Do bác sĩ đã đầy lịch khám vào ngày được chọn, ngày khám được tự động chuyển sang ngày " + targetDate.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ".");
+                ra.addFlashAttribute("success",
+                        "Đã tạo lịch khám thành công! Do bác sĩ đã đầy lịch khám vào ngày được chọn, ngày khám được tự động chuyển sang ngày "
+                                + targetDate.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ".");
             } else {
-                ra.addFlashAttribute("success", "Đã tạo lịch khám mới thành công cho bệnh nhân " + patient.getFullName());
+                ra.addFlashAttribute("success",
+                        "Đã tạo lịch khám mới thành công cho bệnh nhân " + patient.getFullName());
             }
         } catch (Exception e) {
             log.error("Error saving new appointment by receptionist: ", e);
             String message = e.getMessage();
-            if (message != null && (message.contains("unique_doctor_slot") || message.contains("unique_patient_slot") || message.contains("ConstraintViolation") || message.contains("duplicate key"))) {
+            if (message != null && (message.contains("unique_doctor_slot") || message.contains("unique_patient_slot")
+                    || message.contains("ConstraintViolation") || message.contains("duplicate key"))) {
                 ra.addFlashAttribute("error", "Lỗi tạo lịch khám: đã có lịch hẹn được đặt trước đó");
             } else {
                 ra.addFlashAttribute("error", "Lỗi tạo lịch khám: " + e.getMessage());
@@ -458,10 +533,10 @@ public class ReceptionController {
 
     @GetMapping("/patients")
     public String patients(@AuthenticationPrincipal UserDetails userDetails,
-                            @RequestParam(required = false) String search,
-                           @RequestParam(defaultValue = "0") int page,
-                           @RequestParam(defaultValue = "10") int size,
-                           Model model) {
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Model model) {
         StaffProfile staff = getCurrentStaff(userDetails);
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<PatientProfile> patientPage = (search != null && !search.isBlank())
@@ -494,7 +569,8 @@ public class ReceptionController {
 
         final LocalDate finalDate = date;
         List<Appointment> appointments = appointmentRepository.findAll().stream()
-                .filter(a -> a.getScheduledDate().equals(finalDate) && (doctorId == null || (a.getDoctor() != null && a.getDoctor().getDoctorId().equals(doctorId))))
+                .filter(a -> a.getScheduledDate().equals(finalDate) && (doctorId == null
+                        || (a.getDoctor() != null && a.getDoctor().getDoctorId().equals(doctorId))))
                 .filter(a -> !"Completed".equalsIgnoreCase(a.getStatus())
                         && !"Cancelled".equalsIgnoreCase(a.getStatus())
                         && !"Đã khám".equalsIgnoreCase(a.getStatus())
@@ -505,16 +581,20 @@ public class ReceptionController {
                     if (t1 != null && t2 != null) {
                         return t1.compareTo(t2);
                     }
-                    if (t1 != null) return -1;
-                    if (t2 != null) return 1;
+                    if (t1 != null)
+                        return -1;
+                    if (t2 != null)
+                        return 1;
 
                     LocalDateTime r1 = a1.getRequestTime();
                     LocalDateTime r2 = a2.getRequestTime();
                     if (r1 != null && r2 != null) {
                         return r1.compareTo(r2);
                     }
-                    if (r1 != null) return -1;
-                    if (r2 != null) return 1;
+                    if (r1 != null)
+                        return -1;
+                    if (r2 != null)
+                        return 1;
 
                     return a1.getAppointmentId().compareTo(a2.getAppointmentId());
                 })
@@ -526,7 +606,8 @@ public class ReceptionController {
         java.util.Map<Integer, Long> workloads = new java.util.HashMap<>();
         for (DoctorProfile doc : doctors) {
             long count = appointmentRepository.findAll().stream()
-                    .filter(a -> a.getScheduledDate().equals(finalDate) && a.getDoctor() != null && a.getDoctor().getDoctorId().equals(doc.getDoctorId())
+                    .filter(a -> a.getScheduledDate().equals(finalDate) && a.getDoctor() != null
+                            && a.getDoctor().getDoctorId().equals(doc.getDoctorId())
                             && !"Cancelled".equalsIgnoreCase(a.getStatus()))
                     .count();
             workloads.put(doc.getDoctorId(), count);
@@ -542,52 +623,41 @@ public class ReceptionController {
     }
 
     private List<Appointment> sortAppointmentsForQueue(List<Appointment> list) {
-        if (list == null) return java.util.Collections.emptyList();
+        if (list == null)
+            return java.util.Collections.emptyList();
         return list.stream().sorted((a1, a2) -> {
-            // Priority 1: Status InProgress
-            int p1 = "InProgress".equalsIgnoreCase(a1.getStatus()) ? 0 : 1;
-            int p2 = "InProgress".equalsIgnoreCase(a2.getStatus()) ? 0 : 1;
-            if (p1 != p2) return Integer.compare(p1, p2);
-
-            // Priority 2: Status CheckedIn (FIFO by arrival time / timeSlot)
-            int c1 = "CheckedIn".equalsIgnoreCase(a1.getStatus()) ? 0 : 1;
-            int c2 = "CheckedIn".equalsIgnoreCase(a2.getStatus()) ? 0 : 1;
-            if (c1 != c2) return Integer.compare(c1, c2);
-            if (c1 == 0) {
-                if (a1.getTimeSlot() != null && a2.getTimeSlot() != null) {
-                    return a1.getTimeSlot().compareTo(a2.getTimeSlot());
-                }
-                if (a1.getTimeSlot() != null) return -1;
-                if (a2.getTimeSlot() != null) return 1;
+            // 1. Ngày hẹn gần nhất lên đầu (ScheduledDate ASC)
+            if (a1.getScheduledDate() != null && a2.getScheduledDate() != null) {
+                int dateComp = a1.getScheduledDate().compareTo(a2.getScheduledDate());
+                if (dateComp != 0) return dateComp;
+            } else if (a1.getScheduledDate() != null) {
+                return -1;
+            } else if (a2.getScheduledDate() != null) {
+                return 1;
             }
 
-            // Priority 3: Status Confirmed
-            int f1 = "Confirmed".equalsIgnoreCase(a1.getStatus()) ? 0 : 1;
-            int f2 = "Confirmed".equalsIgnoreCase(a2.getStatus()) ? 0 : 1;
-            if (f1 != f2) return Integer.compare(f1, f2);
+            // 2. Trạng thái ca khám (Đang khám -> Đã đến -> Đã duyệt -> Hoàn thành -> Hủy)
+            int p1 = "InProgress".equalsIgnoreCase(a1.getStatus()) ? 0 : ("CheckedIn".equalsIgnoreCase(a1.getStatus()) ? 1 : ("Confirmed".equalsIgnoreCase(a1.getStatus()) ? 2 : ("Completed".equalsIgnoreCase(a1.getStatus()) ? 3 : 4)));
+            int p2 = "InProgress".equalsIgnoreCase(a2.getStatus()) ? 0 : ("CheckedIn".equalsIgnoreCase(a2.getStatus()) ? 1 : ("Confirmed".equalsIgnoreCase(a2.getStatus()) ? 2 : ("Completed".equalsIgnoreCase(a2.getStatus()) ? 3 : 4)));
+            if (p1 != p2) return Integer.compare(p1, p2);
 
-            // Priority 4: Status Pending
-            int d1 = "Pending".equalsIgnoreCase(a1.getStatus()) ? 0 : 1;
-            int d2 = "Pending".equalsIgnoreCase(a2.getStatus()) ? 0 : 1;
-            if (d1 != d2) return Integer.compare(d1, d2);
+            // 3. Khung giờ khám (TimeSlot ASC)
+            if (a1.getTimeSlot() != null && a2.getTimeSlot() != null) {
+                int timeComp = a1.getTimeSlot().compareTo(a2.getTimeSlot());
+                if (timeComp != 0) return timeComp;
+            }
 
-            // Priority 5: Completed
-            int m1 = "Completed".equalsIgnoreCase(a1.getStatus()) ? 0 : 1;
-            int m2 = "Completed".equalsIgnoreCase(a2.getStatus()) ? 0 : 1;
-            if (m1 != m2) return Integer.compare(m1, m2);
+            // 4. Số thứ tự (dbQueueNumber / appointmentId ASC)
+            if (a1.getDbQueueNumber() != null && a2.getDbQueueNumber() != null) {
+                return a1.getDbQueueNumber().compareTo(a2.getDbQueueNumber());
+            }
 
-            // Priority 6: Cancelled
-            int n1 = "Cancelled".equalsIgnoreCase(a1.getStatus()) ? 0 : 1;
-            int n2 = "Cancelled".equalsIgnoreCase(a2.getStatus()) ? 0 : 1;
-            if (n1 != n2) return Integer.compare(n1, n2);
-
-             // Fallback: ID
-             if (a1.getAppointmentId() != null && a2.getAppointmentId() != null) {
-                 return a1.getAppointmentId().compareTo(a2.getAppointmentId());
-             }
-             return 0;
-         }).collect(Collectors.toList());
-     }
+            if (a1.getAppointmentId() != null && a2.getAppointmentId() != null) {
+                return a1.getAppointmentId().compareTo(a2.getAppointmentId());
+            }
+            return 0;
+        }).collect(Collectors.toList());
+    }
 
     @GetMapping("/invoices")
     public String viewInvoices(
@@ -597,12 +667,14 @@ public class ReceptionController {
             Model model) {
         StaffProfile staff = getCurrentStaff(userDetails);
 
-        // Tự động khởi tạo hóa đơn chưa tồn tại cho tất cả lịch khám (để tránh dữ liệu cũ không có hóa đơn)
+        // Tự động khởi tạo hóa đơn chưa tồn tại cho tất cả lịch khám (để tránh dữ liệu
+        // cũ không có hóa đơn)
         List<Appointment> appointments = appointmentRepository.findAll();
         for (Appointment app : appointments) {
             Optional<Invoice> invOpt = invoiceRepository.findByAppointment(app);
             if (!invOpt.isPresent() && !"Cancelled".equalsIgnoreCase(app.getStatus())) {
-                Long fee = "Specialist".equalsIgnoreCase(app.getBookingType()) ? systemSettingService.getFeeSpecialist() : systemSettingService.getFeeGeneral();
+                Long fee = "Specialist".equalsIgnoreCase(app.getBookingType()) ? systemSettingService.getFeeSpecialist()
+                        : systemSettingService.getFeeGeneral();
                 Invoice invoice = new Invoice();
                 invoice.setAppointment(app);
                 invoice.setPatient(app.getPatient());
@@ -617,7 +689,7 @@ public class ReceptionController {
         }
 
         List<Invoice> allInvoices = invoiceRepository.findAll();
-        
+
         // Lọc theo trạng thái
         if (filterStatus != null && !filterStatus.isBlank() && !"ALL".equalsIgnoreCase(filterStatus)) {
             allInvoices = allInvoices.stream()
@@ -629,9 +701,11 @@ public class ReceptionController {
         if (search != null && !search.isBlank()) {
             final String searchClean = search.trim().toLowerCase();
             allInvoices = allInvoices.stream()
-                    .filter(i -> (i.getPatient() != null && 
-                            ((i.getPatient().getFullName() != null && i.getPatient().getFullName().toLowerCase().contains(searchClean)) ||
-                             (i.getPatient().getPhone() != null && i.getPatient().getPhone().contains(searchClean)))))
+                    .filter(i -> (i.getPatient() != null &&
+                            ((i.getPatient().getFullName() != null
+                                    && i.getPatient().getFullName().toLowerCase().contains(searchClean)) ||
+                                    (i.getPatient().getPhone() != null
+                                            && i.getPatient().getPhone().contains(searchClean)))))
                     .collect(Collectors.toList());
         }
 
@@ -642,7 +716,7 @@ public class ReceptionController {
         model.addAttribute("invoices", allInvoices);
         model.addAttribute("selectedStatus", filterStatus != null ? filterStatus : "ALL");
         model.addAttribute("search", search);
-        
+
         // Gửi thông tin ngân hàng để vẽ QR cho lễ tân hiển thị
         model.addAttribute("bankId", bankId);
         model.addAttribute("bankAccount", bankAccount);
@@ -674,7 +748,9 @@ public class ReceptionController {
                 SystemLog sysLog = new SystemLog();
                 sysLog.setUsername(staff.getUsername());
                 sysLog.setAction("RECEPTION_COLLECT_CASH");
-                sysLog.setDetails("Lễ tân " + staff.getFullName() + " đã thu tiền mặt trực tiếp cho hóa đơn #" + invoice.getInvoiceId() + " (Số tiền: " + invoice.getAmount() + " VND, Bệnh nhân: " + (invoice.getPatient() != null ? invoice.getPatient().getFullName() : "N/A") + ")");
+                sysLog.setDetails("Lễ tân " + staff.getFullName() + " đã thu tiền mặt trực tiếp cho hóa đơn #"
+                        + invoice.getInvoiceId() + " (Số tiền: " + invoice.getAmount() + " VND, Bệnh nhân: "
+                        + (invoice.getPatient() != null ? invoice.getPatient().getFullName() : "N/A") + ")");
                 sysLog.setTimestamp(LocalDateTime.now());
                 systemLogRepository.save(sysLog);
 

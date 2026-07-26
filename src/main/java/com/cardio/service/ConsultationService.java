@@ -558,7 +558,18 @@ public class ConsultationService {
             if (sentA && !sentB) {
                 return 1;
             }
-            // Cùng trạng thái → sort theo urgencyScore
+            // Cùng trạng thái → sort theo thời gian mới nhất lên trước (nếu trùng thời gian thì theo urgencyScore)
+            int timeComp = 0;
+            java.time.LocalDateTime tA = a.getAlertCreatedAt() != null ? a.getAlertCreatedAt() : (a.getRecord() != null ? a.getRecord().getVisitDate() : null);
+            java.time.LocalDateTime tB = b.getAlertCreatedAt() != null ? b.getAlertCreatedAt() : (b.getRecord() != null ? b.getRecord().getVisitDate() : null);
+            if (tA != null && tB != null) {
+                timeComp = tB.compareTo(tA);
+            }
+            if (timeComp != 0) return timeComp;
+
+            if (a.getPredictionId() != null && b.getPredictionId() != null) {
+                return b.getPredictionId().compareTo(a.getPredictionId());
+            }
             return Double.compare(calcUrgencyScore(b), calcUrgencyScore(a));
         });
         return all;
