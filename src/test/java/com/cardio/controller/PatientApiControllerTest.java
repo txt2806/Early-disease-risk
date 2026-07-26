@@ -24,7 +24,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(controllers = PatientApiController.class)
+@WebMvcTest(controllers = PatientApiController.class, excludeAutoConfiguration = {
+        org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration.class,
+        org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration.class
+})
 class PatientApiControllerTest {
 
     @Autowired
@@ -38,6 +41,12 @@ class PatientApiControllerTest {
 
     @MockBean
     private AIService aiService;
+
+    @MockBean
+    private com.cardio.repository.PatientRepository patientRepository;
+
+    @MockBean
+    private com.cardio.service.ChatService chatService;
 
     @Test
     @DisplayName("GET /api/patient/history/{patientId} should return medical history list")
@@ -83,7 +92,7 @@ class PatientApiControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/api/patient/symptoms/update")
+        mockMvc.perform(post("/api/patient/symptom-update")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonPayload))
                 .andExpect(status().isOk())

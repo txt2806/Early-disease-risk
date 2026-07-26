@@ -349,10 +349,22 @@ public class StaffController {
                                @RequestParam(required = false) String dateStr,
                                Model model) {
         StaffProfile staff = getCurrentStaff(userDetails);
-        LocalDate date = (dateStr != null && !dateStr.isBlank()) ? LocalDate.parse(dateStr) : LocalDate.now();
+        LocalDate date = LocalDate.now();
+        if (dateStr != null && !dateStr.isBlank()) {
+            try {
+                date = LocalDate.parse(dateStr);
+            } catch (Exception e) {
+                log.error("Error parsing dateStr: {}", dateStr, e);
+            }
+        }
 
+        final LocalDate finalDate = date;
         List<Appointment> appointments = appointmentRepository.findAll().stream()
-                .filter(a -> a.getScheduledDate().equals(date))
+                .filter(a -> a.getScheduledDate().equals(finalDate)
+                && !"Completed".equalsIgnoreCase(a.getStatus())
+                && !"Cancelled".equalsIgnoreCase(a.getStatus())
+                && !"Đã khám".equalsIgnoreCase(a.getStatus())
+                && !"Đã khám xong".equalsIgnoreCase(a.getStatus()))
                 .sorted((a1, a2) -> {
                     LocalTime t1 = a1.getTimeSlot();
                     LocalTime t2 = a2.getTimeSlot();

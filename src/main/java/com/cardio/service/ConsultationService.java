@@ -677,7 +677,7 @@ public class ConsultationService {
         app.setPatient(patient);
         app.setDoctor(targetDoctor);
         app.setScheduledDate(java.time.LocalDate.now()); // Hẹn khám chuyên khoa hôm nay/ngay lập tức
-        app.setStatus(STATUS_PENDING);
+        app.setStatus("CheckedIn");
         app.setBookingType("Specialist");
         app.setPreliminaryStatus(notes);
         app.setRequestTime(LocalDateTime.now());

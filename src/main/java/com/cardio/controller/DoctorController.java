@@ -218,7 +218,11 @@ public class DoctorController {
 
         LocalDate date = null;
         if (dateStr != null && !dateStr.isBlank()) {
-            date = LocalDate.parse(dateStr);
+            try {
+                date = LocalDate.parse(dateStr);
+            } catch (Exception e) {
+                log.error("Error parsing dateStr: {}", dateStr, e);
+            }
         }
         Pageable pageable = PageRequest.of(page, size, Sort.by("fullName").ascending());
         Page<PatientProfile> patientPage = patientService.searchAssignedPatients(doctor.getDoctorId(), search, date, pageable);
@@ -887,17 +891,29 @@ public class DoctorController {
             @RequestParam(required = false) String dateStr,
             Model model) {
         DoctorProfile doctor = getCurrentDoctor(userDetails);
-        LocalDate date = (dateStr != null && !dateStr.isBlank()) ? LocalDate.parse(dateStr) : LocalDate.now();
+        LocalDate date = LocalDate.now();
+        if (dateStr != null && !dateStr.isBlank()) {
+            try {
+                date = LocalDate.parse(dateStr);
+            } catch (Exception e) {
+                log.error("Error parsing dateStr: {}", dateStr, e);
+            }
+        }
 
         List<Appointment> appointments;
         List<DoctorProfile> doctors;
 
+        final LocalDate finalDate = date;
         if (doctor.getDoctorId() != null) {
             // Doctors only view their own schedule
             appointments = appointmentRepository.findAll().stream()
-                    .filter(a -> a.getScheduledDate().equals(date)
+                    .filter(a -> a.getScheduledDate().equals(finalDate)
                     && a.getDoctor() != null
-                    && a.getDoctor().getDoctorId().equals(doctor.getDoctorId()))
+                    && a.getDoctor().getDoctorId().equals(doctor.getDoctorId())
+                    && !"Completed".equalsIgnoreCase(a.getStatus())
+                    && !"Cancelled".equalsIgnoreCase(a.getStatus())
+                    && !"Đã khám".equalsIgnoreCase(a.getStatus())
+                    && !"Đã khám xong".equalsIgnoreCase(a.getStatus()))
                     .sorted((a1, a2) -> {
                         LocalTime t1 = a1.getTimeSlot();
                         LocalTime t2 = a2.getTimeSlot();
@@ -930,7 +946,11 @@ public class DoctorController {
         } else {
             // Staff / Receptionists see all
             appointments = appointmentRepository.findAll().stream()
-                    .filter(a -> a.getScheduledDate().equals(date))
+                    .filter(a -> a.getScheduledDate().equals(finalDate)
+                    && !"Completed".equalsIgnoreCase(a.getStatus())
+                    && !"Cancelled".equalsIgnoreCase(a.getStatus())
+                    && !"Đã khám".equalsIgnoreCase(a.getStatus())
+                    && !"Đã khám xong".equalsIgnoreCase(a.getStatus()))
                     .sorted((a1, a2) -> {
                         LocalTime t1 = a1.getTimeSlot();
                         LocalTime t2 = a2.getTimeSlot();
@@ -1581,6 +1601,7 @@ public class DoctorController {
         }
 
         app.setStatus("InProgress");
+        app.setTimeSlot(LocalTime.now()); // Automatically set Giờ vào
         appointmentRepository.save(app);
 
         ra.addFlashAttribute("success", "Bắt đầu ca khám cho bệnh nhân " + app.getPatient().getFullName());
@@ -1603,6 +1624,7 @@ public class DoctorController {
             if (appOpt.isPresent()) {
                 Appointment app = appOpt.get();
                 app.setStatus("Completed");
+                app.setEndTime(LocalTime.now()); // Automatically set Giờ ra
                 appointmentRepository.save(app);
                 ra.addFlashAttribute("success", "Đã hoàn thành khám cho bệnh nhân " + app.getPatient().getFullName());
             } else {
@@ -1717,6 +1739,20 @@ public class DoctorController {
                     .orElseThrow(() -> new RuntimeException("Patient not found"));
             DoctorProfile targetDoctor = doctorRepository.findById(targetDoctorId)
                     .orElseThrow(() -> new RuntimeException("Target doctor not found"));
+            DoctorProfile currentDoctor = getCurrentDoctor(userDetails);
+
+            // Automatically complete the current GP doctor's InProgress appointment
+            List<Appointment> currentAppointments = appointmentRepository.findAll().stream()
+                    .filter(a -> a.getPatient().getPatientId().equals(id)
+                            && a.getDoctor() != null
+                            && a.getDoctor().getDoctorId().equals(currentDoctor.getDoctorId())
+                            && "InProgress".equalsIgnoreCase(a.getStatus()))
+                    .toList();
+            for (Appointment a : currentAppointments) {
+                a.setStatus("Completed");
+                a.setEndTime(LocalTime.now()); // Automatically set Giờ ra
+                appointmentRepository.save(a);
+            }
 
             consultationService.createReferral(patient, targetDoctor, notes);
 

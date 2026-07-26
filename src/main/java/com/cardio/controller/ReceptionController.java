@@ -77,7 +77,32 @@ public class ReceptionController {
             }
         }
         
-        List<Appointment> allSortedAppointments = sortAppointmentsForQueue(appointmentRepository.findByDateAndPatientNameOrPhone(filterDate, search));
+        final LocalDate finalFilterDate = filterDate;
+        List<Appointment> allSortedAppointments = sortAppointmentsForQueue(
+                appointmentRepository.findAll().stream()
+                        .filter(a -> {
+                            if (finalFilterDate != null) {
+                                return a.getScheduledDate() != null && a.getScheduledDate().equals(finalFilterDate);
+                            }
+                            return true;
+                        })
+                        .filter(a -> {
+                            if (search != null && !search.isBlank()) {
+                                String s = search.toLowerCase();
+                                boolean matchName = a.getPatient() != null && a.getPatient().getFullName() != null 
+                                        && a.getPatient().getFullName().toLowerCase().contains(s);
+                                boolean matchPhone = a.getPatient() != null && a.getPatient().getPhone() != null 
+                                        && a.getPatient().getPhone().toLowerCase().contains(s);
+                                return matchName || matchPhone;
+                            }
+                            return true;
+                        })
+                        .filter(a -> !"Completed".equalsIgnoreCase(a.getStatus())
+                                && !"Cancelled".equalsIgnoreCase(a.getStatus())
+                                && !"Đã khám".equalsIgnoreCase(a.getStatus())
+                                && !"Đã khám xong".equalsIgnoreCase(a.getStatus()))
+                        .collect(Collectors.toList())
+        );
         
         List<Appointment> allReference = appointmentRepository.findAll();
         Appointment.populateQueueNumbers(allSortedAppointments, allReference);
@@ -457,11 +482,23 @@ public class ReceptionController {
             @RequestParam(required = false) Integer doctorId,
             Model model) {
         StaffProfile staff = getCurrentStaff(userDetails);
-        LocalDate date = (dateStr != null && !dateStr.isBlank()) ? LocalDate.parse(dateStr) : LocalDate.now();
+        LocalDate date = LocalDate.now();
+        if (dateStr != null && !dateStr.isBlank()) {
+            try {
+                date = LocalDate.parse(dateStr);
+            } catch (Exception e) {
+                log.error("Error parsing dateStr: {}", dateStr, e);
+            }
+        }
         List<DoctorProfile> doctors = doctorRepository.findAll();
 
+        final LocalDate finalDate = date;
         List<Appointment> appointments = appointmentRepository.findAll().stream()
-                .filter(a -> a.getScheduledDate().equals(date) && (doctorId == null || (a.getDoctor() != null && a.getDoctor().getDoctorId().equals(doctorId))))
+                .filter(a -> a.getScheduledDate().equals(finalDate) && (doctorId == null || (a.getDoctor() != null && a.getDoctor().getDoctorId().equals(doctorId))))
+                .filter(a -> !"Completed".equalsIgnoreCase(a.getStatus())
+                        && !"Cancelled".equalsIgnoreCase(a.getStatus())
+                        && !"Đã khám".equalsIgnoreCase(a.getStatus())
+                        && !"Đã khám xong".equalsIgnoreCase(a.getStatus()))
                 .sorted((a1, a2) -> {
                     LocalTime t1 = a1.getTimeSlot();
                     LocalTime t2 = a2.getTimeSlot();
@@ -489,7 +526,7 @@ public class ReceptionController {
         java.util.Map<Integer, Long> workloads = new java.util.HashMap<>();
         for (DoctorProfile doc : doctors) {
             long count = appointmentRepository.findAll().stream()
-                    .filter(a -> a.getScheduledDate().equals(date) && a.getDoctor() != null && a.getDoctor().getDoctorId().equals(doc.getDoctorId())
+                    .filter(a -> a.getScheduledDate().equals(finalDate) && a.getDoctor() != null && a.getDoctor().getDoctorId().equals(doc.getDoctorId())
                             && !"Cancelled".equalsIgnoreCase(a.getStatus()))
                     .count();
             workloads.put(doc.getDoctorId(), count);

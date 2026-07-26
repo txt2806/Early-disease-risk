@@ -257,7 +257,6 @@
               <th>Triệu chứng (Khai báo)</th>
               <th style="width: 120px; text-align: center;">Phòng</th>
               <th style="width: 150px; text-align: center;">Trạng thái</th>
-              <th style="width: 120px; text-align: center;">Hành động</th>
             </tr>
           </thead>
           <tbody>
@@ -291,21 +290,10 @@
                       th:classappend="${a.status == 'Pending'} ? 'risk-MEDIUM' : (${a.status == 'Confirmed' || a.status == 'CheckedIn'} ? 'risk-LOW' : (${a.status == 'Completed'} ? 'risk-LOW' : 'risk-HIGH'))"
                       th:text="${a.status == 'Pending' ? 'Chờ duyệt' : (a.status == 'Confirmed' ? 'Đã duyệt' : (a.status == 'CheckedIn' ? 'Đã đến' : (a.status == 'InProgress' ? 'Đang khám' : (a.status == 'Completed' ? 'Hoàn thành' : 'Đã hủy'))))}">Pending</span>
               </td>
-              <td style="vertical-align: middle; text-align: center;">
-                <button class="btn" th:data-id="${a.appointmentId}"
-                  th:data-patient-name="${a.patient.fullName}" th:data-doctor-id="${a.doctor != null ? a.doctor.doctorId : ''}"
-                  th:data-room-number="${a.roomNumber != null ? a.roomNumber : ''}" th:data-date="${a.scheduledDate}"
-                  th:data-time="${a.timeSlot != null ? #temporals.format(a.timeSlot, 'HH:mm') : ''}" 
-                  th:data-end-time="${a.endTime != null ? #temporals.format(a.endTime, 'HH:mm') : ''}" 
-                  th:data-status="${a.status}" onclick="openAssignModal(this)"
-                  style="text-align: center; background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); padding: 6px 12px; border-radius: 6px; font-weight: 600; display: inline-block; margin: 0; font-size: 11px; cursor: pointer; text-decoration: none; outline: none;">
-                  ⚙️ Điều phối
-                </button>
-              </td>
             </tr>
             <!-- If no appointments for this doctor -->
             <tr th:if="${appointments.stream().filter(a -> a.doctor != null && a.doctor.doctorId == selectedDoctorId).count() == 0}">
-              <td colspan="8" style="text-align: center; color: #8a96b0; padding: 40px 20px;">
+              <td colspan="7" style="text-align: center; color: #8a96b0; padding: 40px 20px;">
                 📭 Bác sĩ này không có lịch hẹn khám nào trong ngày đã chọn.
               </td>
             </tr>
