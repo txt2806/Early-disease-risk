@@ -10,65 +10,113 @@
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
       <div>
         <div style="font-size:22px;font-weight:700;color:#e8edf5;margin-bottom:4px;">Bệnh nhân</div>
-        <div style="font-size:13px;color:#8a96b0;" th:text="${patients.size()} + ' bệnh nhân'">0 bệnh nhân</div>
+        <div style="font-size:13px;color:#8a96b0;" th:text="${totalItems} + ' bệnh nhân'">0 bệnh nhân</div>
       </div>
-      <a th:href="@{/staff/patients/new}" class="btn btn-primary">
-        <i class="ti ti-plus"></i> Thêm bệnh nhân
-      </a>
     </div>
-    <form th:action="@{/staff/patients}" method="get" style="margin-bottom:16px;">
-      <div class="topbar-search" style="width:100%;max-width:360px;">
+    
+    <form th:action="@{/staff/patients}" method="get" style="margin-bottom:20px; display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+      <div class="topbar-search" style="width:100%; max-width:240px; margin:0;">
         <i class="ti ti-search"></i>
-        <input type="text" name="search" th:value="${search}" placeholder="Tìm theo tên...">
-        <button type="submit" class="btn btn-primary" style="padding:6px 14px;font-size:12px;">Tìm</button>
+        <input type="text" name="search" th:value="${search}" placeholder="Tên bệnh nhân...">
+      </div>
+      
+      <div class="topbar-search" style="width:100%; max-width:240px; margin:0;">
+        <i class="ti ti-user-check"></i>
+        <input type="text" name="doctorSearch" th:value="${doctorSearch}" placeholder="Bác sĩ phụ trách...">
+      </div>
+      
+      <input type="hidden" name="tab" th:value="${tab}">
+      <input type="hidden" name="sort" th:value="${sort}">
+      <input type="hidden" name="dir" th:value="${dir}">
+      <button type="submit" class="btn btn-primary" style="padding:8px 16px; font-size:13px; font-weight:600;">Tìm kiếm</button>
+      
+      <div class="tab-container" style="margin:0; margin-left:auto;">
+        <a th:href="@{/staff/patients(tab='all', search=${search}, doctorSearch=${doctorSearch}, sort=${sort}, dir=${dir})}" 
+           class="tab-btn" th:classappend="${tab == 'all' or tab == null} ? 'active' : ''">
+           Tất cả
+        </a>
+        <a th:href="@{/staff/patients(tab='waiting', search=${search}, doctorSearch=${doctorSearch}, sort=${sort}, dir=${dir})}" 
+           class="tab-btn" th:classappend="${tab == 'waiting'} ? 'active' : ''">
+           Đang chờ
+        </a>
+        <a th:href="@{/staff/patients(tab='high_risk', search=${search}, doctorSearch=${doctorSearch}, sort=${sort}, dir=${dir})}" 
+           class="tab-btn" th:classappend="${tab == 'high_risk'} ? 'active' : ''">
+           Nguy cơ cao
+        </a>
+        <a th:href="@{/staff/patients(tab='today', search=${search}, doctorSearch=${doctorSearch}, sort=${sort}, dir=${dir})}" 
+           class="tab-btn" th:classappend="${tab == 'today'} ? 'active' : ''">
+           Bệnh nhân hôm nay
+        </a>
+        <a th:href="@{/staff/patients(tab='completed', search=${search}, doctorSearch=${doctorSearch}, sort=${sort}, dir=${dir})}" 
+           class="tab-btn" th:classappend="${tab == 'completed'} ? 'active' : ''">
+           Đã xong
+        </a>
       </div>
     </form>
+    
     <div class="card">
       <table class="patient-table">
         <thead>
           <tr>
-            <th>Bệnh nhân</th>
+            <th>
+              <a th:href="@{/staff/patients(tab=${tab}, search=${search}, doctorSearch=${doctorSearch}, sort='fullName', dir=${sort == 'fullName' and dir == 'asc' ? 'desc' : 'asc'})}" style="color: inherit; text-decoration: none; display: flex; align-items: center; gap: 4px;">
+                Bệnh nhân
+                <i class="ti" th:classappend="${sort == 'fullName'} ? (${dir == 'asc'} ? 'ti-chevron-up' : 'ti-chevron-down') : 'ti-selector'"></i>
+              </a>
+            </th>
             <th>Ngày sinh</th>
             <th>Giới tính</th>
             <th>Điện thoại</th>
-            <th>Địa chỉ</th>
+            <th>Bác sĩ phụ trách</th>
+            <th>
+              <a th:href="@{/staff/patients(tab=${tab}, search=${search}, doctorSearch=${doctorSearch}, sort='lastVisit', dir=${sort == 'lastVisit' and dir == 'desc' ? 'asc' : 'desc'})}" style="color: inherit; text-decoration: none; display: flex; align-items: center; gap: 4px;">
+                Ngày khám gần nhất
+                <i class="ti" th:classappend="${sort == 'lastVisit'} ? (${dir == 'asc'} ? 'ti-chevron-up' : 'ti-chevron-down') : 'ti-selector'"></i>
+              </a>
+            </th>
             <th>Nguy cơ AI</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
-          <tr th:each="p : ${patients}">
+          <tr th:each="row : ${patients}">
             <td>
               <div class="patient-name-cell">
-                <div class="patient-avatar" th:text="${p.fullName != null && !p.fullName.isEmpty() ? p.fullName.charAt(0) : 'U'}">A</div>
+                <div class="patient-avatar" th:text="${row.patient.fullName != null && !row.patient.fullName.isEmpty() ? row.patient.fullName.charAt(0) : 'U'}">A</div>
                 <div>
-                  <div class="patient-fullname" th:text="${p.fullName != null ? p.fullName : ''}">Tên</div>
-                  <div class="patient-id" th:text="'#BN' + ${p.patientId}">BN001</div>
+                  <div class="patient-fullname" th:text="${row.patient.fullName != null ? row.patient.fullName : ''}">Tên</div>
+                  <div class="patient-id" th:text="'#BN' + ${row.patient.patientId}">BN001</div>
                 </div>
               </div>
             </td>
-            <td th:text="${#temporals.format(p.dob, 'dd/MM/yyyy')}" style="color:#8a96b0;font-size:13px;">--</td>
-            <td th:text="${p.gender}" style="color:#8a96b0;font-size:13px;">Nam</td>
-            <td th:text="${p.phone}" style="color:#8a96b0;font-size:13px;">--</td>
-            <td th:text="${p.address}" style="color:#8a96b0;font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">--</td>
+            <td th:text="${#temporals.format(row.patient.dob, 'dd/MM/yyyy')}" style="color:#8a96b0;font-size:13px;">--</td>
+            <td th:text="${row.patient.gender}" style="color:#8a96b0;font-size:13px;">Nam</td>
+            <td th:text="${row.patient.phone}" style="color:#8a96b0;font-size:13px;">--</td>
+            
+            <!-- Bác sĩ phụ trách -->
+            <td th:text="${row.doctorName != null ? row.doctorName : '--'}" style="color:#8a96b0;font-size:13px;font-weight:500;">--</td>
+            
+            <!-- Ngày khám gần nhất -->
+            <td th:text="${row.lastVisitDate != null ? #temporals.format(row.lastVisitDate, 'dd/MM/yyyy HH:mm') : '--'}" style="color:#8a96b0;font-size:13px;">--</td>
+            
             <td>
-              <span th:if="${patientRiskMap != null and patientRiskMap[p.patientId] != null}"
+              <span th:if="${row.aiRisk != null}"
                     class="risk-badge"
-                    th:classappend="'risk-' + ${patientRiskMap[p.patientId]}"
-                    th:text="${patientRiskMap[p.patientId]}">--</span>
-              <span th:if="${patientRiskMap == null or patientRiskMap[p.patientId] == null}"
+                    th:classappend="'risk-' + ${row.aiRisk}"
+                    th:text="${row.aiRisk}">--</span>
+              <span th:if="${row.aiRisk == null}"
                     style="color:#4a5568;font-size:12px;">Chưa có</span>
             </td>
             <td>
               <div style="display:flex;gap:6px;">
-                <a th:href="@{/staff/patients/{id}(id=${p.patientId})}" class="action-btn primary">
+                <a th:href="@{/staff/patients/{id}(id=${row.patient.patientId})}" class="action-btn primary">
                   <i class="ti ti-file-text" style="font-size:12px"></i> Hồ sơ
                 </a>
               </div>
             </td>
           </tr>
           <tr th:if="${#lists.isEmpty(patients)}">
-            <td colspan="7" style="text-align:center;color:#8a96b0;padding:30px;">Không tìm thấy bệnh nhân nào</td>
+            <td colspan="8" style="text-align:center;color:#8a96b0;padding:30px;">Không tìm thấy bệnh nhân nào</td>
           </tr>
         </tbody>
       </table>
@@ -81,31 +129,31 @@
       </div>
       <div class="pagination-buttons">
         <!-- Trang đầu -->
-        <a th:href="@{/staff/patients(page=0, search=${search})}"
+        <a th:href="@{/staff/patients(page=0, search=${search}, doctorSearch=${doctorSearch}, tab=${tab}, sort=${sort}, dir=${dir})}"
            class="page-btn" th:classappend="${currentPage == 0} ? 'disabled' : ''">
           «
         </a>
         <!-- Trang trước -->
-        <a th:href="@{/staff/patients(page=${currentPage - 1}, search=${search})}"
+        <a th:href="@{/staff/patients(page=${currentPage - 1}, search=${search}, doctorSearch=${doctorSearch}, tab=${tab}, sort=${sort}, dir=${dir})}"
            class="page-btn" th:classappend="${currentPage == 0} ? 'disabled' : ''">
           ‹
         </a>
         <!-- Các số trang -->
         <a th:each="i : ${#numbers.sequence(0, totalPages - 1)}"
            th:if="${totalPages > 0 and i >= currentPage - 2 && i <= currentPage + 2}"
-           th:href="@{/staff/patients(page=${i}, search=${search})}"
+           th:href="@{/staff/patients(page=${i}, search=${search}, doctorSearch=${doctorSearch}, tab=${tab}, sort=${sort}, dir=${dir})}"
            class="page-btn"
            th:classappend="${currentPage == i} ? 'active' : ''"
            th:text="${i + 1}">
           1
         </a>
         <!-- Trang sau -->
-        <a th:href="@{/staff/patients(page=${currentPage + 1}, search=${search})}"
+        <a th:href="@{/staff/patients(page=${currentPage + 1}, search=${search}, doctorSearch=${doctorSearch}, tab=${tab}, sort=${sort}, dir=${dir})}"
            class="page-btn" th:classappend="${currentPage == totalPages - 1} ? 'disabled' : ''">
           ›
         </a>
         <!-- Trang cuối -->
-        <a th:href="@{/staff/patients(page=${totalPages - 1}, search=${search})}"
+        <a th:href="@{/staff/patients(page=${totalPages - 1}, search=${search}, doctorSearch=${doctorSearch}, tab=${tab}, sort=${sort}, dir=${dir})}"
            class="page-btn" th:classappend="${currentPage == totalPages - 1} ? 'disabled' : ''">
           »
         </a>

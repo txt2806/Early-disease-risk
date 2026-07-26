@@ -38,6 +38,7 @@ public class StaffController {
     private final LabRequestRepository labRequestRepository;
     private final DoctorRepository doctorRepository;
     private final PatientAlertThresholdRepository thresholdRepository;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     private StaffProfile getCurrentStaff(UserDetails userDetails) {
         String username = userDetails.getUsername();
@@ -48,14 +49,14 @@ public class StaffController {
     // ── DASHBOARD ──────────────────────────────────────
     @GetMapping("/dashboard")
     public String dashboard(@AuthenticationPrincipal UserDetails userDetails,
-                            @RequestParam(defaultValue = "0") int page,
-                            Model model) {
+            @RequestParam(defaultValue = "0") int page,
+            Model model) {
         try {
             StaffProfile staff = getCurrentStaff(userDetails);
             model.addAttribute("staff", staff);
 
             Pageable pageable = PageRequest.of(page, 5); // 5 bệnh nhân trên một trang dashboard
-            Page<PatientProfile> patientPage = patientService.getAllPatients(pageable);
+            Page<com.cardio.dto.PatientListDTO> patientPage = patientService.getPatientsPrioritizedByRisk(pageable);
             List<AIRiskPrediction> alerts = consultationService.getUnhandledHighAlerts();
             long highAlerts = alerts.stream().filter(a -> a != null && "HIGH".equals(a.getRiskLevel())).count();
 
@@ -76,9 +77,8 @@ public class StaffController {
                             a.getRecord().getPatient().getPatientId(),
                             a.getRiskLevel(),
                             (existing, newVal) -> "HIGH".equals(existing) ? existing
-                            : "HIGH".equals(newVal) ? newVal
-                            : "MEDIUM".equals(existing) ? existing : newVal
-                    );
+                                    : "HIGH".equals(newVal) ? newVal
+                                            : "MEDIUM".equals(existing) ? existing : newVal);
                 }
             });
 
@@ -102,18 +102,22 @@ public class StaffController {
     // ── DANH SÁCH BỆNH NHÂN ─────────────────────────────
     @GetMapping("/patients")
     public String patients(@RequestParam(required = false) String search,
+                           @RequestParam(required = false) String doctorSearch,
+                           @RequestParam(defaultValue = "all") String tab,
+                           @RequestParam(defaultValue = "fullName") String sort,
+                           @RequestParam(defaultValue = "asc") String dir,
                            @RequestParam(defaultValue = "0") int page,
                            @RequestParam(defaultValue = "10") int size,
                            @AuthenticationPrincipal UserDetails userDetails,
                            Model model) {
         StaffProfile staff = getCurrentStaff(userDetails);
-        Pageable pageable = PageRequest.of(page, size, Sort.by("fullName").ascending());
-        Page<PatientProfile> patientPage;
-        if (search != null && !search.trim().isEmpty()) {
-            patientPage = patientService.searchByName(search.trim(), pageable);
-        } else {
-            patientPage = patientService.getAllPatients(pageable);
+        Sort.Direction direction = "desc".equalsIgnoreCase(dir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+        String sortField = sort;
+        if ("lastVisit".equalsIgnoreCase(sort)) {
+            sortField = "lastVisitDate";
         }
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortField));
+        Page<com.cardio.dto.PatientListDTO> patientPage = patientService.getPatientsByTab(tab, search, doctorSearch, pageable);
 
         List<AIRiskPrediction> alerts = consultationService.getUnhandledHighAlerts();
         java.util.Map<Integer, String> patientRiskMap = new java.util.HashMap<>();
@@ -123,9 +127,8 @@ public class StaffController {
                         a.getRecord().getPatient().getPatientId(),
                         a.getRiskLevel(),
                         (existing, newVal) -> "HIGH".equals(existing) ? existing
-                        : "HIGH".equals(newVal) ? newVal
-                        : "MEDIUM".equals(existing) ? existing : newVal
-                );
+                                : "HIGH".equals(newVal) ? newVal
+                                        : "MEDIUM".equals(existing) ? existing : newVal);
             }
         });
 
@@ -136,29 +139,14 @@ public class StaffController {
         model.addAttribute("totalPages", patientPage.getTotalPages());
         model.addAttribute("totalItems", patientPage.getTotalElements());
         model.addAttribute("search", search);
+        model.addAttribute("doctorSearch", doctorSearch);
+        model.addAttribute("tab", tab);
+        model.addAttribute("sort", sort);
+        model.addAttribute("dir", dir);
         return "staff/patients";
     }
 
-    // ── THÊM BỆNH NHÂN MỚI ──────────────────────────────
-    @GetMapping("/patients/new")
-    public String newPatientForm(@AuthenticationPrincipal UserDetails userDetails, Model model) {
-        StaffProfile staff = getCurrentStaff(userDetails);
-        model.addAttribute("staff", staff);
-        model.addAttribute("patient", new PatientProfile());
-        return "staff/patient-form";
-    }
 
-    @PostMapping("/patients/save")
-    public String savePatient(@ModelAttribute PatientProfile patient,
-            @AuthenticationPrincipal UserDetails userDetails,
-            RedirectAttributes ra) {
-        PatientProfile saved = patientService.save(patient);
-        auditLogService.logPatientCreated(
-                userDetails.getUsername(), saved.getFullName(), saved.getPatientId()
-        );
-        ra.addFlashAttribute("success", "Đã thêm bệnh nhân " + patient.getFullName());
-        return "redirect:/staff/patients";
-    }
 
     // ── CHI TIẾT BỆNH NHÂN ─────────────────────────────
     @GetMapping("/patients/{id}")
@@ -173,8 +161,7 @@ public class StaffController {
         java.util.Map<Integer, List<RecordIcd>> recordDiagnosesMap = new java.util.HashMap<>();
         records.forEach(r -> recordDiagnosesMap.put(
                 r.getRecordId(),
-                consultationService.getDiagnosesByRecord(r.getRecordId())
-        ));
+                consultationService.getDiagnosesByRecord(r.getRecordId())));
 
         List<LabRequest> labRequests = labRequestRepository.findByPatientOrderByCreatedAtDesc(patient);
 
@@ -183,14 +170,31 @@ public class StaffController {
         model.addAttribute("records", records);
         model.addAttribute("recordDiagnosesMap", recordDiagnosesMap);
 
-        java.util.Map<Integer, com.cardio.model.HeartClinicalMetrics> recordMetricsMap =
-                new java.util.HashMap<>();
+        java.util.Map<Integer, com.cardio.model.HeartClinicalMetrics> recordMetricsMap = new java.util.HashMap<>();
         records.forEach(r -> consultationService.getMetricsByRecord(r.getRecordId())
                 .ifPresent(m -> recordMetricsMap.put(r.getRecordId(), m)));
         model.addAttribute("recordMetricsMap", recordMetricsMap);
 
         model.addAttribute("labRequests", labRequests);
         return "staff/patient-detail";
+    }
+
+    @GetMapping("/patients/{id}/self-monitoring")
+    public String viewPatientSelfMonitoring(@PathVariable Integer id,
+                                            @AuthenticationPrincipal UserDetails userDetails,
+                                            Model model) {
+        StaffProfile staff = getCurrentStaff(userDetails);
+        PatientProfile patient = patientService.findById(id)
+                .orElseThrow(() -> new RuntimeException("Patient not found"));
+
+        List<java.util.Map<String, Object>> monitoringLogs = jdbcTemplate.queryForList(
+                "SELECT LogID AS \"LogID\", LogDate AS \"LogDate\", CurrentHeartRate AS \"CurrentHeartRate\", Symptoms AS \"Symptoms\", TriggeredAlert AS \"TriggeredAlert\" FROM Patient_Self_Monitoring WHERE PatientID = ? ORDER BY LogDate DESC",
+                id);
+
+        model.addAttribute("staff", staff);
+        model.addAttribute("patient", patient);
+        model.addAttribute("monitoringLogs", monitoringLogs);
+        return "staff/patient-self-monitoring";
     }
 
     // ── GHI NHẬN CHỈ SỐ SINH TỒN & XÉT NGHIỆM ───────────
@@ -254,9 +258,10 @@ public class StaffController {
         record.setPatient(patient);
         record.setDoctor(null); // Ghi nhận bởi Điều dưỡng, chưa gán Bác sĩ chuyên khoa khám bệnh án này
         record.setVisitDate(LocalDateTime.now());
-        record.setConsultationNotes(consultationNotes != null && !consultationNotes.trim().isEmpty() ? consultationNotes : 
-                ("Nhập chỉ số sinh tồn & xét nghiệm bởi " + staff.getFullName()));
-        record.setTreatmentPlan(treatmentPlan != null && !treatmentPlan.trim().isEmpty() ? treatmentPlan : "Chờ khám chuyên khoa.");
+        record.setConsultationNotes(consultationNotes != null && !consultationNotes.trim().isEmpty() ? consultationNotes
+                : ("Nhập chỉ số sinh tồn & xét nghiệm bởi " + staff.getFullName()));
+        record.setTreatmentPlan(
+                treatmentPlan != null && !treatmentPlan.trim().isEmpty() ? treatmentPlan : "Chờ khám chuyên khoa.");
         record.setStatus(status != null && !status.trim().isEmpty() ? status : "Pending");
         consultationRepository.save(record);
 
@@ -266,7 +271,9 @@ public class StaffController {
             vitals.setAge(java.time.Period.between(patient.getDob(), java.time.LocalDate.now()).getYears());
         }
         if (patient.getGender() != null) {
-            vitals.setSex("Nam".equalsIgnoreCase(patient.getGender()) || "Male".equalsIgnoreCase(patient.getGender()) ? "Male" : "Female");
+            vitals.setSex(
+                    "Nam".equalsIgnoreCase(patient.getGender()) || "Male".equalsIgnoreCase(patient.getGender()) ? "Male"
+                            : "Female");
         }
         vitals.setRecordedByStaffID(staff.getStaffId());
         vitals.setRecordedAt(LocalDateTime.now());
@@ -346,8 +353,8 @@ public class StaffController {
     // ── LỊCH HẸN ─────────────────────────────────────────
     @GetMapping("/appointments")
     public String appointments(@AuthenticationPrincipal UserDetails userDetails,
-                               @RequestParam(required = false) String dateStr,
-                               Model model) {
+            @RequestParam(required = false) String dateStr,
+            Model model) {
         StaffProfile staff = getCurrentStaff(userDetails);
         LocalDate date = (dateStr != null && !dateStr.isBlank()) ? LocalDate.parse(dateStr) : LocalDate.now();
 
@@ -359,16 +366,20 @@ public class StaffController {
                     if (t1 != null && t2 != null) {
                         return t1.compareTo(t2);
                     }
-                    if (t1 != null) return -1;
-                    if (t2 != null) return 1;
+                    if (t1 != null)
+                        return -1;
+                    if (t2 != null)
+                        return 1;
 
                     LocalDateTime r1 = a1.getRequestTime();
                     LocalDateTime r2 = a2.getRequestTime();
                     if (r1 != null && r2 != null) {
                         return r1.compareTo(r2);
                     }
-                    if (r1 != null) return -1;
-                    if (r2 != null) return 1;
+                    if (r1 != null)
+                        return -1;
+                    if (r2 != null)
+                        return 1;
 
                     return a1.getAppointmentId().compareTo(a2.getAppointmentId());
                 })
@@ -383,7 +394,8 @@ public class StaffController {
         java.util.Map<Integer, List<Appointment>> appointmentsByDoctor = new java.util.HashMap<>();
         for (DoctorProfile doc : doctors) {
             long count = appointments.stream()
-                    .filter(a -> a.getDoctor() != null && a.getDoctor().getDoctorId().equals(doc.getDoctorId()) && !"Cancelled".equalsIgnoreCase(a.getStatus()))
+                    .filter(a -> a.getDoctor() != null && a.getDoctor().getDoctorId().equals(doc.getDoctorId())
+                            && !"Cancelled".equalsIgnoreCase(a.getStatus()))
                     .count();
             workloads.put(doc.getDoctorId(), count);
             List<Appointment> docApps = appointments.stream()
@@ -432,7 +444,8 @@ public class StaffController {
             }
             String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename().replace(" ", "_");
             java.nio.file.Path filePath = java.nio.file.Paths.get(uploadPathStr, fileName);
-            java.nio.file.Files.copy(file.getInputStream(), filePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            java.nio.file.Files.copy(file.getInputStream(), filePath,
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             return "/uploads/" + subDir + "/" + fileName;
         } catch (Exception e) {
             e.printStackTrace();

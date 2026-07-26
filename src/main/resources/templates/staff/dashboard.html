@@ -10,7 +10,7 @@
     <div class="stats-grid">
       <div class="stat-card red">
         <div class="stat-icon"><i class="ti ti-users"></i></div>
-        <div class="stat-value" th:text="${#lists.size(patients)}">0</div>
+        <div class="stat-value" th:text="${totalItems}">0</div>
         <div class="stat-label">Tổng số bệnh nhân</div>
       </div>
       <div class="stat-card blue">
@@ -40,27 +40,27 @@
             <tr><th>Bệnh nhân</th><th>Nguy cơ</th><th>Ngày sinh</th><th>Giới tính</th><th></th></tr>
           </thead>
           <tbody>
-            <tr th:each="p : ${patients}">
+            <tr th:each="row : ${patients}">
               <td>
                 <div class="patient-name-cell">
-                  <div class="patient-avatar" th:text="${p.fullName != null && !p.fullName.isEmpty() ? p.fullName.charAt(0) : 'U'}">A</div>
+                  <div class="patient-avatar" th:text="${row.patient.fullName != null && !row.patient.fullName.isEmpty() ? row.patient.fullName.charAt(0) : 'U'}">A</div>
                   <div>
-                    <div class="patient-fullname" th:text="${p.fullName != null ? p.fullName : ''}">Tên</div>
-                    <div class="patient-id" th:text="'#BN' + ${p.patientId}">BN001</div>
+                    <div class="patient-fullname" th:text="${row.patient.fullName != null ? row.patient.fullName : ''}">Tên</div>
+                    <div class="patient-id" th:text="'#BN' + ${row.patient.patientId}">BN001</div>
                   </div>
                 </div>
               </td>
               <td>
-                <span th:if="${patientRiskMap[p.patientId] != null}"
+                <span th:if="${row.aiRisk != null}"
                       class="risk-badge"
-                      th:classappend="'risk-' + ${patientRiskMap[p.patientId]}"
-                      th:text="${patientRiskMap[p.patientId]}">HIGH</span>
-                <span th:if="${patientRiskMap[p.patientId] == null}"
+                      th:classappend="'risk-' + ${row.aiRisk}"
+                      th:text="${row.aiRisk}">HIGH</span>
+                <span th:if="${row.aiRisk == null}"
                       style="color:#4a5568;font-size:12px;">Chưa có</span>
               </td>
-              <td th:text="${#temporals.format(p.dob, 'dd/MM/yyyy')}" style="font-size:12px;color:#8a96b0;">--</td>
-              <td th:text="${p.gender}" style="color:#8a96b0;font-size:13px;">Nam</td>
-              <td><a th:href="@{/staff/patients/{id}(id=${p.patientId})}" class="action-btn primary">Xem</a></td>
+              <td th:text="${#temporals.format(row.patient.dob, 'dd/MM/yyyy')}" style="font-size:12px;color:#8a96b0;">--</td>
+              <td th:text="${row.patient.gender}" style="color:#8a96b0;font-size:13px;">Nam</td>
+              <td><a th:href="@{/staff/patients/{id}(id=${row.patient.patientId})}" class="action-btn primary">Xem</a></td>
             </tr>
             <tr th:if="${#lists.isEmpty(patients)}">
               <td colspan="5" style="text-align:center;color:#8a96b0;padding:20px;">Chưa có bệnh nhân nào</td>

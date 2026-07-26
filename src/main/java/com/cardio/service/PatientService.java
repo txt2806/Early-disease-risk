@@ -46,7 +46,8 @@ public class PatientService {
         return patientRepository.searchPatientsAssignedToDoctor(doctorId, search, pageable);
     }
 
-    public Page<PatientProfile> searchAssignedPatients(Integer doctorId, String search, java.time.LocalDate date, Pageable pageable) {
+    public Page<PatientProfile> searchAssignedPatients(Integer doctorId, String search, java.time.LocalDate date,
+            Pageable pageable) {
         java.time.LocalDateTime startDateTime = null;
         java.time.LocalDateTime endDateTime = null;
         if (date != null) {
@@ -66,5 +67,31 @@ public class PatientService {
             patient.setPasswordHash(passwordEncoder.encode("changeme123"));
         }
         return patientRepository.save(patient);
+    }
+
+    public Page<com.cardio.dto.PatientListDTO> getPatientsByTab(String tab, String search, String doctorSearch, Pageable pageable) {
+        Page<Object[]> rawPage = patientRepository.findPatientsWithLastVisitAndTab(
+            tab != null ? tab.toLowerCase() : "all",
+            search,
+            doctorSearch,
+            java.time.LocalDate.now(),
+            pageable
+        );
+        return rawPage.map(row -> new com.cardio.dto.PatientListDTO(
+            (com.cardio.model.PatientProfile) row[0],
+            (java.time.LocalDateTime) row[1],
+            (String) row[2],
+            (String) row[3]
+        ));
+    }
+
+    public Page<com.cardio.dto.PatientListDTO> getPatientsPrioritizedByRisk(Pageable pageable) {
+        Page<Object[]> rawPage = patientRepository.findPatientsPrioritizedByRisk(pageable);
+        return rawPage.map(row -> new com.cardio.dto.PatientListDTO(
+            (com.cardio.model.PatientProfile) row[0],
+            (java.time.LocalDateTime) row[1],
+            (String) row[2],
+            (String) row[3]
+        ));
     }
 }

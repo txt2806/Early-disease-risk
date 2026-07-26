@@ -37,7 +37,7 @@
           </button>
           <button onclick="filterAlerts('handled')" id="btn-handled"
                   class="btn btn-ghost" style="font-size:12px;padding:6px 14px;">
-            ✅ Đã xử lý
+            📞 Đã liên hệ
           </button>
           <!-- Thêm lọc theo mức nguy cơ -->
           <button onclick="filterAlerts('high')" id="btn-high"
@@ -162,27 +162,31 @@
           <!-- Trạng thái xử lý -->
           <div style="font-size:11px;margin-top:4px;"
                th:style="${a.isAlertSent} ? 'color:#34d399' : 'color:#f59e0b'"
-               th:text="${a.isAlertSent} ? '✅ Đã xử lý' : '⏳ Chưa xử lý'">
+               th:text="${a.isAlertSent} ? '📞 Đã liên hệ bệnh nhân' : '⏳ Chưa xử lý'">
           </div>
         </div>
 
-        <!-- Nút hành động (chỉ hiện khi chưa xử lý) -->
-        <div th:if="${!a.isAlertSent}"
-             style="flex-shrink:0;display:flex;flex-direction:column;gap:6px;">
-          <form th:action="@{/staff/alerts/{id}/resolve(id=${a.predictionId})}" method="post">
+        <!-- Nút hành động -->
+        <div style="flex-shrink:0;display:flex;flex-direction:column;gap:6px;">
+          <form th:if="${!a.isAlertSent}" th:action="@{/staff/alerts/{id}/resolve(id=${a.predictionId})}" method="post">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <input type="hidden" name="action" value="resolved">
             <button type="submit" class="action-btn primary"
                     style="font-size:11px;width:100%;">
-              ✅ Đã xử lý
+              📞 Đã liên hệ bệnh nhân
             </button>
           </form>
-          <button onclick="showIgnoreModal(this)"
+          <button th:if="${!a.isAlertSent}" onclick="showIgnoreModal(this)"
                   th:data-id="${a.predictionId}"
                   class="action-btn"
-                  style="font-size:11px;">
+                  style="font-size:11px;width:100%;">
             🚫 Bỏ qua
           </button>
+          <a th:href="@{/staff/patients/{id}/self-monitoring(id=${a.record.patient.patientId})}"
+             class="action-btn"
+             style="font-size:11px;width:100%;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px;background:#1e293b;color:#cbd5e1;border:1px solid #334155;">
+            👁️ Xem trạng thái bệnh nhân vừa cập nhật
+          </a>
         </div>
 
       </div><!-- end th:each -->

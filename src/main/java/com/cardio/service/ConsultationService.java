@@ -59,7 +59,27 @@ public class ConsultationService {
     private final SystemSettingService systemSettingService;
 
     public List<ConsultationRecord> getByPatient(PatientProfile patient) {
-        return consultationRepository.findByPatientOrderByVisitDateDesc(patient);
+        List<ConsultationRecord> records = consultationRepository.findByPatientOrderByVisitDateDesc(patient);
+        for (ConsultationRecord r : records) {
+            if (r.getAiRiskPrediction() == null) {
+                HeartClinicalMetrics metrics = r.getClinicalMetrics();
+                if (metrics == null) {
+                    List<HeartClinicalMetrics> list = heartClinicalMetricsRepository.findByRecordRecordId(r.getRecordId());
+                    if (!list.isEmpty()) {
+                        metrics = list.get(0);
+                    }
+                }
+                if (metrics != null) {
+                    try {
+                        runAutoAIPrediction(r, metrics);
+                        r.setAiRiskPrediction(aiRiskRepository.findByRecord(r).orElse(null));
+                    } catch (Exception e) {
+                        log.warn("Không thể tự động bù dự đoán AI cho record #{}: {}", r.getRecordId(), e.getMessage());
+                    }
+                }
+            }
+        }
+        return records;
     }
 
     public List<ConsultationRecord> getByPatientChronological(PatientProfile patient) {
