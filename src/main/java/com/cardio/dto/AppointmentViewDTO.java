@@ -4,8 +4,8 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 
 public interface AppointmentViewDTO {
+    Integer getAppointmentId();
     String getDoctorName();
-    // Đổi tên từ getDepartment() thành getSpecialty() để khớp với DoctorProfile.java
     String getSpecialty();
     LocalDate getScheduledDate();
     LocalTime getTimeSlot();

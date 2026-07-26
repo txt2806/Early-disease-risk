@@ -4,6 +4,8 @@ import lombok.Data;
 import java.util.List;
 import java.util.Map;
 
+import java.util.ArrayList;
+
 /**
  * [D.21] DTO gửi sang FastAPI /chat/doctor.
  * Khớp đúng schema DoctorChatRequest trong api_v2.py:
@@ -12,7 +14,8 @@ import java.util.Map;
 @Data
 public class ChatRequest {
     private String message;
-    private List<ChatTurn> history;
+    private Integer patientId;
+    private List<ChatTurn> history = new ArrayList<>();
     private Map<String, Object> predict_context; // tùy chọn — null nếu không gắn kèm kết quả AI
 
     @Data

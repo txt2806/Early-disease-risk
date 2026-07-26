@@ -43,7 +43,9 @@ public class ChatService {
     public ChatResponse sendMessage(ChatRequest request, String role) {
         String targetUrl = chatUrl;
         
-        if ("staff".equalsIgnoreCase(role)) {
+        if ("patient".equalsIgnoreCase(role)) {
+            targetUrl = chatUrl.replace("/chat/doctor", "/chat/patient");
+        } else if ("staff".equalsIgnoreCase(role)) {
             // Do máy chủ AI chạy production từ xa (Render) không có sẵn endpoint /chat/staff và ta không thể tự deploy lên Render của phòng khám,
             // chúng ta sẽ gọi vào endpoint /chat/doctor hiện hữu và chèn thêm chỉ thị vai trò (Prompt Injection) vào tin nhắn để định hình phản hồi của AI.
             String originalMessage = request.getMessage();

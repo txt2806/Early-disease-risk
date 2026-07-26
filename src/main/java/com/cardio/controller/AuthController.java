@@ -29,7 +29,16 @@ public class AuthController {
     public ResponseEntity<Map<String, Object>> login(@RequestBody LoginRequestDTO loginRequest) {
         Map<String, Object> response = new HashMap<>();
 
-        Optional<PatientProfile> patientOpt = patientRepository.findByUsernameIgnoreCase(loginRequest.getUsername());
+        String inputAccount = loginRequest.getUsername() != null ? loginRequest.getUsername().trim() : "";
+
+        // 1. Phân loại & Đối soát: Tìm theo Username (hoặc Email nếu Username lưu email)
+        Optional<PatientProfile> patientOpt = patientRepository.findByUsernameIgnoreCase(inputAccount);
+
+        // 2. Nếu không thấy theo Username, kiểm tra nếu chuỗi nhập là SĐT (thử các biến thể 0... / +84...)
+        if (patientOpt.isEmpty()) {
+            java.util.List<String> phoneVariations = getPhoneVariations(inputAccount);
+            patientOpt = patientRepository.findByPhoneIn(phoneVariations).stream().findFirst();
+        }
 
         if (patientOpt.isEmpty()) {
             response.put("status", "failed");
@@ -94,5 +103,20 @@ public class AuthController {
         response.put("status", "success");
         response.put("message", "Đổi mật khẩu thành công!");
         return ResponseEntity.ok(response);
+    }
+
+    private static java.util.List<String> getPhoneVariations(String input) {
+        java.util.List<String> variations = new java.util.ArrayList<>();
+        if (input == null || input.isBlank()) return variations;
+        variations.add(input);
+
+        if (input.startsWith("0") && input.length() > 1) {
+            variations.add("+84" + input.substring(1));
+        } else if (input.startsWith("+84") && input.length() > 3) {
+            variations.add("0" + input.substring(3));
+        } else if (input.startsWith("84") && input.length() > 2) {
+            variations.add("0" + input.substring(2));
+        }
+        return variations;
     }
 }

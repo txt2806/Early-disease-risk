@@ -47,7 +47,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
 
     // --- METHOD ADDED FROM USER'S MERGE REQUEST ---
     // This query is used by the AppointmentController for the patient mobile app.
-    @Query(value = "SELECT d.FullName AS doctorName, d.Specialty AS specialty, " +
+    @Query(value = "SELECT a.AppointmentID AS appointmentId, d.FullName AS doctorName, d.Specialty AS specialty, " +
                    "a.ScheduledDate AS scheduledDate, a.TimeSlot AS timeSlot, a.Status AS status " +
                    "FROM Appointment a " +
                    "JOIN Doctor_Profile d ON a.DoctorID = d.DoctorID " +
