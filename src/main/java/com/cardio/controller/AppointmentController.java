@@ -169,7 +169,12 @@ public class AppointmentController {
             appointment.setScheduledDate(LocalDate.parse(dateStr));
             appointment.setTimeSlot(LocalTime.parse(timeStr));
             appointment.setStatus("Pending");
-            appointment.setBookingType("General");
+            String docSpecialty = doctorOpt.get().getSpecialty();
+            if (docSpecialty != null && !docSpecialty.toLowerCase().contains("đa khoa")) {
+                appointment.setBookingType("Specialist");
+            } else {
+                appointment.setBookingType("General");
+            }
 
             appointmentRepository.save(appointment);
 

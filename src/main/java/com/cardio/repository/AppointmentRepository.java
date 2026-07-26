@@ -18,6 +18,11 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
 
     long countByDoctorAndScheduledDateAndStatusNot(DoctorProfile doctor, java.time.LocalDate scheduledDate, String status);
 
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query("UPDATE Appointment a SET a.status = 'Cancelled' WHERE a.status = 'Pending' AND a.scheduledDate < CURRENT_DATE")
+    void cancelOverduePendingAppointments();
+
     List<Appointment> findAllByOrderByScheduledDateDescTimeSlotAsc();
     @Query("SELECT a FROM Appointment a WHERE " +
            "(:date IS NULL OR a.scheduledDate = :date) AND " +

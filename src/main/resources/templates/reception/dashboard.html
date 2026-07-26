@@ -313,14 +313,18 @@
         modalBookingType.dispatchEvent(new Event('change'));
       }
 
-      document.getElementById("modalDoctorId").value = doctorId;
-      document.getElementById("modalRoomNumber").value = room;
-      document.getElementById("modalDate").value = date;
+      // Ensure DOM has updated select options before assigning value
+      setTimeout(() => {
+        const docSelect = document.getElementById("modalDoctorId");
+        if (docSelect) docSelect.value = doctorId;
+        document.getElementById("modalRoomNumber").value = room;
+        document.getElementById("modalDate").value = date;
 
-      // Extract HH:mm from timeSlot and endTime
-      document.getElementById("modalTimeSlot").value = time ? time.substring(0, 5) : "";
-      document.getElementById("modalEndTime").value = endTime ? endTime.substring(0, 5) : "";
-      document.getElementById("modalStatus").value = status;
+        // Extract HH:mm from timeSlot and endTime safely
+        document.getElementById("modalTimeSlot").value = time && time.length >= 5 ? time.substring(0, 5) : (time || "");
+        document.getElementById("modalEndTime").value = endTime && endTime.length >= 5 ? endTime.substring(0, 5) : (endTime || "");
+        document.getElementById("modalStatus").value = status;
+      }, 10);
 
       document.getElementById("assignModal").style.display = "flex";
     }

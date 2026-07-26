@@ -1,0 +1,5 @@
+//ngrok (chi khi dung may android that): ngrok config add-authtoken YOUR_AUTH_TOKEN -> ngrok http 8080
+
+//springboot qua terminal: ./mvnw spring-boot:run
+
+//chay app qua chrome tren web: cd patient_app -> flutter run -d chrome

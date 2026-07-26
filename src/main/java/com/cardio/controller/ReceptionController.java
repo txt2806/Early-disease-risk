@@ -68,6 +68,13 @@ public class ReceptionController {
             Model model) {
         StaffProfile staff = getCurrentStaff(userDetails);
         
+        // Auto-cancel overdue pending appointments
+        try {
+            appointmentRepository.cancelOverduePendingAppointments();
+        } catch (Exception e) {
+            log.warn("Failed to auto-cancel overdue appointments: " + e.getMessage());
+        }
+
         LocalDate filterDate = null;
         if (dateStr != null && !dateStr.isBlank()) {
             try {

@@ -57,6 +57,7 @@ public class DoctorController {
     private final ObjectMapper objectMapper; // [A.4] serialize top_factors/trend cho hidden input
     private final PatientAlertThresholdRepository thresholdRepository;
     private final LabRequestRepository labRequestRepository;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     // Helper lấy doctor đang đăng nhập
     private DoctorProfile getCurrentDoctor(UserDetails userDetails) {
@@ -181,6 +182,35 @@ public class DoctorController {
                 });
             } catch (Exception ex) {
                 System.err.println("Error querying timeline appointments: " + ex.getMessage());
+            }
+
+            // Nguồn 3: Cảnh báo từ Mobile App (Patient_Self_Monitoring)
+            try {
+                String sql = "SELECT psm.LogDate, p.FullName, p.PatientID, psm.Symptoms, psm.AIRiskAssessment, psm.SeverityScore " +
+                             "FROM Patient_Self_Monitoring psm " +
+                             "JOIN Patient_Profile p ON psm.PatientID = p.PatientID " +
+                             "WHERE p.DoctorID = ? AND psm.TriggeredAlert = true " +
+                             "AND psm.LogDate >= ? AND psm.LogDate <= ? " +
+                             "ORDER BY psm.LogDate DESC";
+                
+                java.sql.Timestamp startTs = java.sql.Timestamp.valueOf(fromDate.atStartOfDay());
+                java.sql.Timestamp endTs = java.sql.Timestamp.valueOf(toDate.atTime(LocalTime.MAX));
+                
+                List<java.util.Map<String, Object>> selfMonitoringAlerts = jdbcTemplate.queryForList(sql, doctor.getDoctorId(), startTs, endTs);
+                
+                for (java.util.Map<String, Object> row : selfMonitoringAlerts) {
+                    java.util.Map<String, Object> item = new java.util.HashMap<>();
+                    item.put("type", "alert");
+                    java.sql.Timestamp ts = (java.sql.Timestamp) row.get("LogDate");
+                    item.put("time", ts.toLocalDateTime());
+                    item.put("title", "Cảnh báo khẩn (App): " + row.get("FullName"));
+                    item.put("detail", "Triệu chứng: " + row.get("Symptoms") + " (Mức " + row.get("SeverityScore") + "/10). AI: " + row.get("AIRiskAssessment"));
+                    item.put("riskLevel", "HIGH");
+                    item.put("link", "/doctor/patients/" + row.get("PatientID"));
+                    activityTimeline.add(item);
+                }
+            } catch (Exception ex) {
+                System.err.println("Error querying Patient_Self_Monitoring alerts: " + ex.getMessage());
             }
 
             activityTimeline.sort((x, y)
