@@ -32,7 +32,6 @@
                 </select>
               </div>
 
-
               <div class="form-grid">
                 <div class="form-group">
                   <label class="form-label">Tuổi</label>
@@ -68,8 +67,6 @@
                 <div class="form-group">
                   <label class="form-label">Đường huyết > 120?</label>
                   <select class="form-input" th:field="*{fbs}" th:disabled="${prediction != null}">
-                    <!-- value PHẢI khớp đúng nhãn LabelEncoder đã train trong heart_model_tuned.pkl ('0.0'/'1.0'),
-                         KHÔNG dùng TRUE/FALSE vì sẽ bị preprocess() âm thầm fallback sai giá trị -->
                     <option value="1.0">Có</option>
                     <option value="0.0">Không</option>
                   </select>
@@ -90,7 +87,6 @@
                 <div class="form-group">
                   <label class="form-label">Đau ngực khi gắng sức?</label>
                   <select class="form-input" th:field="*{exang}" th:disabled="${prediction != null}">
-                    <!-- value PHẢI khớp đúng nhãn LabelEncoder đã train ('0.0'/'1.0') -->
                     <option value="0.0">Không</option>
                     <option value="1.0">Có</option>
                   </select>
@@ -134,93 +130,64 @@
         <!-- ── KẾT QUẢ ── -->
         <div>
 
-          <!-- Kết quả chính -->
+          <!-- CARD 1 — KẾT QUẢ MODEL V1 (Sàng lọc nhị phân) -->
           <div class="card" style="margin-bottom:16px;">
             <div class="card-header">
-              <div class="card-title"><i class="ti ti-chart-bar"></i> Kết quả AI</div>
-              <!-- ── KẾT QUẢ MODEL V2 (Mức độ nặng) ── -->
-              <div class="card" style="margin-bottom:16px;" th:if="${aiResponseV2 != null}">
-                <div class="card-header">
-                  <div class="card-title"><i class="ti ti-chart-bar-2"></i> Kết quả Model V2 — Mức độ nặng</div>
-                </div>
-                <div style="padding:20px;">
-
-                  <div th:if="${aiResponseV2.riskTier == 'UNKNOWN' or aiResponseV2.riskTier == 'INVALID_DATA'}"
-                    style="padding:12px 14px;background:rgba(148,163,184,0.12);border:1px solid rgba(148,163,184,0.4);border-radius:10px;">
-                    <div style="font-size:13px;color:#cbd5e1;font-weight:700;">⚠️ Không lấy được kết quả từ Model V2
-                    </div>
-                    <div style="font-size:12px;color:#94a3b8;margin-top:4px;" th:text="${aiResponseV2.message}"></div>
-                  </div>
-
-                  <div th:if="${aiResponseV2.riskTier != 'UNKNOWN' and aiResponseV2.riskTier != 'INVALID_DATA'}">
-                    <div style="text-align:center;margin-bottom:16px;">
-                      <div
-                        style="font-size:11px;color:#8a96b0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
-                        Mức độ nặng</div>
-                      <div style="font-size:32px;font-weight:800;line-height:1;" th:text="${aiResponseV2.severity}"
-                        th:style="${aiResponseV2.riskTier == 'HIGH'} ? 'color:#ff7b7b' : (${aiResponseV2.riskTier == 'MEDIUM'} ? 'color:#fbbf24' : (${aiResponseV2.riskTier == 'LOW'} ? 'color:#34d399' : 'color:#94a3b8'))">
-                      </div>
-                      <div style="font-size:20px;font-weight:600;margin-top:4px;font-family:monospace;"
-                        th:text="${#numbers.formatDecimal(aiResponseV2.confidence * 100,1,1)} + '% độ tin cậy'"></div>
-                    </div>
-
-                    <div
-                      style="font-size:12px;color:#8a96b0;text-align:center;margin-bottom:14px;padding:10px;background:#0f1628;border-radius:8px;"
-                      th:text="${aiResponseV2.message}"></div>
-
-                    <!-- Xác suất từng mức độ -->
-                    <div style="display:flex;flex-direction:column;gap:8px;">
-                      <div th:each="entry : ${aiResponseV2.probabilities}">
-                        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
-                          <span style="color:#cbd5e1;" th:text="${entry.key}"></span>
-                          <span style="color:#8a96b0;font-family:monospace;"
-                            th:text="${#numbers.formatDecimal(entry.value * 100,1,1)} + '%'"></span>
-                        </div>
-                        <div style="height:6px;background:#1e293b;border-radius:3px;overflow:hidden;">
-                          <div style="height:100%;background:#8b5cf6;border-radius:3px;"
-                            th:style="'width:' + ${entry.value * 100} + '%'"></div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div th:if="${aiResponseV2.ageConfidenceWarning != null}"
-                      style="margin-top:12px;padding:10px 12px;background:rgba(96,165,250,0.10);border:1px solid rgba(96,165,250,0.35);border-radius:8px;font-size:12px;color:#94a3b8;"
-                      th:text="${aiResponseV2.ageConfidenceWarning.message}">
-                    </div>
-
-                    <div th:if="${aiResponseV2.trend != null and aiResponseV2.trend != 'UNKNOWN'}"
-                      style="margin-top:14px;">
-                      <div
-                        style="font-size:11px;color:#8a96b0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600;">
-                        📈 Xu hướng mức độ nặng
-                      </div>
-                      <div style="font-size:13px;"
-                        th:style="${aiResponseV2.trend == 'INCREASING'} ? 'color:#ff7b7b' : (${aiResponseV2.trend == 'DECREASING'} ? 'color:#34d399' : 'color:#fbbf24')"
-                        th:text="${aiResponseV2.trendMessage}"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <div class="card-title"><i class="ti ti-chart-bar"></i> Kết quả Model V1 — Sàng lọc nhị phân</div>
             </div>
             <div style="padding:20px;">
 
               <!-- Có kết quả -->
               <div th:if="${prediction != null}">
-                <!-- Mức nguy cơ + xác suất -->
-                <div style="text-align:center;margin-bottom:16px;">
+                <!-- Headline % NGUY CƠ -->
+                <div style="text-align:center;margin-bottom:18px;"
+                  th:if="${prediction.riskLevel == 'HIGH' or prediction.riskLevel == 'MEDIUM' or prediction.riskLevel == 'LOW'}"
+                  th:with="riskColor=${prediction.riskLevel == 'HIGH'} ? '#ff7b7b' : (${prediction.riskLevel == 'MEDIUM'} ? '#fbbf24' : '#34d399')">
+
+                  <!-- Badge mức độ -->
                   <div
-                    style="font-size:11px;color:#8a96b0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
-                    Mức độ nguy cơ</div>
-                  <div style="font-size:42px;font-weight:800;line-height:1;" th:text="${prediction.riskLevel}"
-                    th:style="${prediction.riskLevel == 'HIGH'} ? 'color:#ff7b7b' : (${prediction.riskLevel == 'MEDIUM'} ? 'color:#fbbf24' : (${prediction.riskLevel == 'LOW'} ? 'color:#34d399' : 'color:#94a3b8'))">
-                    HIGH</div>
-                  <!-- Chỉ hiển thị % khi có kết quả AI THẬT (LOW/MEDIUM/HIGH).
-                       UNKNOWN/INVALID_DATA không phải đánh giá y tế, hiện % = 0.0%
-                       gây hiểu nhầm là "an toàn" nên ẩn đi, thay bằng cảnh báo rõ. -->
-                  <div
-                    th:if="${prediction.riskLevel == 'HIGH' or prediction.riskLevel == 'MEDIUM' or prediction.riskLevel == 'LOW'}"
-                    style="font-size:24px;font-weight:600;margin-top:4px;font-family:monospace;"
-                    th:text="${#numbers.formatDecimal(prediction.riskScore,1,1)} + '%'">0%</div>
+                    style="display:inline-flex;align-items:center;gap:7px;padding:4px 14px;border-radius:20px;background:rgba(255,255,255,0.05);margin-bottom:12px;">
+                    <span style="width:8px;height:8px;border-radius:50%;flex-shrink:0;" th:style="'background:' + ${riskColor}"></span>
+                    <span style="font-size:11px;font-weight:700;letter-spacing:1.2px;color:#cbd5e1;">
+                      <span th:text="${prediction.riskLevel}">MEDIUM</span> — NGUY CƠ MẮC BỆNH TIM MẠCH
+                    </span>
+                  </div>
+
+                  <!-- Con số % — font monospace, kích thước lớn, spacing chặt -->
+                  <div style="font-size:46px;font-weight:800;line-height:1;font-family:'Courier New',monospace;letter-spacing:-1px;"
+                    th:text="${#numbers.formatDecimal(prediction.riskScore,1,1)} + '%'"
+                    th:style="'color:' + ${riskColor}">
+                    54,5%
+                  </div>
+
+                  <!-- Thanh mức độ 0–100%, 3 vùng màu cố định + mốc đánh dấu điểm hiện tại -->
+                  <div style="margin-top:14px;padding:0 4px;">
+                    <div style="position:relative;height:10px;border-radius:6px;overflow:visible;
+                      background:linear-gradient(to right,
+                        #34d399 0%, #34d399 40%,
+                        #fbbf24 40%, #fbbf24 70%,
+                        #ff7b7b 70%, #ff7b7b 100%);">
+                      <div style="position:absolute;top:-3px;width:3px;height:16px;background:#fff;border-radius:2px;
+                        box-shadow:0 0 6px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,0,0,0.4);"
+                        th:style="'left:calc(' + ${prediction.riskScore} + '% - 1.5px);position:absolute;top:-3px;width:3px;height:16px;background:#fff;border-radius:2px;box-shadow:0 0 6px rgba(0,0,0,0.7);'">
+                      </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:9px;color:#64748b;margin-top:5px;font-family:monospace;">
+                      <span>0%</span>
+                      <span style="margin-left:-10px;">40%</span>
+                      <span style="margin-right:-8px;">70%</span>
+                      <span>100%</span>
+                    </div>
+                  </div>
+                </div>
+                <div th:if="${prediction.riskLevel == 'UNKNOWN' or prediction.riskLevel == 'INVALID_DATA'}"
+                  style="text-align:center;margin-bottom:16px;">
+                  <div style="font-size:11px;color:#8a96b0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+                    Kết luận
+                  </div>
+                  <div style="font-size:34px;font-weight:800;line-height:1;color:#94a3b8;"
+                    th:text="${prediction.riskLevel}">
+                  </div>
                 </div>
 
                 <!-- Cảnh báo NỔI BẬT khi AI không trả được kết quả thật -->
@@ -230,7 +197,7 @@
                     ⚠️ KHÔNG PHẢI KẾT QUẢ Y TẾ
                   </div>
                   <div style="font-size:12px;color:#94a3b8;line-height:1.5;">
-                    Hệ thống AI hiện không phản hồi (mất kết nối server). Kết quả "0%" KHÔNG
+                    Hệ thống AI hiện không phản hồi (mất kết nối server). Kết quả này KHÔNG
                     có nghĩa là an toàn — vui lòng kiểm tra server FastAPI và thử lại, hoặc
                     đánh giá lâm sàng độc lập cho bệnh nhân này.
                   </div>
@@ -247,10 +214,7 @@
                   </div>
                 </div>
 
-                <!-- [D.15] Cảnh báo độ tin cậy thấp — bệnh nhân dưới 35 tuổi.
-                     Khác hẳn 2 cảnh báo UNKNOWN/INVALID_DATA ở trên: ở đây AI
-                     VẪN trả kết quả hợp lệ, chỉ là model thiếu dữ liệu huấn
-                     luyện cho nhóm tuổi này nên độ tin cậy thấp hơn bình thường. -->
+                <!-- [D.15] Cảnh báo độ tin cậy thấp -->
                 <div th:if="${aiResponse != null and aiResponse.age_confidence_warning != null}" style="margin-bottom:14px;padding:12px 14px;background:rgba(96,165,250,0.10);
                   border:1px solid rgba(96,165,250,0.35);border-radius:10px;">
                   <div style="font-size:13px;color:#60a5fa;font-weight:700;margin-bottom:4px;">
@@ -262,9 +226,7 @@
                   </div>
                 </div>
 
-                <!-- [D.17] Cảnh báo giá trị nằm ngoài khoảng sinh lý hợp lý —
-                     có thể là lỗi nhập liệu, hoặc ca lâm sàng hiếm gặp thật.
-                     Không chặn cứng, chỉ cảnh báo để bác sĩ tự xác nhận. -->
+                <!-- [D.17] Cảnh báo giá trị ngoài khoảng sinh lý -->
                 <div
                   th:if="${aiResponse != null and aiResponse.physiological_warnings != null and !aiResponse.physiological_warnings.isEmpty()}"
                   style="margin-bottom:14px;padding:12px 14px;background:rgba(251,191,36,0.08);
@@ -278,17 +240,21 @@
                   </div>
                 </div>
 
+                <!-- Câu giải thích ngắn -->
                 <div
                   th:if="${prediction.riskLevel == 'HIGH' or prediction.riskLevel == 'MEDIUM' or prediction.riskLevel == 'LOW'}"
-                  class="prob-bar">
-                  <div class="prob-fill" th:style="'width:' + ${prediction.riskScore} + '%'"></div>
+                  style="font-size:12px;color:#8a96b0;text-align:center;padding:10px;background:#0f1628;border-radius:8px;">
+                  <span th:if="${aiResponse != null and aiResponse.prediction != null and aiResponse.prediction == 1}">
+                    AI phát hiện dấu hiệu bệnh tim mạch dựa trên các chỉ số đã nhập. Bấm "Chẩn đoán mức độ" bên dưới để
+                    xem mức độ nặng cụ thể (Model V2).
+                  </span>
+                  <span th:if="${aiResponse != null and aiResponse.prediction != null and aiResponse.prediction == 0}">
+                    AI không phát hiện dấu hiệu bệnh tim mạch rõ rệt dựa trên các chỉ số đã nhập. Vẫn khuyến nghị bác sĩ
+                    đánh giá lâm sàng độc lập.
+                  </span>
                 </div>
-                <div
-                  style="font-size:12px;color:#8a96b0;text-align:center;margin-top:10px;padding:10px;background:#0f1628;border-radius:8px;"
-                  th:text="${prediction.riskExplanation}">Kết quả</div>
 
-                <!-- ── SHAP EXPLANATION ── -->
-                <!-- Thay phần SHAP hiện tại -->
+                <!-- SHAP EXPLANATION (Model V1) -->
                 <div
                   th:if="${aiResponse != null and aiResponse.explanation != null and (prediction.riskLevel == 'HIGH' or prediction.riskLevel == 'MEDIUM' or prediction.riskLevel == 'LOW')}"
                   style="margin-top:14px; padding:14px;
@@ -300,7 +266,6 @@
                     🔬 Giải thích AI (SHAP) — Cơ sở lâm sàng
                   </div>
 
-                  <!-- Top factors với thanh impact VÀ giải thích lâm sàng -->
                   <div th:each="f : ${aiResponse.top_factors}" style="margin-bottom:12px;">
                     <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;">
                       <span th:text="${f.feature}" style="color:#e8edf5; font-weight:600;"></span>
@@ -309,34 +274,30 @@
                       </span>
                     </div>
 
-                    <!-- Thanh SHAP -->
                     <div style="height:5px; background:#1e293b; border-radius:3px; overflow:hidden; margin-bottom:5px;">
                       <div th:style="'width:' + ${f.impact * 400} + '%; max-width:100%; height:100%; border-radius:3px; background:' 
                      + (${f.direction.contains('tăng')} ? '#ef4444' : '#10b981')"></div>
                     </div>
 
-                    <!-- Giải thích lâm sàng (NEW) -->
                     <div th:if="${f.clinical != null and !f.clinical.isEmpty()}" style="font-size:12px; color:#94a3b8; font-style:italic; padding:6px 8px;
                 background:rgba(255,255,255,0.03); border-radius:4px; border-left:2px solid #3b82f6;">
                       <span th:text="${f.clinical}"></span>
                     </div>
                   </div>
 
-                  <!-- Tóm tắt phương pháp -->
                   <div style="font-size:11px; color:#64748b; margin-top:10px; padding-top:10px;
               border-top:1px solid rgba(255,255,255,0.06);">
                     ⚙️ <span th:text="${aiResponse.explanation}"></span>
                   </div>
                 </div>
 
-                <!-- ── TREND CHART ── -->
+                <!-- TREND CHART (Model V1) -->
                 <div th:if="${aiResponse != null and aiResponse.trend != null and aiResponse.trend != 'UNKNOWN'}"
                   style="margin-top:14px;">
                   <div
                     style="font-size:11px;color:#8a96b0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600;">
-                    📈 Xu hướng nguy cơ
+                    📈 Xu hướng nguy cơ qua các lần khám
                   </div>
-                  <!-- Trend badge -->
                   <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
                     <span
                       th:text="${aiResponse.trend == 'INCREASING'} ? '⬆️' : (${aiResponse.trend == 'DECREASING'} ? '⬇️' : '➡️')"
@@ -345,12 +306,13 @@
                       th:style="${aiResponse.trend == 'INCREASING'} ? 'color:#ff7b7b' : (${aiResponse.trend == 'DECREASING'} ? 'color:#34d399' : 'color:#fbbf24')"
                       th:text="${aiResponse.trend_message}">Xu hướng</span>
                   </div>
-                  <!-- Mini chart dạng SVG inline -->
-                  <canvas id="trendChart" height="80" th:attr="data-history=${aiResponse.history}"
+                  <canvas id="trendChart" height="80"
+                    th:if="${aiResponse.history != null and aiResponse.history.size() >= 2}"
+                    th:attr="data-history=${aiResponse.history}"
                     style="width:100%;background:#0f1628;border-radius:8px;"></canvas>
                 </div>
-                <!-- [MỚI] Nút chuyển sang Model V2 — chỉ hiện khi V1 đã trả kết quả THẬT
-     (HIGH/MEDIUM/LOW) và V2 CHƯA được chạy cho lần khám này. -->
+
+                <!-- Nút chuyển sang Model V2 -->
                 <div
                   th:if="${(prediction.riskLevel == 'HIGH' or prediction.riskLevel == 'MEDIUM' or prediction.riskLevel == 'LOW') and aiResponseV2 == null}"
                   style="margin-top:16px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px;">
@@ -378,7 +340,7 @@
                 </div>
 
                 <!-- Nếu đã lưu -->
-                <div th:if="${isSaved}"
+                <div th:if="${isSaved and aiResponseV2 == null}"
                   style="margin-top:16px;padding:12px;background:rgba(52,211,153,0.15);border:1px solid rgba(52,211,153,0.3);border-radius:8px;text-align:center;">
                   <span style="font-size:20px;display:block;margin-bottom:4px;">✅</span>
                   <span style="font-size:13px;color:#34d399;font-weight:600;">Lưu hồ sơ thành công!</span>
@@ -391,9 +353,9 @@
                   </a>
                 </div>
 
-                <!-- Nếu chưa lưu VÀ có kết quả AI THẬT: form ghi chú + lưu -->
+                <!-- Nếu chưa lưu VÀ có kết quả AI THẬT -->
                 <div
-                  th:if="${!isSaved and (prediction.riskLevel == 'HIGH' or prediction.riskLevel == 'MEDIUM' or prediction.riskLevel == 'LOW')}"
+                  th:if="${!isSaved and aiResponseV2 == null and (prediction.riskLevel == 'HIGH' or prediction.riskLevel == 'MEDIUM' or prediction.riskLevel == 'LOW')}"
                   style="margin-top:16px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px;">
                   <form th:action="@{/doctor/ai-predict/save}" method="post">
                     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
@@ -414,8 +376,6 @@
                     <input type="hidden" name="riskScore" th:value="${prediction.riskScore}">
                     <input type="hidden" name="riskLevel" th:value="${prediction.riskLevel}">
                     <input type="hidden" name="riskExplanation" th:value="${prediction.riskExplanation}">
-                    <!-- [A.4] Giải thích SHAP + xu hướng dạng JSON, để lưu lại
-                         cùng hồ sơ khám — xem được khi bác sĩ mở lại sau này -->
                     <input type="hidden" name="topFactorsJson" th:if="${topFactorsJsonForForm != null}"
                       th:value="${topFactorsJsonForForm}">
                     <input type="hidden" name="trendInfoJson" th:if="${trendInfoJsonForForm != null}"
@@ -441,11 +401,9 @@
                   </form>
                 </div>
 
-                <!-- AI lỗi (UNKNOWN/INVALID_DATA): KHÔNG cho lưu, chỉ cho thử lại.
-                     Lưu một bản ghi "0%" làm kết quả chẩn đoán thật là sai dữ liệu y tế
-                     vĩnh viễn, nên cố tình không hiển thị form lưu trong trường hợp này. -->
+                <!-- AI lỗi -->
                 <div
-                  th:if="${!isSaved and (prediction.riskLevel == 'UNKNOWN' or prediction.riskLevel == 'INVALID_DATA')}"
+                  th:if="${!isSaved and aiResponseV2 == null and (prediction.riskLevel == 'UNKNOWN' or prediction.riskLevel == 'INVALID_DATA')}"
                   style="margin-top:16px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px;text-align:center;">
                   <a th:href="@{/doctor/ai-predict}" class="btn"
                     style="display:inline-flex;padding:8px 16px;font-size:13px;background:#3b82f6;color:white;border-radius:6px;text-decoration:none;">
@@ -462,19 +420,197 @@
             </div>
           </div>
 
+          <!-- CARD 2 — KẾT QUẢ MODEL V2 (Mức độ nặng) -->
+          <div class="card" style="margin-bottom:16px;" th:if="${aiResponseV2 != null}">
+            <div class="card-header">
+              <div class="card-title"><i class="ti ti-chart-bar-2"></i> Kết quả Model V2 — Mức độ nặng</div>
+            </div>
+            <div style="padding:20px;">
+
+              <div th:if="${aiResponseV2.riskTier == 'UNKNOWN' or aiResponseV2.riskTier == 'INVALID_DATA'}"
+                style="padding:12px 14px;background:rgba(148,163,184,0.12);border:1px solid rgba(148,163,184,0.4);border-radius:10px;">
+                <div style="font-size:13px;color:#cbd5e1;font-weight:700;">⚠️ Không lấy được kết quả từ Model V2</div>
+                <div style="font-size:12px;color:#94a3b8;margin-top:4px;" th:text="${aiResponseV2.message}"></div>
+              </div>
+
+              <div th:if="${aiResponseV2.riskTier != 'UNKNOWN' and aiResponseV2.riskTier != 'INVALID_DATA'}">
+                <div style="text-align:center;margin-bottom:16px;">
+                  <div style="font-size:11px;color:#8a96b0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+                    Mức độ nặng
+                  </div>
+                  <div style="font-size:32px;font-weight:800;line-height:1;" th:text="${aiResponseV2.severity}"
+                    th:style="${aiResponseV2.riskTier == 'HIGH'} ? 'color:#ff7b7b' : (${aiResponseV2.riskTier == 'MEDIUM'} ? 'color:#fbbf24' : (${aiResponseV2.riskTier == 'LOW'} ? 'color:#34d399' : 'color:#94a3b8'))">
+                  </div>
+                  <div style="font-size:20px;font-weight:600;margin-top:4px;font-family:monospace;"
+                    th:text="${#numbers.formatDecimal(aiResponseV2.confidence * 100,1,1)} + '% độ tin cậy'"></div>
+                </div>
+
+                <div
+                  style="font-size:12px;color:#8a96b0;text-align:center;margin-bottom:14px;padding:10px;background:#0f1628;border-radius:8px;"
+                  th:text="${aiResponseV2.message}"></div>
+
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                  <div th:each="entry : ${aiResponseV2.probabilities}"
+                    th:with="barColor=${entry.key == 'NO_DISEASE'} ? '#34d399' : (${entry.key == 'MILD'} ? '#60a5fa' : (${entry.key == 'MODERATE'} ? '#fbbf24' : '#ff7b7b'))">
+                    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+                      <span style="display:flex;align-items:center;gap:6px;color:#cbd5e1;">
+                        <span style="width:7px;height:7px;border-radius:50%;flex-shrink:0;" th:style="'background:' + ${barColor}"></span>
+                        <span th:text="${entry.key}"></span>
+                      </span>
+                      <span style="color:#8a96b0;font-family:monospace;"
+                        th:text="${#numbers.formatDecimal(entry.value * 100,1,1)} + '%'"></span>
+                    </div>
+                    <!-- Độ dài thanh = đúng % xác suất; màu riêng theo từng mức độ -->
+                    <div style="height:6px;background:#1e293b;border-radius:3px;overflow:hidden;">
+                      <div style="height:100%;border-radius:3px;transition:width 0.3s ease;"
+                        th:style="'width:' + ${entry.value * 100} + '%;background:' + ${barColor}"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div th:if="${aiResponseV2.ageConfidenceWarning != null}"
+                  style="margin-top:12px;padding:10px 12px;background:rgba(96,165,250,0.10);border:1px solid rgba(96,165,250,0.35);border-radius:8px;font-size:12px;color:#94a3b8;"
+                  th:text="${aiResponseV2.ageConfidenceWarning.message}">
+                </div>
+
+                <div th:if="${aiResponseV2.explanation != null and aiResponseV2.explanation != 'SHAP không khả dụng'}"
+                  style="margin-top:16px;padding:14px;background:rgba(139,92,246,0.08);
+                         border:1px solid rgba(139,92,246,0.2);border-radius:10px;">
+                  <div style="font-size:11px;color:#c084fc;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:600;">
+                    🔬 Giải thích AI (SHAP) — Vì sao model kết luận mức độ này
+                  </div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                    <div>
+                      <div style="font-size:11px;color:#c084fc;font-weight:700;margin-bottom:8px;">✅ ỦNG HỘ CHẨN ĐOÁN</div>
+                      <div th:each="f : ${aiResponseV2.topFactors}" th:if="${!f.direction.contains('không')}" style="margin-bottom:12px;">
+                        <div style="font-size:12px;color:#e8edf5;font-weight:600;margin-bottom:4px;" th:text="${f.feature}"></div>
+                        <div style="height:5px;background:#1e293b;border-radius:3px;overflow:hidden;margin-bottom:5px;">
+                          <div th:style="'width:' + ${f.impact * 400} + '%;max-width:100%;height:100%;border-radius:3px;background:#c084fc'"></div>
+                        </div>
+                        <div th:if="${f.clinical != null and !f.clinical.isEmpty()}"
+                          style="font-size:11px;color:#94a3b8;font-style:italic;padding:5px 7px;
+                                 background:rgba(255,255,255,0.03);border-radius:4px;border-left:2px solid #c084fc;">
+                          <span th:text="${f.clinical}"></span>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <div style="font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:8px;">❌ KHÔNG ỦNG HỘ</div>
+                      <div th:each="f : ${aiResponseV2.topFactors}" th:if="${f.direction.contains('không')}" style="margin-bottom:12px;">
+                        <div style="font-size:12px;color:#e8edf5;font-weight:600;margin-bottom:4px;" th:text="${f.feature}"></div>
+                        <div style="height:5px;background:#1e293b;border-radius:3px;overflow:hidden;margin-bottom:5px;">
+                          <div th:style="'width:' + ${f.impact * 400} + '%;max-width:100%;height:100%;border-radius:3px;background:#64748b'"></div>
+                        </div>
+                        <div th:if="${f.clinical != null and !f.clinical.isEmpty()}"
+                          style="font-size:11px;color:#94a3b8;font-style:italic;padding:5px 7px;
+                                 background:rgba(255,255,255,0.03);border-radius:4px;border-left:2px solid #64748b;">
+                          <span th:text="${f.clinical}"></span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div style="font-size:11px;color:#64748b;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);">
+                    ⚙️ <span th:text="${aiResponseV2.explanation}"></span>
+                  </div>
+                </div>
+
+                <div th:if="${aiResponseV2.trend != null and aiResponseV2.trend != 'UNKNOWN'}" style="margin-top:14px;">
+                  <div style="font-size:11px;color:#8a96b0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600;">
+                    📈 Xu hướng mức độ nặng qua các lần khám
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                    <span
+                      th:text="${aiResponseV2.trend == 'INCREASING'} ? '⬆️' : (${aiResponseV2.trend == 'DECREASING'} ? '⬇️' : '➡️')"
+                      style="font-size:18px;">➡️</span>
+                    <span style="font-size:13px;"
+                      th:style="${aiResponseV2.trend == 'INCREASING'} ? 'color:#ff7b7b' : (${aiResponseV2.trend == 'DECREASING'} ? 'color:#34d399' : 'color:#fbbf24')"
+                      th:text="${aiResponseV2.trendMessage}"></span>
+                  </div>
+                  <canvas id="trendChartV2" height="80"
+                    th:if="${aiResponseV2.probSevereHistory != null and aiResponseV2.probSevereHistory.size() >= 2}"
+                    th:attr="data-history=${aiResponseV2.probSevereHistory}"
+                    style="width:100%;background:#0f1628;border-radius:8px;"></canvas>
+                </div>
+              </div>
+
+              <div th:if="${isSaved and aiResponseV2 != null}"
+                style="margin-top:16px;padding:12px;background:rgba(52,211,153,0.15);border:1px solid rgba(52,211,153,0.3);border-radius:8px;text-align:center;">
+                <span style="font-size:20px;display:block;margin-bottom:4px;">✅</span>
+                <span style="font-size:13px;color:#34d399;font-weight:600;">Lưu hồ sơ thành công!</span>
+                <div style="font-size:12px;color:#e8edf5;margin-top:4px;">
+                  Đã lưu cho: <strong th:text="${selectedPatient.fullName}">Bệnh nhân</strong>
+                </div>
+                <a th:href="@{/doctor/ai-predict}" class="btn"
+                  style="display:inline-flex;margin-top:10px;padding:6px 12px;font-size:12px;background:#3b82f6;color:white;border-radius:6px;text-decoration:none;">
+                  Nhập ca mới
+                </a>
+              </div>
+
+              <div
+                th:if="${!isSaved and aiResponseV2 != null and (prediction.riskLevel == 'HIGH' or prediction.riskLevel == 'MEDIUM' or prediction.riskLevel == 'LOW')}"
+                style="margin-top:16px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px;">
+                <form th:action="@{/doctor/ai-predict/save}" method="post">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                  <input type="hidden" name="patientId" th:value="${selectedPatient.patientId}">
+                  <input type="hidden" name="age" th:value="${aiRequest.age}">
+                  <input type="hidden" name="sex" th:value="${aiRequest.sex}">
+                  <input type="hidden" name="cp" th:value="${aiRequest.cp}">
+                  <input type="hidden" name="trestbps" th:value="${aiRequest.trestbps}">
+                  <input type="hidden" name="chol" th:value="${aiRequest.chol}">
+                  <input type="hidden" name="fbs" th:value="${aiRequest.fbs}">
+                  <input type="hidden" name="restecg" th:value="${aiRequest.restecg}">
+                  <input type="hidden" name="thalch" th:value="${aiRequest.thalch}">
+                  <input type="hidden" name="exang" th:value="${aiRequest.exang}">
+                  <input type="hidden" name="oldpeak" th:value="${aiRequest.oldpeak}">
+                  <input type="hidden" name="slope" th:value="${aiRequest.slope}">
+                  <input type="hidden" name="ca" th:value="${aiRequest.ca}">
+                  <input type="hidden" name="thal" th:value="${aiRequest.thal}">
+                  <input type="hidden" name="riskScore" th:value="${prediction.riskScore}">
+                  <input type="hidden" name="riskLevel" th:value="${prediction.riskLevel}">
+                  <input type="hidden" name="riskExplanation" th:value="${prediction.riskExplanation}">
+                  <input type="hidden" name="topFactorsJson" th:if="${topFactorsJsonForForm != null}"
+                    th:value="${topFactorsJsonForForm}">
+                  <input type="hidden" name="trendInfoJson" th:if="${trendInfoJsonForForm != null}"
+                    th:value="${trendInfoJsonForForm}">
+                  <input type="hidden" name="severityV2"
+                    th:if="${aiResponseV2.riskTier != 'UNKNOWN' and aiResponseV2.riskTier != 'INVALID_DATA'}"
+                    th:value="${aiResponseV2.severity}">
+                  <input type="hidden" name="riskTierV2"
+                    th:if="${aiResponseV2.riskTier != 'UNKNOWN' and aiResponseV2.riskTier != 'INVALID_DATA'}"
+                    th:value="${aiResponseV2.riskTier}">
+                  <input type="hidden" name="confidenceV2"
+                    th:if="${aiResponseV2.riskTier != 'UNKNOWN' and aiResponseV2.riskTier != 'INVALID_DATA'}"
+                    th:value="${aiResponseV2.confidence}">
+                  <input type="hidden" name="probabilitiesV2Json" th:if="${probabilitiesV2JsonForForm != null}"
+                    th:value="${probabilitiesV2JsonForForm}">
+                  <input type="hidden" name="topFactorsV2Json" th:if="${topFactorsV2JsonForForm != null}"
+                    th:value="${topFactorsV2JsonForForm}">
+                  <input type="hidden" name="trendInfoV2Json" th:if="${trendInfoV2JsonForForm != null}"
+                    th:value="${trendInfoV2JsonForForm}">
+
+                  <div class="form-group">
+                    <label class="form-label" style="color:#60a5fa;">Ghi chú chẩn đoán bác sĩ *</label>
+                    <textarea class="form-input" name="doctorNotes" rows="3" required
+                      placeholder="Nhập chẩn đoán lâm sàng..." style="resize:vertical;"></textarea>
+                  </div>
+                  <div class="form-group" style="margin-top:10px;">
+                    <label class="form-label" style="color:#60a5fa;">Phác đồ điều trị</label>
+                    <textarea class="form-input" name="treatmentPlan" rows="2"
+                      placeholder="Nhập hướng dẫn điều trị..." style="resize:vertical;"></textarea>
+                  </div>
+                  <div style="display:flex;gap:8px;margin-top:12px;">
+                    <a th:href="@{/doctor/ai-predict}" class="btn btn-ghost"
+                      style="flex:1;justify-content:center;">Hủy</a>
+                    <button type="submit" class="btn btn-ai" style="flex:2;justify-content:center;">
+                      <i class="ti ti-device-floppy"></i> Lưu vào hồ sơ
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
           <!-- Thông tin model -->
-          <!-- [FIX] Trước đây toàn bộ khối này hardcode cứng số liệu của
-               RIÊNG model v1 ("Random Forest (Tuned)", Accuracy 84.78%...),
-               dù hệ thống hiện dùng 2 model: v1 (Random Forest nhị phân,
-               endpoint /predict — đang chạy ở trang này) và v2 (XGBoost 4
-               mức độ, endpoint /predict/v2). Nay hiển thị ĐỘNG cả 2 model
-               từ modelInfo (do controller lấy qua GET /model/info của AI
-               service) để luôn đúng với thực tế, không cần sửa tay HTML mỗi
-               khi train lại / đổi thuật toán.
-               [UI] Thiết kế lại: số liệu chính (AUC/Accuracy/Balanced Acc)
-               làm nổi bật dạng %, tối đa 1 số thập phân thay vì in nguyên
-               double 16 chữ số; mỗi model có khung viền màu riêng để phân
-               biệt rõ ràng thay vì liệt kê phẳng như bảng dữ liệu thô. -->
           <div class="card">
             <div class="card-header">
               <div class="card-title"><i class="ti ti-info-circle"></i> Thông tin model</div>
@@ -483,7 +619,6 @@
             <div style="padding:16px;display:flex;flex-direction:column;gap:14px;"
               th:if="${modelInfo != null and not #maps.isEmpty(modelInfo)}">
 
-              <!-- ═══════════ MODEL V1 ═══════════ -->
               <div th:if="${modelInfo.v1 != null}"
                 th:with="v1AucOk=${modelInfo.v1.auc != null and modelInfo.v1.auc != 'N/A'}, v1AccOk=${modelInfo.v1.accuracy != null and modelInfo.v1.accuracy != 'N/A'}"
                 style="border:1px solid rgba(96,165,250,0.22);background:rgba(96,165,250,0.05);border-radius:12px;padding:14px 16px;">
@@ -542,7 +677,6 @@
                 </div>
               </div>
 
-              <!-- ═══════════ MODEL V2 ═══════════ -->
               <div th:if="${modelInfo.v2 != null}" th:with="v2BalOk=${modelInfo.v2.balanced_accuracy != null and modelInfo.v2.balanced_accuracy != 'N/A'},
                          v2CvOk=${modelInfo.v2.balanced_accuracy_cv_mean != null and modelInfo.v2.balanced_accuracy_cv_mean != 'N/A' and modelInfo.v2.balanced_accuracy_cv_std != null and modelInfo.v2.balanced_accuracy_cv_std != 'N/A'},
                          v2F1Ok=${modelInfo.v2.macro_f1 != null and modelInfo.v2.macro_f1 != 'N/A'}"
@@ -610,7 +744,6 @@
 
             </div>
 
-            <!-- AI service không phản hồi được /model/info -->
             <div style="padding:16px;font-size:13px;color:#f87171;"
               th:if="${modelInfo == null or #maps.isEmpty(modelInfo)}">
               ⚠️ Không lấy được thông tin model từ AI service.
@@ -624,99 +757,104 @@
 
   <script th:src="@{/js/main.js}"></script>
   <script>
-    // ── Vẽ biểu đồ xu hướng bằng Canvas ─────────────────
     document.addEventListener('DOMContentLoaded', function () {
-      const canvas = document.getElementById('trendChart');
-      if (!canvas) return;
 
-      const raw = canvas.getAttribute('data-history');
-      if (!raw) return;
+      // colorFn (tuỳ chọn): nếu truyền vào, mỗi ĐOẠN đường và mỗi CHẤM sẽ
+      // đổi màu theo giá trị tại điểm đó (dùng cho trend V1: <40% xanh,
+      // 40-70% vàng, >70% đỏ) thay vì 1 màu cố định duy nhất như trước.
+      function drawTrendChart(canvasId, dotColor, colorFn) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
 
-      let history;
-      try {
-        history = JSON.parse(raw.replace(/\s/g, ''));
-      } catch (e) { return; }
+        const raw = canvas.getAttribute('data-history');
+        if (!raw) return;
 
-      if (!history || history.length < 2) return;
+        let history;
+        try {
+          history = JSON.parse(raw.replace(/\s/g, ''));
+        } catch (e) { return; }
 
-      const ctx = canvas.getContext('2d');
-      canvas.width = canvas.offsetWidth || 300;
-      canvas.height = 80;
+        if (!history || history.length < 2) return;
 
-      const W = canvas.width;
-      const H = canvas.height;
-      const pad = 12;
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth || 300;
+        canvas.height = 80;
 
-      ctx.clearRect(0, 0, W, H);
+        const W = canvas.width;
+        const H = canvas.height;
+        const pad = 12;
 
-      // Background
-      ctx.fillStyle = '#0f1628';
-      ctx.roundRect(0, 0, W, H, 8);
-      ctx.fill();
+        ctx.clearRect(0, 0, W, H);
 
-      // Grid lines
-      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-      ctx.lineWidth = 1;
-      [0.25, 0.5, 0.75].forEach(pct => {
-        const y = pad + (H - pad * 2) * (1 - pct);
-        ctx.beginPath();
-        ctx.moveTo(pad, y);
-        ctx.lineTo(W - pad, y);
-        ctx.stroke();
-      });
-
-      // Line gradient
-      const gradient = ctx.createLinearGradient(0, 0, W, 0);
-      gradient.addColorStop(0, '#3b82f6');
-      gradient.addColorStop(1, history[history.length - 1] > 0.6 ? '#ef4444'
-        : history[history.length - 1] > 0.4 ? '#f59e0b' : '#10b981');
-
-      const xStep = (W - pad * 2) / (history.length - 1);
-
-      // Fill area under line
-      ctx.beginPath();
-      history.forEach((val, i) => {
-        const x = pad + i * xStep;
-        const y = pad + (H - pad * 2) * (1 - val);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      });
-      ctx.lineTo(pad + (history.length - 1) * xStep, H - pad);
-      ctx.lineTo(pad, H - pad);
-      ctx.closePath();
-      ctx.fillStyle = 'rgba(59,130,246,0.08)';
-      ctx.fill();
-
-      // Line
-      ctx.beginPath();
-      ctx.strokeStyle = gradient;
-      ctx.lineWidth = 2.5;
-      ctx.lineJoin = 'round';
-      history.forEach((val, i) => {
-        const x = pad + i * xStep;
-        const y = pad + (H - pad * 2) * (1 - val);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      });
-      ctx.stroke();
-
-      // Dots
-      history.forEach((val, i) => {
-        const x = pad + i * xStep;
-        const y = pad + (H - pad * 2) * (1 - val);
-        ctx.beginPath();
-        ctx.arc(x, y, i === history.length - 1 ? 5 : 3, 0, Math.PI * 2);
-        ctx.fillStyle = val > 0.6 ? '#ef4444' : val > 0.4 ? '#f59e0b' : '#10b981';
+        ctx.fillStyle = '#0f1628';
+        ctx.roundRect(0, 0, W, H, 8);
         ctx.fill();
 
-        // Label % cho điểm đầu và cuối
-        if (i === 0 || i === history.length - 1) {
-          ctx.fillStyle = '#8a96b0';
-          ctx.font = '10px monospace';
-          ctx.textAlign = i === 0 ? 'left' : 'right';
-          ctx.fillText(Math.round(val * 100) + '%', x, y - 8);
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.lineWidth = 1;
+        [0.25, 0.5, 0.75].forEach(pct => {
+          const y = pad + (H - pad * 2) * (1 - pct);
+          ctx.beginPath();
+          ctx.moveTo(pad, y);
+          ctx.lineTo(W - pad, y);
+          ctx.stroke();
+        });
+
+        const xStep = (W - pad * 2) / (history.length - 1);
+
+        if (colorFn) {
+          // Vẽ từng đoạn (segment) riêng, màu theo giá trị TRUNG BÌNH của
+          // 2 điểm đầu-cuối đoạn đó, để đường đổi màu mượt qua các ngưỡng.
+          for (let i = 0; i < history.length - 1; i++) {
+            const x1 = pad + i * xStep;
+            const y1 = pad + (H - pad * 2) * (1 - history[i]);
+            const x2 = pad + (i + 1) * xStep;
+            const y2 = pad + (H - pad * 2) * (1 - history[i + 1]);
+            ctx.beginPath();
+            ctx.strokeStyle = colorFn((history[i] + history[i + 1]) / 2);
+            ctx.lineWidth = 2.5;
+            ctx.lineJoin = 'round';
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+          }
+        } else {
+          ctx.beginPath();
+          ctx.strokeStyle = dotColor;
+          ctx.lineWidth = 2.5;
+          ctx.lineJoin = 'round';
+          history.forEach((val, i) => {
+            const x = pad + i * xStep;
+            const y = pad + (H - pad * 2) * (1 - val);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          });
+          ctx.stroke();
         }
+
+        history.forEach((val, i) => {
+          const x = pad + i * xStep;
+          const y = pad + (H - pad * 2) * (1 - val);
+          ctx.beginPath();
+          ctx.arc(x, y, i === history.length - 1 ? 5 : 3, 0, Math.PI * 2);
+          ctx.fillStyle = colorFn ? colorFn(val) : dotColor;
+          ctx.fill();
+
+          if (i === 0 || i === history.length - 1) {
+            ctx.fillStyle = '#8a96b0';
+            ctx.font = '10px monospace';
+            ctx.textAlign = i === 0 ? 'left' : 'right';
+            ctx.fillText(Math.round(val * 100) + '%', x, y - 8);
+          }
+        });
+      }
+
+      // Model V1 — màu đường theo ngưỡng nguy cơ: <40% xanh, 40-70% vàng, >70% đỏ
+      drawTrendChart('trendChart', '#60a5fa', function (v) {
+        return v < 0.4 ? '#34d399' : (v < 0.7 ? '#fbbf24' : '#ff7b7b');
       });
+      // Model V2 — giữ màu tím đơn sắc (đại diện P(SEVERE), không phải % nguy cơ chung)
+      drawTrendChart('trendChartV2', '#c084fc');
     });
   </script>
 </body>
