@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -65,10 +66,11 @@ class PatientApiControllerTest {
     @Test
     @DisplayName("POST /api/patient/symptoms/update should calculate AI advice and return success")
     void testSubmitSymptomUpdateSuccess() throws Exception {
-        when(aiService.getSymptomRiskAssessment(any(), any(), any(), any()))
-                .thenReturn("NGUY CƠ CẤP TÍNH CAO");
-        when(aiService.getSymptomAdvice(any(), any(), any(), any(), any()))
-                .thenReturn("GỌI NGAY CẤP CỨU 115");
+        when(aiService.getSymptomAdvice(anyString(), any(), any(), any()))
+                .thenReturn(Map.of(
+                        "aiRiskAssessment", "NGUY CƠ CẤP TÍNH CAO",
+                        "aiAdvice", "GỌI NGAY CẤP CỨU 115"
+                ));
 
         String jsonPayload = """
                 {

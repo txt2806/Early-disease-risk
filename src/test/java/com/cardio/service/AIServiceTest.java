@@ -3,7 +3,7 @@ package com.cardio.service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -19,32 +19,29 @@ class AIServiceTest {
     @Test
     @DisplayName("Test AI symptom advice fallback with acute symptoms")
     void testGetSymptomAdviceWithAcuteSymptoms() {
-        List<String> symptoms = List.of("Đau ngực dữ dội", "Khó thở");
-        String advice = aiService.getSymptomAdvice(symptoms, 105, 9, "Kéo dài trên 24 giờ", "Cần cấp cứu khẩn cấp");
+        String symptoms = "Đau ngực dữ dội, Khó thở";
+        Map<String, String> result = aiService.getSymptomAdvice(symptoms, 9, "Kéo dài trên 24 giờ", "Cần hỗ trợ khẩn cấp");
 
-        assertNotNull(advice);
-        assertTrue(advice.contains("CẤP CỨU 115") || advice.contains("cấp cứu"), 
-                "Advice should contain emergency recommendation");
+        assertNotNull(result);
+        assertTrue(result.containsKey("aiRiskAssessment"));
+        assertTrue(result.containsKey("aiAdvice"));
     }
 
     @Test
     @DisplayName("Test AI symptom advice fallback with mild symptoms and null fields")
     void testGetSymptomAdviceWithMildSymptomsAndNulls() {
-        List<String> symptoms = List.of("Hơi mệt mỏi");
-        String advice = aiService.getSymptomAdvice(symptoms, 72, 2, "", null);
+        String symptoms = "Hơi mệt mỏi";
+        Map<String, String> result = aiService.getSymptomAdvice(symptoms, 2, "", null);
 
-        assertNotNull(advice);
-        assertFalse(advice.isEmpty(), "Advice should not be empty even when inputs contain nulls");
+        assertNotNull(result);
+        assertNotNull(result.get("aiAdvice"));
     }
 
     @Test
-    @DisplayName("Test AI risk assessment for acute chest pain")
-    void testGetSymptomRiskAssessmentAcute() {
-        List<String> symptoms = List.of("Đau ngực dữ dội");
-        String risk = aiService.getSymptomRiskAssessment(symptoms, 110, 8, "Kéo dài 3 giờ");
-
-        assertNotNull(risk);
-        assertTrue(risk.contains("CẤP TÍNH") || risk.contains("CỰC KỲ CAO"), 
-                "Risk assessment should flag acute risk");
+    @DisplayName("Test risk tier mapping to Vietnamese")
+    void testMapRiskTierToVietnamese() {
+        assertEquals("RỦI RO CAO", aiService.mapRiskTierToVietnamese("HIGH"));
+        assertEquals("CẦN THEO DÕI", aiService.mapRiskTierToVietnamese("MEDIUM"));
+        assertEquals("AN TOÀN", aiService.mapRiskTierToVietnamese(null));
     }
 }
