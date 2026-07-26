@@ -56,9 +56,18 @@
           <span>Đang đợi bạn chuyển khoản...</span>
         </div>
         
-        <button onclick="checkPaymentStatus()" class="btn" style="background: #3b82f6; color: white; padding: 10px 24px; border-radius: 8px; font-weight: 600; border: none; cursor: pointer; font-size: 14px; transition: opacity 0.2s;">
-          <i class="ti ti-refresh" style="vertical-align: middle; margin-right: 4px;"></i> Kiểm tra trạng thái ngay
-        </button>
+        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+          <button onclick="checkPaymentStatus()" class="btn" style="background: #3b82f6; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 600; border: none; cursor: pointer; font-size: 13px; transition: opacity 0.2s;">
+            <i class="ti ti-refresh" style="vertical-align: middle; margin-right: 4px;"></i> Kiểm tra trạng thái ngay
+          </button>
+
+          <form th:action="@{/patient/invoices/{id}/test-pay(id=${invoice.invoiceId})}" method="post" style="margin: 0;">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <button type="submit" class="btn" style="background: #10b981; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 600; border: none; cursor: pointer; font-size: 13px;">
+              ⚡ Giả lập thanh toán ngay (Demo Test)
+            </button>
+          </form>
+        </div>
       </div>
     </div>
 

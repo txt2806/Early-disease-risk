@@ -14,7 +14,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   bool _isLoading = true;
   List<dynamic> _appointments = [];
   List<dynamic> _doctors = [];
-  bool _isLoadingDoctors = false;
 
   @override
   void initState() {
@@ -35,12 +34,10 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   }
 
   Future<void> _fetchDoctors() async {
-    setState(() => _isLoadingDoctors = true);
     final docs = await _service.fetchDoctors();
     if (mounted) {
       setState(() {
         _doctors = docs;
-        _isLoadingDoctors = false;
       });
     }
   }
@@ -295,18 +292,20 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                   itemCount: _appointments.length,
                   itemBuilder: (context, index) {
                     final appt = _appointments[index];
-                    final String rawStatus = (appt['status'] ?? '').toString();
-                    final isCancelled = rawStatus.toUpperCase() == 'CANCELLED' || rawStatus == 'Đã hủy';
-                    final isCompleted = rawStatus.toUpperCase() == 'COMPLETED' || rawStatus == 'Đã khám';
+                    final String rawStatus = (appt['status'] ?? '').toString().trim().toUpperCase();
+                    final isCancelled = rawStatus == 'CANCELLED' || rawStatus == 'ĐÃ HỦY';
+                    final isCompleted = rawStatus == 'COMPLETED' || rawStatus == 'ĐÃ KHÁM';
+                    final isPending = rawStatus == 'PENDING' || rawStatus == 'CHỜ XÁC NHẬN';
+                    final isInProgress = rawStatus == 'INPROGRESS' || rawStatus == 'CHECKEDIN' || rawStatus == 'ĐANG KHÁM';
 
                     String dateDisplay = appt['date'] ?? '';
                     if (dateDisplay.isEmpty) {
-                      final dStr = appt['appointmentDate'] ?? '';
-                      final tStr = appt['appointmentTime'] ?? '';
+                      final dStr = appt['scheduledDate'] ?? appt['appointmentDate'] ?? '';
+                      final tStr = appt['timeSlot'] ?? appt['appointmentTime'] ?? '';
                       dateDisplay = '$dStr $tStr'.trim();
                     }
 
-                    String statusText = 'Sắp tới';
+                    String statusText = 'Đã xác nhận';
                     Color statusBg = Colors.blue.shade100;
                     Color statusFg = Colors.blue.shade700;
 
@@ -318,6 +317,18 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                       statusText = 'Đã Khám';
                       statusBg = Colors.green.shade100;
                       statusFg = Colors.green.shade700;
+                    } else if (isPending) {
+                      statusText = 'Chờ tiếp nhận';
+                      statusBg = Colors.amber.shade100;
+                      statusFg = Colors.amber.shade900;
+                    } else if (isInProgress) {
+                      statusText = 'Đang khám';
+                      statusBg = Colors.teal.shade100;
+                      statusFg = Colors.teal.shade800;
+                    } else {
+                      statusText = 'Đã xác nhận';
+                      statusBg = Colors.blue.shade100;
+                      statusFg = Colors.blue.shade700;
                     }
 
                     return Card(

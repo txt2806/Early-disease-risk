@@ -38,6 +38,7 @@ public class StaffController {
     private final LabRequestRepository labRequestRepository;
     private final DoctorRepository doctorRepository;
     private final PatientAlertThresholdRepository thresholdRepository;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     private StaffProfile getCurrentStaff(UserDetails userDetails) {
         String username = userDetails.getUsername();
@@ -290,7 +291,16 @@ public class StaffController {
             @RequestParam(defaultValue = "resolved") String action,
             @RequestParam(required = false) String reason,
             RedirectAttributes ra) {
-        consultationService.updateAlertStatus(id, action, reason);
+        if (id != null && id < 0) {
+            int logId = -id;
+            try {
+                jdbcTemplate.update("UPDATE Patient_Self_Monitoring SET TriggeredAlert = false WHERE LogID = ?", logId);
+            } catch (Exception ex) {
+                log.error("Error updating self monitoring alert status for LogID: " + logId, ex);
+            }
+        } else {
+            consultationService.updateAlertStatus(id, action, reason);
+        }
         ra.addFlashAttribute("success", "Đã cập nhật trạng thái cảnh báo!");
         return "redirect:/staff/alerts";
     }

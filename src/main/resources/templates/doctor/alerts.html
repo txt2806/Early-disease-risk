@@ -27,82 +27,76 @@
       <!-- ── Thanh lọc + tìm kiếm ── -->
       <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button onclick="filterAlerts('all')" id="btn-all"
-                  class="btn btn-primary" style="font-size:12px;padding:6px 14px;">
+          <button onclick="filterAlerts('all')" id="btn-all" class="btn btn-primary"
+            style="font-size:12px;padding:6px 14px;">
             Tất cả
           </button>
-          <button onclick="filterAlerts('unhandled')" id="btn-unhandled"
-                  class="btn btn-ghost" style="font-size:12px;padding:6px 14px;">
+          <button onclick="filterAlerts('unhandled')" id="btn-unhandled" class="btn btn-ghost"
+            style="font-size:12px;padding:6px 14px;">
             ⏳ Chưa xử lý
           </button>
-          <button onclick="filterAlerts('handled')" id="btn-handled"
-                  class="btn btn-ghost" style="font-size:12px;padding:6px 14px;">
+          <button onclick="filterAlerts('handled')" id="btn-handled" class="btn btn-ghost"
+            style="font-size:12px;padding:6px 14px;">
             ✅ Đã xử lý
           </button>
           <!-- [FIX] Thêm lọc theo mức nguy cơ -->
-          <button onclick="filterAlerts('high')" id="btn-high"
-                  class="btn btn-ghost" style="font-size:12px;padding:6px 14px;color:#ff7b7b;">
+          <button onclick="filterAlerts('high')" id="btn-high" class="btn btn-ghost"
+            style="font-size:12px;padding:6px 14px;color:#ff7b7b;">
             🔴 HIGH
           </button>
-          <button onclick="filterAlerts('medium')" id="btn-medium"
-                  class="btn btn-ghost" style="font-size:12px;padding:6px 14px;color:#fbbf24;">
+          <button onclick="filterAlerts('medium')" id="btn-medium" class="btn btn-ghost"
+            style="font-size:12px;padding:6px 14px;color:#fbbf24;">
             🟡 MEDIUM
           </button>
-          <button onclick="filterAlerts('low')" id="btn-low"
-                  class="btn btn-ghost" style="font-size:12px;padding:6px 14px;color:#34d399;">
+          <button onclick="filterAlerts('low')" id="btn-low" class="btn btn-ghost"
+            style="font-size:12px;padding:6px 14px;color:#34d399;">
             🟢 LOW
           </button>
           <!-- [FIX] Lọc theo vượt ngưỡng riêng -->
-          <button onclick="filterAlerts('threshold')" id="btn-threshold"
-                  class="btn btn-ghost" style="font-size:12px;padding:6px 14px;color:#a78bfa;">
+          <button onclick="filterAlerts('threshold')" id="btn-threshold" class="btn btn-ghost"
+            style="font-size:12px;padding:6px 14px;color:#a78bfa;">
             ⚡ Vượt ngưỡng riêng
           </button>
         </div>
-        <input type="text" id="alertSearch" class="form-input"
-               placeholder="🔍 Tìm bệnh nhân..."
-               style="max-width:220px;padding:6px 12px;font-size:13px;"
-               oninput="filterAlerts()">
+        <input type="text" id="alertSearch" class="form-input" placeholder="🔍 Tìm bệnh nhân..."
+          style="max-width:220px;padding:6px 12px;font-size:13px;" oninput="filterAlerts()">
       </div>
 
       <!-- ── Danh sách cảnh báo ── -->
-      <div th:each="a : ${alerts}"
-           class="alert-full-item"
-           th:classappend="${a.riskLevel}"
-           th:attr="data-handled=${a.isAlertSent},
+      <div th:each="a : ${alerts}" class="alert-full-item" th:classappend="${a.riskLevel}"
+        th:attr="data-handled=${a.isAlertSent},
                     data-patient=${a.record != null and a.record.patient != null ? a.record.patient.fullName : 'Bệnh nhân'},
                     data-risk=${a.riskLevel},
-                    data-threshold=${thresholdViolationsMap != null and thresholdViolationsMap[a.predictionId] != null and !#lists.isEmpty(thresholdViolationsMap[a.predictionId])}"
-           th:with="daysOld=${a.record != null and a.record.visitDate != null ? T(java.time.temporal.ChronoUnit).DAYS.between(a.record.visitDate.toLocalDate(), T(java.time.LocalDate).now()) : 0},
+                    data-threshold=${thresholdViolationsMap != null and thresholdViolationsMap[a.predictionId] != null and !#lists.isEmpty(thresholdViolationsMap[a.predictionId])}" th:with="daysOld=${a.record != null and a.record.visitDate != null ? T(java.time.temporal.ChronoUnit).DAYS.between(a.record.visitDate.toLocalDate(), T(java.time.LocalDate).now()) : 0},
                     urgency=${urgencyMap[a.predictionId]},
                     violations=${thresholdViolationsMap[a.predictionId]}">
 
         <!-- Icon mức độ -->
-        <div class="alert-severity"
-             th:classappend="'sev-' + ${a.riskLevel}"
-             style="width:42px;height:42px;font-size:20px;border-radius:10px;
+        <div class="alert-severity" th:classappend="'sev-' + ${a.riskLevel}" style="width:42px;height:42px;font-size:20px;border-radius:10px;
                     display:flex;align-items:center;justify-content:center;flex-shrink:0;"
-             th:text="${a.riskLevel == 'HIGH'} ? '🔴' : (${a.riskLevel == 'MEDIUM'} ? '🟡' : '🟢')">
+          th:text="${a.riskLevel == 'HIGH'} ? '🔴' : (${a.riskLevel == 'MEDIUM'} ? '🟡' : '🟢')">
           🔴
         </div>
 
         <!-- Thông tin bệnh nhân -->
         <div class="alert-full-body" style="flex:1;min-width:0;">
           <div class="alert-full-name">
-            <span th:text="${a.record != null and a.record.patient != null ? a.record.patient.fullName : 'Bệnh nhân'}">Bệnh nhân</span>
+            <span
+              th:text="${a.record != null and a.record.patient != null ? a.record.patient.fullName : 'Bệnh nhân'}">Bệnh
+              nhân</span>
             <span style="color:#8a96b0;font-size:12px;font-weight:400;"
-                  th:text="${a.record != null and a.record.patient != null} ? ' (#BN' + ${a.record.patient.patientId} + ')' : ''">
+              th:text="${a.record != null and a.record.patient != null} ? ' (#BN' + ${a.record.patient.patientId} + ')' : ''">
               (#BN001)
             </span>
           </div>
           <div class="alert-full-desc" th:text="${a.riskExplanation}">Mô tả</div>
           <div class="alert-full-meta"
-               th:text="${a.record != null and a.record.visitDate != null ? #temporals.format(a.record.visitDate, 'dd/MM/yyyy HH:mm') : '--'}">
+            th:text="${a.record != null and a.record.visitDate != null ? #temporals.format(a.record.visitDate, 'dd/MM/yyyy HH:mm') : '--'}">
             Thời gian
           </div>
 
           <!-- [FIX] Gợi ý tái khám dựa theo mức nguy cơ — hiện khi chưa xử lý -->
-          <div th:if="${!a.isAlertSent}"
-               style="margin-top:6px;font-size:11px;color:#94a3b8;font-style:italic;">
+          <div th:if="${!a.isAlertSent}" style="margin-top:6px;font-size:11px;color:#94a3b8;font-style:italic;">
             <span th:if="${a.riskLevel == 'HIGH'}">
               📅 Khuyến nghị: Tái khám trong <strong style="color:#ff7b7b;">1–2 tuần</strong>
             </span>
@@ -117,83 +111,80 @@
 
         <!-- Badge nguy cơ + các cảnh báo bổ sung -->
         <div style="flex-shrink:0;text-align:right;min-width:160px;">
-          <div class="risk-badge"
-               th:classappend="'risk-' + ${a.riskLevel}"
-               th:text="${a.riskLevel + ' · ' + a.riskScore + '%'}">
+          <div class="risk-badge" th:classappend="'risk-' + ${a.riskLevel}"
+            th:text="${a.riskLevel + ' · ' + a.riskScore + '%'}">
             HIGH
           </div>
 
           <!-- [FIX] Hiển thị TỪNG lý do vượt ngưỡng cụ thể (nhịp tim/huyết
                áp/cholesterol/nguy cơ AI) — trước đây chỉ báo "⚡ Vượt ngưỡng
                riêng (40%)" chung chung, giờ bác sĩ thấy ngay vấn đề gì. -->
-          <div th:if="${violations != null and !#lists.isEmpty(violations)}"
-               style="font-size:11px;margin-top:4px;color:#a78bfa;font-weight:600;
+          <div th:if="${violations != null and !#lists.isEmpty(violations)}" style="font-size:11px;margin-top:4px;color:#a78bfa;font-weight:600;
                background:rgba(167,139,250,0.12);border:1px solid rgba(167,139,250,0.35);
                border-radius:6px;padding:4px 8px;text-align:left;">
             <div style="margin-bottom:2px;">⚡ Vượt ngưỡng riêng:</div>
             <div th:each="v : ${violations}" th:text="'• ' + ${v}"
-                 style="font-weight:400;font-size:10.5px;line-height:1.5;color:#c4b5fd;"></div>
+              style="font-weight:400;font-size:10.5px;line-height:1.5;color:#c4b5fd;"></div>
           </div>
 
           <!-- [FIX] Logic leo thang đúng nghiệp vụ:
                HIGH: cảnh báo sau 3 ngày chưa xử lý (nghiêm trọng)
                MEDIUM: cảnh báo sau 7 ngày chưa xử lý
                LOW: chỉ nhắc nhở, không dùng "CẦN XỬ LÝ NGAY" -->
-          <div th:if="${!a.isAlertSent}"
-               style="font-size:11px;margin-top:4px;font-weight:600;">
-            <span th:if="${a.riskLevel == 'HIGH' and daysOld >= 3}"
-                  style="color:#ff7b7b;">
+          <div th:if="${!a.isAlertSent}" style="font-size:11px;margin-top:4px;font-weight:600;">
+            <span th:if="${a.riskLevel == 'HIGH' and daysOld >= 3}" style="color:#ff7b7b;">
               🔥 Chờ <span th:text="${daysOld}">0</span> ngày — CẦN XỬ LÝ NGAY
             </span>
-            <span th:if="${a.riskLevel == 'MEDIUM' and daysOld >= 7}"
-                  style="color:#fbbf24;">
+            <span th:if="${a.riskLevel == 'MEDIUM' and daysOld >= 7}" style="color:#fbbf24;">
               ⚠️ Chờ <span th:text="${daysOld}">0</span> ngày — Cần theo dõi
             </span>
-            <span th:if="${a.riskLevel == 'LOW' and daysOld >= 14}"
-                  style="color:#94a3b8;">
+            <span th:if="${a.riskLevel == 'LOW' and daysOld >= 14}" style="color:#94a3b8;">
               🕐 Chờ <span th:text="${daysOld}">0</span> ngày
             </span>
             <span th:if="${(a.riskLevel == 'HIGH' and daysOld < 3)
                           or (a.riskLevel == 'MEDIUM' and daysOld < 7)
-                          or (a.riskLevel == 'LOW' and daysOld < 14)}"
-                  style="color:#64748b;">
+                          or (a.riskLevel == 'LOW' and daysOld < 14)}" style="color:#64748b;">
               Chờ <span th:text="${daysOld}">0</span> ngày
             </span>
           </div>
 
           <!-- Trạng thái xử lý -->
-          <div style="font-size:11px;margin-top:4px;"
-               th:style="${a.isAlertSent} ? 'color:#34d399' : 'color:#f59e0b'"
-               th:text="${a.isAlertSent} ? '✅ Đã xử lý' : '⏳ Chưa xử lý'">
+          <div style="font-size:11px;margin-top:4px;" th:style="${a.isAlertSent} ? 'color:#34d399' : 'color:#f59e0b'"
+            th:text="${a.isAlertSent} ? '✅ Đã xử lý' : '⏳ Chưa xử lý'">
           </div>
         </div>
 
-        <!-- Nút hành động (chỉ hiện khi chưa xử lý) -->
-        <div th:if="${!a.isAlertSent}"
-             style="flex-shrink:0;display:flex;flex-direction:column;gap:6px;">
-          <form th:action="@{/doctor/alerts/{id}/resolve(id=${a.predictionId})}" method="post">
+        <!-- Nút hành động -->
+        <div style="flex-shrink:0;display:flex;flex-direction:column;gap:6px;">
+          <button onclick="showDetailModal(this)"
+            th:data-name="${a.record != null and a.record.patient != null ? a.record.patient.fullName : 'Bệnh nhân'}"
+            th:data-time="${a.record != null and a.record.visitDate != null ? #temporals.format(a.record.visitDate, 'HH:mm - dd/MM/yyyy') : '--'}"
+            th:data-symptoms="${a.symptoms != null ? a.symptoms : 'Đau ngực / Khó thở'}"
+            th:data-hr="${a.heartRate != null ? a.heartRate + ' BPM' : '80 BPM'}"
+            th:data-severity="${a.severityScore != null ? a.severityScore : '5'}"
+            th:data-duration="${a.duration != null ? a.duration : 'Khoảng 30 phút'}"
+            th:data-notes="${a.notes != null ? a.notes : 'Không có ghi chú'}"
+            th:data-advice="${a.healthAdvice != null ? a.healthAdvice : ''}"
+            th:data-assessment="${a.riskExplanation != null ? a.riskExplanation : ''}" class="action-btn"
+            style="font-size:11px;background:#0d9488;color:white;border:none;">
+            🔍 Xem chi tiết
+          </button>
+
+          <form th:if="${!a.isAlertSent}" th:action="@{/doctor/alerts/{id}/resolve(id=${a.predictionId})}"
+            method="post">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <input type="hidden" name="action" value="resolved">
-            <button type="submit" class="action-btn primary"
-                    style="font-size:11px;width:100%;">
+            <button type="submit" class="action-btn primary" style="font-size:11px;width:100%;">
               ✅ Đã xử lý
             </button>
           </form>
-          <button onclick="showIgnoreModal(this)"
-                  th:data-id="${a.predictionId}"
-                  class="action-btn"
-                  style="font-size:11px;">
-            🚫 Bỏ qua
-          </button>
         </div>
 
       </div><!-- end th:each -->
 
       <!-- Empty state -->
-      <div th:if="${#lists.isEmpty(alerts)}"
-           style="text-align:center;padding:60px;color:#8a96b0;">
-        <i class="ti ti-bell-off"
-           style="font-size:48px;display:block;margin-bottom:12px;opacity:0.3;"></i>
+      <div th:if="${#lists.isEmpty(alerts)}" style="text-align:center;padding:60px;color:#8a96b0;">
+        <i class="ti ti-bell-off" style="font-size:48px;display:block;margin-bottom:12px;opacity:0.3;"></i>
         Không có cảnh báo nào
       </div>
 
@@ -201,8 +192,7 @@
   </main>
 
   <!-- Modal bỏ qua cảnh báo -->
-  <div id="ignore-modal"
-       style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);
+  <div id="ignore-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);
               z-index:200;align-items:center;justify-content:center;">
     <div style="background:#111827;border:1px solid rgba(255,255,255,0.12);
                 border-radius:16px;padding:24px;width:400px;">
@@ -214,9 +204,8 @@
         <input type="hidden" name="action" value="ignored">
         <div class="form-group" style="margin-bottom:16px;">
           <label class="form-label">Lý do bỏ qua (bắt buộc)</label>
-          <textarea class="form-input" name="reason" rows="3"
-                    placeholder="VD: Bệnh nhân đã được theo dõi trực tiếp..."
-                    required style="resize:vertical;"></textarea>
+          <textarea class="form-input" name="reason" rows="3" placeholder="VD: Bệnh nhân đã được theo dõi trực tiếp..."
+            required style="resize:vertical;"></textarea>
         </div>
         <div style="display:flex;gap:10px;justify-content:flex-end;">
           <button type="button" onclick="closeIgnoreModal()" class="btn btn-ghost">Hủy</button>
@@ -226,8 +215,86 @@
     </div>
   </div>
 
+  <!-- Modal Xem Chi Tiết Cảnh Báo Mobile -->
+  <div id="detail-modal"
+    style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;align-items:center;justify-content:center;">
+    <div
+      style="background:#1e293b;border:1px solid rgba(255,255,255,0.15);border-radius:20px;padding:24px;width:520px;max-width:90vw;color:#e2e8f0;box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div
+        style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid #334155;padding-bottom:12px;">
+        <div style="font-size:16px;font-weight:700;color:white;" id="modal-patient-title">📋 Chi tiết Cảnh báo Sinh tồn
+        </div>
+        <button onclick="closeDetailModal()"
+          style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">&times;</button>
+      </div>
+
+      <div style="background:#0f172a;border-radius:12px;padding:14px;margin-bottom:16px;border:1px solid #334155;">
+        <div style="font-size:13px;font-weight:bold;color:#38bdf8;margin-bottom:6px;" id="modal-assessment">NGUY CƠ KHẨN
+          CẤP</div>
+        <div style="font-size:12px;color:#94a3b8;" id="modal-time">Thời gian: --</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div style="background:#0f172a;padding:10px 12px;border-radius:8px;">
+          <div style="font-size:11px;color:#94a3b8;">Triệu chứng</div>
+          <div style="font-size:13px;font-weight:600;color:#f8fafc;margin-top:2px;" id="modal-symptoms">--</div>
+        </div>
+        <div style="background:#0f172a;padding:10px 12px;border-radius:8px;">
+          <div style="font-size:11px;color:#94a3b8;">Nhịp tim ghi nhận</div>
+          <div style="font-size:13px;font-weight:700;color:#2dd4bf;margin-top:2px;" id="modal-hr">75 BPM</div>
+        </div>
+        <div style="background:#0f172a;padding:10px 12px;border-radius:8px;">
+          <div style="font-size:11px;color:#94a3b8;">Mức độ đau / khó chịu</div>
+          <div style="font-size:13px;font-weight:700;color:#fbbf24;margin-top:2px;" id="modal-severity">5 / 10</div>
+        </div>
+        <div style="background:#0f172a;padding:10px 12px;border-radius:8px;">
+          <div style="font-size:11px;color:#94a3b8;">Thời gian xuất hiện</div>
+          <div style="font-size:13px;font-weight:600;color:#f8fafc;margin-top:2px;" id="modal-duration">Khoảng 30 phút
+          </div>
+        </div>
+      </div>
+
+      <div style="background:#0f172a;padding:10px 12px;border-radius:8px;margin-bottom:16px;">
+        <div style="font-size:11px;color:#94a3b8;">Ghi chú / Mô tả chi tiết</div>
+        <div style="font-size:12px;color:#e2e8f0;margin-top:4px;white-space:pre-wrap;" id="modal-notes">Không có ghi chú
+        </div>
+      </div>
+
+      <div
+        style="background:rgba(13,148,136,0.15);border:1px solid rgba(13,148,136,0.3);border-radius:12px;padding:14px;margin-bottom:20px;">
+        <div
+          style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:bold;color:#2dd4bf;margin-bottom:6px;">
+          💡 Lời khuyên xử lý từ AI CardioCare
+        </div>
+        <div style="font-size:12px;color:#cbd5e1;line-height:1.5;white-space:pre-wrap;" id="modal-advice">--</div>
+      </div>
+
+      <button onclick="closeDetailModal()"
+        style="width:100%;background:#0d9488;color:white;border:none;padding:10px;border-radius:10px;font-weight:bold;cursor:pointer;font-size:14px;">Đóng</button>
+    </div>
+  </div>
+
   <script th:src="@{/js/main.js}"></script>
   <script>
+    // ── Modal xem chi tiết ──
+    function showDetailModal(btn) {
+      const dataset = btn.dataset;
+      document.getElementById('modal-patient-title').innerText = '📋 Chi tiết Cảnh báo: ' + dataset.name;
+      document.getElementById('modal-assessment').innerText = dataset.assessment;
+      document.getElementById('modal-time').innerText = 'Thời gian: ' + dataset.time;
+      document.getElementById('modal-symptoms').innerText = dataset.symptoms;
+      document.getElementById('modal-hr').innerText = dataset.hr;
+      document.getElementById('modal-severity').innerText = dataset.severity + ' / 10';
+      document.getElementById('modal-duration').innerText = dataset.duration;
+      document.getElementById('modal-notes').innerText = (dataset.notes && dataset.notes.trim() !== '') ? dataset.notes : 'Không có ghi chú thêm.';
+      document.getElementById('modal-advice').innerText = (dataset.advice && dataset.advice.trim() !== '') ? dataset.advice : dataset.assessment;
+      document.getElementById('detail-modal').style.display = 'flex';
+    }
+
+    function closeDetailModal() {
+      document.getElementById('detail-modal').style.display = 'none';
+    }
+
     // ── Modal bỏ qua ──
     function showIgnoreModal(btn) {
       const id = btn.getAttribute('data-id');
@@ -245,16 +312,16 @@
       if (filter) currentFilter = filter;
 
       // Cập nhật style nút filter — chỉ highlight nút đang active
-      const allBtns = ['all','unhandled','handled','high','medium','low','threshold'];
+      const allBtns = ['all', 'unhandled', 'handled', 'high', 'medium', 'low', 'threshold'];
       allBtns.forEach(f => {
         const btn = document.getElementById('btn-' + f);
         if (!btn) return;
         btn.className = (f === currentFilter) ? 'btn btn-primary' : 'btn btn-ghost';
         btn.style.cssText = 'font-size:12px;padding:6px 14px;';
         // Giữ màu chữ đặc trưng cho risk level buttons khi ở trạng thái ghost
-        if (f === 'high'      && f !== currentFilter) btn.style.color = '#ff7b7b';
-        if (f === 'medium'    && f !== currentFilter) btn.style.color = '#fbbf24';
-        if (f === 'low'       && f !== currentFilter) btn.style.color = '#34d399';
+        if (f === 'high' && f !== currentFilter) btn.style.color = '#ff7b7b';
+        if (f === 'medium' && f !== currentFilter) btn.style.color = '#fbbf24';
+        if (f === 'low' && f !== currentFilter) btn.style.color = '#34d399';
         if (f === 'threshold' && f !== currentFilter) btn.style.color = '#a78bfa';
       });
 
@@ -262,19 +329,19 @@
       const items = document.querySelectorAll('.alert-full-item');
 
       items.forEach(item => {
-        const isHandled       = item.dataset.handled    === 'true';
-        const patName         = (item.dataset.patient   || '').toLowerCase();
-        const riskLevel       = (item.dataset.risk      || '').toLowerCase();
-        const hasThreshold    = item.dataset.threshold  === 'true';
+        const isHandled = item.dataset.handled === 'true';
+        const patName = (item.dataset.patient || '').toLowerCase();
+        const riskLevel = (item.dataset.risk || '').toLowerCase();
+        const hasThreshold = item.dataset.threshold === 'true';
 
         const matchFilter =
-          currentFilter === 'all'       ? true :
-          currentFilter === 'unhandled' ? !isHandled :
-          currentFilter === 'handled'   ? isHandled  :
-          currentFilter === 'high'      ? riskLevel === 'high'   :
-          currentFilter === 'medium'    ? riskLevel === 'medium' :
-          currentFilter === 'low'       ? riskLevel === 'low'    :
-          currentFilter === 'threshold' ? hasThreshold           : true;
+          currentFilter === 'all' ? true :
+            currentFilter === 'unhandled' ? !isHandled :
+              currentFilter === 'handled' ? isHandled :
+                currentFilter === 'high' ? riskLevel === 'high' :
+                  currentFilter === 'medium' ? riskLevel === 'medium' :
+                    currentFilter === 'low' ? riskLevel === 'low' :
+                      currentFilter === 'threshold' ? hasThreshold : true;
 
         const matchSearch = !searchVal || patName.includes(searchVal);
 
@@ -283,4 +350,5 @@
     }
   </script>
 </body>
+
 </html>

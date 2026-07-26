@@ -84,6 +84,11 @@ public class ReceptionController {
             }
         }
         
+        // Nếu người dùng gõ từ khóa tìm kiếm (Tên/SĐT bệnh nhân) mà không chọn ngày cụ thể, tìm kiếm trên tất cả các ngày
+        if (search != null && !search.isBlank() && dateStr == null) {
+            filterDate = null;
+        }
+
         List<Appointment> allSortedAppointments = sortAppointmentsForQueue(appointmentRepository.findByDateAndPatientNameOrPhone(filterDate, search));
         
         List<Appointment> allReference = appointmentRepository.findAll();
@@ -550,6 +555,16 @@ public class ReceptionController {
             int n1 = "Cancelled".equalsIgnoreCase(a1.getStatus()) ? 0 : 1;
             int n2 = "Cancelled".equalsIgnoreCase(a2.getStatus()) ? 0 : 1;
             if (n1 != n2) return Integer.compare(n1, n2);
+
+            // Secondary Priority: Scheduled Date DESC (Lịch hẹn gần nhất / mới nhất lên đầu)
+            if (a1.getScheduledDate() != null && a2.getScheduledDate() != null) {
+                int comp = a2.getScheduledDate().compareTo(a1.getScheduledDate());
+                if (comp != 0) return comp;
+            }
+            if (a1.getRequestTime() != null && a2.getRequestTime() != null) {
+                int comp = a2.getRequestTime().compareTo(a1.getRequestTime());
+                if (comp != 0) return comp;
+            }
 
              // Fallback: ID
              if (a1.getAppointmentId() != null && a2.getAppointmentId() != null) {

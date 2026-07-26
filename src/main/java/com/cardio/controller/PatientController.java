@@ -34,15 +34,17 @@ public class PatientController {
 
     private static final String SQL_SELECT_ALL_SELF_MONITORING = "SELECT LogID AS \"LogID\", LogDate AS \"LogDate\", CurrentHeartRate AS \"CurrentHeartRate\", Symptoms AS \"Symptoms\", TriggeredAlert AS \"TriggeredAlert\" FROM Patient_Self_Monitoring WHERE PatientID = ? ORDER BY LogDate DESC";
 
-    private static final String SQL_INSERT_SELF_MONITORING = "INSERT INTO Patient_Self_Monitoring (PatientID, LogDate, CurrentHeartRate, Symptoms, TriggeredAlert) VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?)";
+    private static final String SQL_INSERT_SELF_MONITORING = "INSERT INTO Patient_Self_Monitoring (PatientID, LogDate, CurrentHeartRate, Symptoms, SeverityScore, TriggeredAlert) VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?, ?)";
 
-    private static final String SQL_SELECT_CONSULTATION_RECORDS = "SELECT r.RecordID, r.VisitDate, r.ConsultationNotes, r.TreatmentPlan, r.Status, "
+    private static final String SQL_SELECT_CONSULTATION_RECORDS = "SELECT r.RecordID AS \"RecordID\", r.VisitDate AS \"VisitDate\", r.ConsultationNotes AS \"ConsultationNotes\", r.TreatmentPlan AS \"TreatmentPlan\", r.Status AS \"Status\", "
             +
-            "d.FullName AS DoctorName, d.Specialty AS DoctorSpecialty, " +
-            "p.RiskScore, p.RiskLevel, p.RiskExplanation, p.HealthAdvice, " +
-            "m.ChestPainType, m.RestingBP, m.Cholesterol, m.FastingBloodSugar, " +
-            "m.RestingECG, m.MaxHeartRate, m.ExerciseAngina, m.Oldpeak, m.Slope, m.Ca, m.Thal, " +
-            "m.Temperature, m.SpO2, m.BloodTest, m.UrineTest, m.Xray, m.Ultrasound, m.Mri, m.Ct " +
+            "COALESCE(d.FullName, (SELECT doc.FullName FROM Appointment app JOIN Doctor_Profile doc ON app.DoctorID = doc.DoctorID WHERE app.PatientID = r.PatientID AND DATE(app.ScheduledDate) = DATE(r.VisitDate) LIMIT 1), 'BS. CardioCare') AS \"DoctorName\", " +
+            "COALESCE(d.Specialty, (SELECT doc.Specialty FROM Appointment app JOIN Doctor_Profile doc ON app.DoctorID = doc.DoctorID WHERE app.PatientID = r.PatientID AND DATE(app.ScheduledDate) = DATE(r.VisitDate) LIMIT 1), 'Chuyên khoa Tim mạch') AS \"DoctorSpecialty\", " +
+            "p.RiskScore AS \"RiskScore\", p.RiskLevel AS \"RiskLevel\", p.RiskExplanation AS \"RiskExplanation\", " +
+            "COALESCE(p.HealthAdvice, CASE WHEN p.RiskLevel = 'HIGH' THEN 'Bệnh nhân có nguy cơ tim mạch cao. Cần tái khám ngay, tuân thủ đơn thuốc và hạn chế vận động quá sức.' WHEN p.RiskLevel = 'MEDIUM' THEN 'Nguy cơ trung bình — nên theo dõi huyết áp/nhịp tim hàng ngày, duy trì ăn nhạt và lối sống lành mạnh.' WHEN p.RiskLevel = 'LOW' THEN 'Chỉ số nguy cơ thấp. Tiếp tục duy trì chế độ sinh hoạt và kiểm tra sức khỏe định kỳ.' ELSE 'Theo dõi sức khỏe và tái khám theo chỉ định của bác sĩ.' END) AS \"HealthAdvice\", " +
+            "m.ChestPainType AS \"ChestPainType\", m.RestingBP AS \"RestingBP\", m.Cholesterol AS \"Cholesterol\", m.FastingBloodSugar AS \"FastingBloodSugar\", " +
+            "m.RestingECG AS \"RestingECG\", m.MaxHeartRate AS \"MaxHeartRate\", m.ExerciseAngina AS \"ExerciseAngina\", m.Oldpeak AS \"Oldpeak\", m.Slope AS \"Slope\", m.Ca AS \"Ca\", m.Thal AS \"Thal\", " +
+            "m.Temperature AS \"Temperature\", m.SpO2 AS \"SpO2\", m.BloodTest AS \"BloodTest\", m.UrineTest AS \"UrineTest\", m.Xray AS \"Xray\", m.Ultrasound AS \"Ultrasound\", m.Mri AS \"Mri\", m.Ct AS \"Ct\" " +
             "FROM Consultation_Record r " +
             "LEFT JOIN Doctor_Profile d ON r.DoctorID = d.DoctorID " +
             "LEFT JOIN AI_Risk_Prediction p ON r.RecordID = p.RecordID " +
@@ -63,6 +65,8 @@ public class PatientController {
     private final InvoiceRepository invoiceRepository;
     private final SystemSettingService systemSettingService;
     private final JdbcTemplate jdbcTemplate;
+    private final com.cardio.service.ChatService chatService;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     @Value("${sepay.bank.id:}")
     private String bankId;
@@ -82,6 +86,9 @@ public class PatientController {
     @GetMapping("/dashboard")
     public String dashboard(@AuthenticationPrincipal UserDetails userDetails, Model model) {
         PatientProfile patient = getCurrentPatient(userDetails);
+        if (patient.isFirstLogin()) {
+            return "redirect:/patient/change-password-first-time";
+        }
         List<Appointment> appointments = appointmentRepository
                 .findByPatientOrderByScheduledDateDescTimeSlotDesc(patient);
         List<Appointment> allReference = appointmentRepository.findAll();
@@ -137,20 +144,21 @@ public class PatientController {
     public String saveSelfDeclare(@AuthenticationPrincipal UserDetails userDetails,
             @RequestParam("heartRate") Integer heartRate,
             @RequestParam("symptoms") String symptoms,
+            @RequestParam(value = "severityScore", defaultValue = "5") Integer severityScore,
             RedirectAttributes ra) {
         PatientProfile patient = getCurrentPatient(userDetails);
 
-        boolean triggeredAlert = (heartRate > 100 || heartRate < 50);
+        boolean triggeredAlert = (heartRate > 100 || heartRate < 50 || severityScore >= 8);
         String symLower = symptoms != null ? symptoms.toLowerCase() : "";
         if (symLower.contains("đau ngực") || symLower.contains("khó thở") || symLower.contains("ngất")
-                || symLower.contains("chóng mặt") || symLower.contains("đau thắt ngực")) {
+                || symLower.contains("chóng mặt") || symLower.contains("đau thắt ngực") || symLower.contains("dữ dội")) {
             triggeredAlert = true;
         }
 
         try {
             jdbcTemplate.update(
                     SQL_INSERT_SELF_MONITORING,
-                    patient.getPatientId(), heartRate, symptoms, triggeredAlert);
+                    patient.getPatientId(), heartRate, symptoms, severityScore, triggeredAlert);
 
             // Log action
             SystemLog sysLog = new SystemLog();
@@ -384,5 +392,122 @@ public class PatientController {
             result.put("error", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(result);
         }
+    }
+
+    // ── CHATBOT AI CHO BỆNH NHÂN TRÊN WEB ──────────────────────
+    @GetMapping("/chatbot")
+    public String chatbotPage(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        PatientProfile patient = getCurrentPatient(userDetails);
+        model.addAttribute("patient", patient);
+        return "patient/chatbot";
+    }
+
+    @PostMapping("/chatbot/send")
+    @ResponseBody
+    public ResponseEntity<com.cardio.dto.ChatResponse> sendChatMessage(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody com.cardio.dto.ChatRequest request) {
+        try {
+            PatientProfile patient = getCurrentPatient(userDetails);
+            request.setPatientId(patient.getPatientId());
+
+            Map<String, Object> context = request.getPredict_context();
+            if (context == null) context = new HashMap<>();
+            context.put("Họ và tên bệnh nhân", patient.getFullName());
+            context.put("Giới tính", patient.getGender() != null ? patient.getGender() : "Nam");
+            if (patient.getDob() != null) {
+                int age = java.time.Period.between(patient.getDob(), java.time.LocalDate.now()).getYears();
+                context.put("Tuổi", age);
+            }
+            context.put("Số điện thoại", patient.getPhone());
+            
+            List<Map<String, Object>> records = jdbcTemplate.queryForList(SQL_SELECT_CONSULTATION_RECORDS, patient.getPatientId());
+            if (!records.isEmpty()) {
+                Map<String, Object> latest = records.get(0);
+                context.put("Ngày khám gần nhất", latest.get("VisitDate"));
+                context.put("Bác sĩ phụ trách", latest.get("DoctorName"));
+                context.put("Mức độ nguy cơ tim mạch", latest.get("RiskLevel"));
+                context.put("Lời khuyên y tế", latest.get("HealthAdvice"));
+            }
+            request.setPredict_context(context);
+
+            String prompt = "[HỆ THỐNG CHUYÊN MÔN: Bạn là Trợ lý AI Y tế tư vấn tim mạch CardioCare cho BỆNH NHÂN " + patient.getFullName() + ". Hãy trả lời ân cần, ngắn gọn, dễ hiểu và tư vấn y tế phù hợp.] " + request.getMessage();
+            request.setMessage(prompt);
+
+            com.cardio.dto.ChatResponse response = chatService.sendMessage(request, "patient");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error sending patient chatbot message: ", e);
+            com.cardio.dto.ChatResponse err = new com.cardio.dto.ChatResponse();
+            err.setReply("Hệ thống trợ lý AI y tế hiện đang bận. Vui lòng thử lại sau ít phút.");
+            return ResponseEntity.ok(err);
+        }
+    }
+
+    // ── TÍNH NĂNG GIẢ LẬP THANH TOÁN DÀNH CHO DEMO/TEST ──────
+    @PostMapping("/invoices/{id}/test-pay")
+    public String testPayInvoice(
+            @PathVariable("id") Integer id,
+            @AuthenticationPrincipal UserDetails userDetails,
+            RedirectAttributes ra) {
+        PatientProfile patient = getCurrentPatient(userDetails);
+        Optional<Invoice> invOpt = invoiceRepository.findById(id);
+        if (invOpt.isPresent()) {
+            Invoice invoice = invOpt.get();
+            if (invoice.getPatient().getPatientId().equals(patient.getPatientId())) {
+                invoice.setStatus("Paid");
+                invoice.setPaidAmount(invoice.getAmount());
+                invoice.setPaymentDate(LocalDateTime.now());
+                invoice.setPaymentMethod("Chuyển khoản (Demo Test)");
+                invoiceRepository.save(invoice);
+
+                Appointment app = invoice.getAppointment();
+                if (app != null && !"Cancelled".equalsIgnoreCase(app.getStatus())) {
+                    app.setStatus("Confirmed");
+                    appointmentRepository.save(app);
+                }
+                ra.addFlashAttribute("success", "Thanh toán hóa đơn thành công (Chế độ Giả lập Test)!");
+            }
+        }
+        return "redirect:/patient/invoices";
+    }
+
+    // ── ĐỔI MẬT KHẨU LẦN ĐẦU CHO BỆNH NHÂN TRÊN WEB ────────────
+    @GetMapping("/change-password-first-time")
+    public String changePasswordFirstTimePage(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        PatientProfile patient = getCurrentPatient(userDetails);
+        model.addAttribute("patient", patient);
+        return "patient/change-password-first-time";
+    }
+
+    @PostMapping("/change-password-first-time/save")
+    public String saveFirstTimePassword(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam("newPassword") String newPassword,
+            @RequestParam("confirmPassword") String confirmPassword,
+            RedirectAttributes ra) {
+        PatientProfile patient = getCurrentPatient(userDetails);
+
+        if (newPassword == null || newPassword.trim().length() < 3) {
+            ra.addFlashAttribute("error", "Mật khẩu mới phải có ít nhất 3 ký tự!");
+            return "redirect:/patient/change-password-first-time";
+        }
+
+        if (!newPassword.equals(confirmPassword)) {
+            ra.addFlashAttribute("error", "Xác nhận mật khẩu mới không trùng khớp!");
+            return "redirect:/patient/change-password-first-time";
+        }
+
+        if (passwordEncoder.matches(newPassword.trim(), patient.getPasswordHash())) {
+            ra.addFlashAttribute("error", "Mật khẩu mới phải khác với mật khẩu ban đầu!");
+            return "redirect:/patient/change-password-first-time";
+        }
+
+        patient.setPasswordHash(passwordEncoder.encode(newPassword.trim()));
+        patient.setFirstLogin(false);
+        patientRepository.save(patient);
+
+        ra.addFlashAttribute("success", "Đổi mật khẩu thành công! Chào mừng bạn đến với hệ thống CardioCare.");
+        return "redirect:/patient/dashboard";
     }
 }

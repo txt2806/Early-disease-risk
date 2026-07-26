@@ -71,7 +71,7 @@ class PatientService extends ChangeNotifier {
       if (response.statusCode == 200) {
         final jsonRes = jsonDecode(response.body);
         if (jsonRes['status'] == 'success') {
-          _isLoggedIn = true;
+          bool isFirstTime = jsonRes['isFirstLogin'] == true;
           int patientId = jsonRes['patientId'] ?? 0;
 
           // Clear previous data and fetch real data from Supabase DB
@@ -83,12 +83,18 @@ class PatientService extends ChangeNotifier {
           await fetchLiveHistoryFromSpringBoot(patientId);
           await fetchLiveAlertsFromSpringBoot(patientId);
 
-          notifyListeners();
+          if (!isFirstTime) {
+            _isLoggedIn = true;
+            notifyListeners();
+          }
+
           return {
             'success': true,
             'message': jsonRes['message'] ?? 'Đăng nhập hợp lệ',
             'fullName': _profile.fullName.isNotEmpty ? _profile.fullName : jsonRes['fullName'],
             'patientId': patientId,
+            'username': username,
+            'isFirstLogin': isFirstTime,
           };
         } else {
           return {
@@ -386,6 +392,7 @@ class PatientService extends ChangeNotifier {
   Future<SymptomReport> submitSymptomUpdate({
     required List<String> selectedSymptoms,
     required int severityScore,
+    int heartRate = 80,
     required String duration,
     required String notes,
   }) async {
@@ -424,6 +431,7 @@ class PatientService extends ChangeNotifier {
         body: jsonEncode({
           'patientId': _profile.patientId,
           'symptoms': selectedSymptoms,
+          'heartRate': heartRate,
           'severityScore': severityScore,
           'duration': duration,
           'notes': notes,
@@ -509,7 +517,12 @@ class PatientService extends ChangeNotifier {
           'newPassword': newPassword,
         }),
       );
-      return jsonDecode(utf8.decode(response.bodyBytes));
+      final res = jsonDecode(utf8.decode(response.bodyBytes));
+      if (res['status'] == 'success') {
+        _isLoggedIn = true;
+        notifyListeners();
+      }
+      return res;
     } catch (e) {
       return {'status': 'error', 'message': 'Lỗi kết nối mạng: $e'};
     }

@@ -176,6 +176,10 @@
        th:classappend="${page == 'invoices'} ? ' active'" class="nav-item">
       <i class="ti ti-credit-card"></i> Thanh toán & Hóa đơn
     </a>
+    <a th:href="@{/patient/chatbot}"
+       th:classappend="${page == 'chatbot'} ? ' active'" class="nav-item">
+      <i class="ti ti-robot"></i> Trợ lý AI Bệnh nhân
+    </a>
   </nav>
 
   <div class="sidebar-footer">

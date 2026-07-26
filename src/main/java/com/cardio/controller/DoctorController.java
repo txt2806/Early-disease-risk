@@ -186,31 +186,75 @@ public class DoctorController {
 
             // Nguồn 3: Cảnh báo từ Mobile App (Patient_Self_Monitoring)
             try {
-                String sql = "SELECT psm.LogDate, p.FullName, p.PatientID, psm.Symptoms, psm.AIRiskAssessment, psm.SeverityScore " +
-                             "FROM Patient_Self_Monitoring psm " +
-                             "JOIN Patient_Profile p ON psm.PatientID = p.PatientID " +
-                             "WHERE p.DoctorID = ? AND psm.TriggeredAlert = true " +
-                             "AND psm.LogDate >= ? AND psm.LogDate <= ? " +
-                             "ORDER BY psm.LogDate DESC";
-                
                 java.sql.Timestamp startTs = java.sql.Timestamp.valueOf(fromDate.atStartOfDay());
-                java.sql.Timestamp endTs = java.sql.Timestamp.valueOf(toDate.atTime(LocalTime.MAX));
+                java.sql.Timestamp endTs = java.sql.Timestamp.valueOf(toDate.plusDays(2).atTime(LocalTime.MAX));
                 
-                List<java.util.Map<String, Object>> selfMonitoringAlerts = jdbcTemplate.queryForList(sql, doctor.getDoctorId(), startTs, endTs);
+                List<java.util.Map<String, Object>> selfMonitoringAlerts;
+                if (doctor.getDoctorId() != null) {
+                    String sql = "SELECT psm.LogDate, p.FullName, p.PatientID, psm.Symptoms, psm.AIRiskAssessment, psm.SeverityScore, psm.TriggeredAlert " +
+                                 "FROM Patient_Self_Monitoring psm " +
+                                 "JOIN Patient_Profile p ON psm.PatientID = p.PatientID " +
+                                 "WHERE (psm.TriggeredAlert = true " +
+                                 "   OR psm.PatientID IN (SELECT DISTINCT c.PatientID FROM Consultation_Record c WHERE c.DoctorID = ?) " +
+                                 "   OR psm.PatientID IN (SELECT DISTINCT a.PatientID FROM Appointment a WHERE a.DoctorID = ?) " +
+                                 ") " +
+                                 "AND psm.LogDate >= ? AND psm.LogDate <= ? " +
+                                 "ORDER BY psm.LogDate DESC";
+                    selfMonitoringAlerts = jdbcTemplate.queryForList(sql, doctor.getDoctorId(), doctor.getDoctorId(), startTs, endTs);
+                } else {
+                    String adminSql = "SELECT psm.LogDate, p.FullName, p.PatientID, psm.Symptoms, psm.AIRiskAssessment, psm.SeverityScore, psm.TriggeredAlert " +
+                                      "FROM Patient_Self_Monitoring psm " +
+                                      "JOIN Patient_Profile p ON psm.PatientID = p.PatientID " +
+                                      "WHERE psm.LogDate >= ? AND psm.LogDate <= ? " +
+                                      "ORDER BY psm.LogDate DESC";
+                    selfMonitoringAlerts = jdbcTemplate.queryForList(adminSql, startTs, endTs);
+                }
                 
                 for (java.util.Map<String, Object> row : selfMonitoringAlerts) {
                     java.util.Map<String, Object> item = new java.util.HashMap<>();
                     item.put("type", "alert");
-                    java.sql.Timestamp ts = (java.sql.Timestamp) row.get("LogDate");
-                    item.put("time", ts.toLocalDateTime());
-                    item.put("title", "Cảnh báo khẩn (App): " + row.get("FullName"));
-                    item.put("detail", "Triệu chứng: " + row.get("Symptoms") + " (Mức " + row.get("SeverityScore") + "/10). AI: " + row.get("AIRiskAssessment"));
-                    item.put("riskLevel", "HIGH");
-                    item.put("link", "/doctor/patients/" + row.get("PatientID"));
+                    Object logDateObj = row.get("LogDate");
+                    LocalDateTime ldt = LocalDateTime.now();
+                    if (logDateObj instanceof java.sql.Timestamp) {
+                        ldt = ((java.sql.Timestamp) logDateObj).toInstant().atZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDateTime();
+                    } else if (logDateObj instanceof LocalDateTime) {
+                        ldt = (LocalDateTime) logDateObj;
+                    }
+                    item.put("time", ldt);
+                    
+                    Boolean isTriggered = Boolean.TRUE.equals(row.get("TriggeredAlert"));
+                    Number severityScoreNum = (Number) (row.get("SeverityScore") != null ? row.get("SeverityScore") :
+                                                       (row.get("severityscore") != null ? row.get("severityscore") : row.get("SEVERITYSCORE")));
+                    int sev = severityScoreNum != null ? severityScoreNum.intValue() : 0;
+                    String syms = (String) row.get("Symptoms");
+                    if (sev == 0 && syms != null) {
+                        if (syms.contains("Đau ngực dữ dội")) sev = 8;
+                        else if (syms.contains("Khó thở")) sev = 7;
+                        else if (syms.contains("Choáng váng")) sev = 5;
+                        else if (!syms.isBlank()) sev = 4;
+                    }
+                    
+                    String fullName = row.get("FullName") != null ? (String) row.get("FullName") : "Bệnh nhân";
+                    
+                    if (isTriggered || sev >= 8) {
+                        item.put("title", "Cảnh báo khẩn (App): " + fullName);
+                        item.put("riskLevel", "HIGH");
+                    } else if (sev >= 5) {
+                        item.put("title", "Theo dõi triệu chứng (App): " + fullName);
+                        item.put("riskLevel", "MEDIUM");
+                    } else {
+                        item.put("title", "Cập nhật triệu chứng (App): " + fullName);
+                        item.put("riskLevel", "LOW");
+                    }
+                    
+                    item.put("detail", "Triệu chứng: " + (syms != null ? syms : "Chưa rõ") + 
+                                       " (Mức " + sev + "/10). AI: " + 
+                                       (row.get("AIRiskAssessment") != null ? row.get("AIRiskAssessment") : "Đã ghi nhận"));
+                    item.put("link", row.get("PatientID") != null ? "/doctor/patients/" + row.get("PatientID") : "/doctor/alerts");
                     activityTimeline.add(item);
                 }
             } catch (Exception ex) {
-                System.err.println("Error querying Patient_Self_Monitoring alerts: " + ex.getMessage());
+                log.error("Error querying Patient_Self_Monitoring alerts: " + ex.getMessage(), ex);
             }
 
             activityTimeline.sort((x, y)
@@ -521,13 +565,116 @@ public class DoctorController {
     @GetMapping("/alerts")
     public String alerts(@AuthenticationPrincipal UserDetails userDetails, Model model) {
         DoctorProfile doctor = getCurrentDoctor(userDetails);
-        List<AIRiskPrediction> alerts;
+        List<AIRiskPrediction> alerts = new java.util.ArrayList<>();
 
         if (doctor.getDoctorId() != null) {
-            alerts = consultationService.getAlertsByDoctorSorted(doctor.getDoctorId());
+            alerts.addAll(consultationService.getAlertsByDoctorSorted(doctor.getDoctorId()));
         } else {
-            alerts = consultationService.getUnhandledHighAlerts();
+            alerts.addAll(consultationService.getUnhandledHighAlerts());
         }
+
+        // Bổ sung các cảnh báo từ Mobile App (Patient_Self_Monitoring)
+        try {
+            List<Map<String, Object>> selfMonitoringAlerts;
+            if (doctor.getDoctorId() != null) {
+                String sql = "SELECT psm.LogID, psm.LogDate, p.FullName, p.PatientID, psm.Symptoms, psm.AIRiskAssessment, psm.SeverityScore, psm.TriggeredAlert, psm.CurrentHeartRate, psm.Duration, psm.Notes, psm.AIAdvice " +
+                             "FROM Patient_Self_Monitoring psm " +
+                             "JOIN Patient_Profile p ON psm.PatientID = p.PatientID " +
+                             "WHERE (psm.TriggeredAlert = true " +
+                             "   OR psm.PatientID IN (SELECT DISTINCT c.PatientID FROM Consultation_Record c WHERE c.DoctorID = ?) " +
+                             "   OR psm.PatientID IN (SELECT DISTINCT a.PatientID FROM Appointment a WHERE a.DoctorID = ?) " +
+                             ") " +
+                             "ORDER BY psm.LogDate DESC LIMIT 100";
+                selfMonitoringAlerts = jdbcTemplate.queryForList(sql, doctor.getDoctorId(), doctor.getDoctorId());
+            } else {
+                String sql = "SELECT psm.LogID, psm.LogDate, p.FullName, p.PatientID, psm.Symptoms, psm.AIRiskAssessment, psm.SeverityScore, psm.TriggeredAlert, psm.CurrentHeartRate, psm.Duration, psm.Notes, psm.AIAdvice " +
+                             "FROM Patient_Self_Monitoring psm " +
+                             "JOIN Patient_Profile p ON psm.PatientID = p.PatientID " +
+                             "ORDER BY psm.LogDate DESC LIMIT 100";
+                selfMonitoringAlerts = jdbcTemplate.queryForList(sql);
+            }
+            for (Map<String, Object> row : selfMonitoringAlerts) {
+                AIRiskPrediction mock = new AIRiskPrediction();
+                mock.setPredictionId(-((Number) row.get("LogID")).intValue());
+                
+                Boolean isTriggered = Boolean.TRUE.equals(row.get("TriggeredAlert"));
+                
+                Number severityScoreNum = (Number) (row.get("SeverityScore") != null ? row.get("SeverityScore") :
+                                                   (row.get("severityscore") != null ? row.get("severityscore") : row.get("SEVERITYSCORE")));
+                int sev = severityScoreNum != null ? severityScoreNum.intValue() : 0;
+                String syms = (String) row.get("Symptoms");
+                if (sev == 0 && syms != null) {
+                    if (syms.contains("Đau ngực dữ dội")) sev = 8;
+                    else if (syms.contains("Khó thở")) sev = 7;
+                    else if (syms.contains("Choáng váng")) sev = 5;
+                    else if (!syms.isBlank()) sev = 4;
+                }
+                
+                Number hrNum = (Number) (row.get("CurrentHeartRate") != null ? row.get("CurrentHeartRate") : row.get("currentheartrate"));
+                int hr = hrNum != null ? hrNum.intValue() : 75;
+                
+                String duration = (String) row.get("Duration");
+                if (duration == null || duration.isBlank()) duration = "Khoảng 30 phút";
+                
+                String notes = (String) row.get("Notes");
+                if (notes == null) notes = "";
+                
+                String aiAdvice = (String) row.get("AIAdvice");
+                if (aiAdvice == null) aiAdvice = "";
+                
+                mock.setHeartRate(hr);
+                mock.setSeverityScore(sev);
+                mock.setDuration(duration);
+                mock.setNotes(notes);
+                mock.setSymptoms(syms != null ? syms : "Chưa rõ");
+                mock.setHealthAdvice(aiAdvice);
+                
+                if (isTriggered || sev >= 8) {
+                    mock.setRiskLevel("HIGH");
+                    mock.setRiskScore(java.math.BigDecimal.valueOf(95.0 + (sev * 0.5)));
+                } else if (sev >= 5) {
+                    mock.setRiskLevel("MEDIUM");
+                    mock.setRiskScore(java.math.BigDecimal.valueOf(80.0 + (sev * 1.0)));
+                } else {
+                    mock.setRiskLevel("LOW");
+                    mock.setRiskScore(java.math.BigDecimal.valueOf(60.0 + (sev * 2.0)));
+                }
+                
+                mock.setRiskExplanation("Cảnh báo từ App Mobile: " + (syms != null ? syms : "Đau ngực/Khó thở") + 
+                                        " (Mức " + sev + "/10). " + 
+                                        (row.get("AIRiskAssessment") != null ? row.get("AIRiskAssessment") : "Đã ghi nhận"));
+                mock.setIsAlertSent(!isTriggered);
+
+                ConsultationRecord rec = new ConsultationRecord();
+                PatientProfile pat = new PatientProfile();
+                pat.setPatientId((Integer) row.get("PatientID"));
+                pat.setFullName((String) row.get("FullName"));
+                rec.setPatient(pat);
+
+                Object logDateObj = row.get("LogDate");
+                LocalDateTime ldt = LocalDateTime.now();
+                if (logDateObj instanceof java.sql.Timestamp) {
+                    ldt = ((java.sql.Timestamp) logDateObj).toInstant().atZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDateTime();
+                } else if (logDateObj instanceof LocalDateTime) {
+                    ldt = (LocalDateTime) logDateObj;
+                }
+                rec.setVisitDate(ldt);
+                mock.setRecord(rec);
+
+                alerts.add(mock);
+            }
+        } catch (Exception ex) {
+            log.error("Error embedding self monitoring alerts into alerts page: " + ex.getMessage());
+        }
+
+        // Sắp xếp lại toàn bộ danh sách cảnh báo theo thời gian mới nhất lên đầu!
+        alerts.sort((a1, a2) -> {
+            LocalDateTime d1 = (a1 != null && a1.getRecord() != null && a1.getRecord().getVisitDate() != null) 
+                               ? a1.getRecord().getVisitDate() : LocalDateTime.MIN;
+            LocalDateTime d2 = (a2 != null && a2.getRecord() != null && a2.getRecord().getVisitDate() != null) 
+                               ? a2.getRecord().getVisitDate() : LocalDateTime.MIN;
+            return d2.compareTo(d1);
+        });
 
         // Truyền urgencyScore vào model để hiển thị badge "🔥 Khẩn cấp"
         Map<Integer, Double> urgencyMap = new HashMap<>();
@@ -1355,7 +1502,16 @@ public class DoctorController {
             @RequestParam(defaultValue = "resolved") String action,
             @RequestParam(required = false) String reason,
             RedirectAttributes ra) {
-        consultationService.updateAlertStatus(id, action, reason);
+        if (id != null && id < 0) {
+            int logId = -id;
+            try {
+                jdbcTemplate.update("UPDATE Patient_Self_Monitoring SET TriggeredAlert = false WHERE LogID = ?", logId);
+            } catch (Exception ex) {
+                log.error("Error updating self monitoring alert status for LogID: " + logId, ex);
+            }
+        } else {
+            consultationService.updateAlertStatus(id, action, reason);
+        }
         ra.addFlashAttribute("success", "Đã cập nhật trạng thái cảnh báo!");
         return "redirect:/doctor/alerts";
     }

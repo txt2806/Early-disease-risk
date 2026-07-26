@@ -35,6 +35,7 @@ class _SymptomUpdateScreenState extends State<SymptomUpdateScreen> {
 
   final List<String> _selectedSymptoms = [];
   double _severityScore = 5.0;
+  final TextEditingController _heartRateController = TextEditingController(text: '80');
   String _selectedDuration = 'Khoảng 30 phút';
   final TextEditingController _notesController = TextEditingController();
   bool _isSubmitting = false;
@@ -50,6 +51,7 @@ class _SymptomUpdateScreenState extends State<SymptomUpdateScreen> {
   @override
   void dispose() {
     _notesController.dispose();
+    _heartRateController.dispose();
     super.dispose();
   }
 
@@ -64,6 +66,8 @@ class _SymptomUpdateScreenState extends State<SymptomUpdateScreen> {
       return;
     }
 
+    final parsedHr = int.tryParse(_heartRateController.text.trim()) ?? 80;
+
     setState(() {
       _isSubmitting = true;
     });
@@ -71,6 +75,7 @@ class _SymptomUpdateScreenState extends State<SymptomUpdateScreen> {
     final report = await _service.submitSymptomUpdate(
       selectedSymptoms: List.from(_selectedSymptoms),
       severityScore: _severityScore.round(),
+      heartRate: parsedHr,
       duration: _selectedDuration,
       notes: _notesController.text.trim(),
     );
@@ -339,7 +344,38 @@ class _SymptomUpdateScreenState extends State<SymptomUpdateScreen> {
 
             const SizedBox(height: 24),
             const Text(
-              '3. Thời gian xuất hiện triệu chứng',
+              '3. Nhịp tim hiện tại (BPM)',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _heartRateController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      hintText: 'Nhập nhịp tim (ví dụ: 75, 90, 120...)',
+                      suffixText: 'BPM',
+                      suffixStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                    ),
+                    onChanged: (val) {
+                      setState(() {});
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '4. Thời gian xuất hiện triệu chứng',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
             ),
             const SizedBox(height: 10),

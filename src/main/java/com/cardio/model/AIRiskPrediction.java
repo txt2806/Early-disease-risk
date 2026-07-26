@@ -83,4 +83,16 @@ public class AIRiskPrediction {
     // JSON object gộp {trend, trend_message, prob_severe_history} của Model V2
     @Column(name = "TrendInfoV2Json", columnDefinition = "TEXT")
     private String trendInfoV2Json;
+
+    // Chi tiết báo cáo triệu chứng từ Mobile App (dùng cho hiển thị popup/modal)
+    @Transient
+    private Integer heartRate;
+    @Transient
+    private Integer severityScore;
+    @Transient
+    private String duration;
+    @Transient
+    private String notes;
+    @Transient
+    private String symptoms;
 }
