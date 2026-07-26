@@ -39,7 +39,7 @@ public class Appointment {
     @Column(name = "RequestTime")
     private LocalDateTime requestTime = LocalDateTime.now();
     @Column(name = "Status", nullable = false)
-    private String status = "Pending"; // Pending, Confirmed, CheckedIn, InProgress, Completed, Cancelled
+    private String status = "Confirmed"; // Confirmed, CheckedIn, InProgress, Completed, Cancelled
 
     @Column(name = "RoomNumber")
     private String roomNumber;
@@ -49,11 +49,18 @@ public class Appointment {
     @Column(name = "bookingtype")
     private String bookingType = "General"; // General or Specialist
 
+    @Column(name = "queuenumber")
+    private Integer dbQueueNumber; // STT 2: Lưu DB, chạy liên tục không reset (lấy từ appointmentId)
+
     @Transient
-    private Integer queueNumber;
+    private Integer queueNumber; // STT 1: STT khám theo ngày của từng bác sĩ
 
     @Transient
     private Integer activeQueueNumber;
+
+    public Integer getDbQueueNumber() {
+        return appointmentId != null ? appointmentId : dbQueueNumber;
+    }
 
     public static void calculateQueueNumbers(java.util.List<Appointment> list) {
         if (list == null) return;

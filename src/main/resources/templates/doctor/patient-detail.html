@@ -135,9 +135,38 @@
                 <span th:if="${#lists.isEmpty(recordDiagnosesMap.get(r.recordId))}" style="color:#4a5568;">--</span>
               </td>
               <td>
-                <a th:href="'#record-' + ${r.recordId}" class="action-btn">
+                <button class="action-btn" style="background: none; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+                  th:data-date="${#temporals.format(r.visitDate, 'dd/MM/yyyy HH:mm')}"
+                  th:data-notes="${r.consultationNotes}" th:data-treatment-plan="${r.treatmentPlan}"
+                  th:data-risk-level="${r.aiRiskPrediction != null ? r.aiRiskPrediction.riskLevel : 'Chưa có'}"
+                  th:data-risk-score="${r.aiRiskPrediction != null ? #numbers.formatDecimal(r.aiRiskPrediction.riskScore, 1, 1) + '%' : '--'}"
+                  th:data-risk-exp="${r.aiRiskPrediction != null ? r.aiRiskPrediction.riskExplanation : '--'}"
+                  th:data-top-factors="${r.aiRiskPrediction != null and r.aiRiskPrediction.topFactorsJson != null ? r.aiRiskPrediction.topFactorsJson : ''}"
+                  th:data-trend-info="${r.aiRiskPrediction != null and r.aiRiskPrediction.trendInfoJson != null ? r.aiRiskPrediction.trendInfoJson : ''}"
+                  th:data-bp="${r.clinicalMetrics != null ? r.clinicalMetrics.restingBP : '--'}"
+                  th:data-chol="${r.clinicalMetrics != null ? r.clinicalMetrics.cholesterol : '--'}"
+                  th:data-fbs="${r.clinicalMetrics != null and r.clinicalMetrics.fastingBloodSugar != null ? (r.clinicalMetrics.fastingBloodSugar ? 'Có' : 'Không') : '--'}"
+                  th:data-ecg="${r.clinicalMetrics != null ? r.clinicalMetrics.restingECG : '--'}"
+                  th:data-hr="${r.clinicalMetrics != null ? r.clinicalMetrics.maxHeartRate : '--'}"
+                  th:data-exang="${r.clinicalMetrics != null and r.clinicalMetrics.exerciseAngina != null ? (r.clinicalMetrics.exerciseAngina ? 'Có' : 'Không') : '--'}"
+                  th:data-cp="${r.clinicalMetrics != null ? r.clinicalMetrics.chestPainType : '--'}"
+                  th:data-oldpeak="${r.clinicalMetrics != null ? r.clinicalMetrics.oldpeak : '--'}"
+                  th:data-slope="${r.clinicalMetrics != null ? r.clinicalMetrics.slope : '--'}"
+                  th:data-ca="${r.clinicalMetrics != null ? r.clinicalMetrics.ca : '--'}"
+                  th:data-thal="${r.clinicalMetrics != null ? r.clinicalMetrics.thal : '--'}"
+                  th:data-age="${r.clinicalMetrics != null ? r.clinicalMetrics.age : '--'}"
+                  th:data-sex="${r.clinicalMetrics != null ? r.clinicalMetrics.sex : '--'}"
+                  th:data-temp="${r.clinicalMetrics != null ? r.clinicalMetrics.temperature : '--'}"
+                  th:data-spo2="${r.clinicalMetrics != null ? r.clinicalMetrics.spO2 : '--'}"
+                  th:data-blood-test="${r.clinicalMetrics != null ? r.clinicalMetrics.bloodTest : '--'}"
+                  th:data-urine-test="${r.clinicalMetrics != null ? r.clinicalMetrics.urineTest : '--'}"
+                  th:data-xray="${r.clinicalMetrics != null ? r.clinicalMetrics.xray : '--'}"
+                  th:data-mri="${r.clinicalMetrics != null ? r.clinicalMetrics.mri : '--'}"
+                  th:data-ct="${r.clinicalMetrics != null ? r.clinicalMetrics.ct : '--'}"
+                  th:data-ultrasound="${r.clinicalMetrics != null ? r.clinicalMetrics.ultrasound : '--'}"
+                  onclick="viewDetails(this)">
                   <i class="ti ti-eye"></i> Chi tiết
-                </a>
+                </button>
                 <a th:if="${r.aiRiskPrediction != null}"
                   th:href="@{/doctor/chatbot(patientId=${patient.patientId}, recordId=${r.recordId})}"
                   class="action-btn primary">
@@ -188,24 +217,16 @@
                   th:text="${r.aiRiskPrediction.riskLevel + ' · ' + #numbers.formatDecimal(r.aiRiskPrediction.riskScore, 1, 1) + '%'}">--</span>
                 <span th:if="${r.aiRiskPrediction == null}" style="color:#4a5568;font-size:12px;">Chưa có AI</span>
               </div>
+              <div style="margin-top:4px; font-size:12px; color:#38bdf8; font-weight:600;">
+                <i class="ti ti-user-check"></i> BS phụ trách: <span th:text="${r.doctor != null ? r.doctor.fullName : 'Bác sĩ chưa xác định'}">BS. --</span>
+              </div>
             </div>
 
             <div style="display:flex;gap:8px;align-items:center;">
-              <!-- Chi tiết button -->
-              <!-- [FIX] Lỗi gốc gây "ERR_INCOMPLETE_CHUNKED_ENCODING" toàn trang:
-                   "r.clinicalMetrics != null ? (r.clinicalMetrics.fastingBloodSugar ? ...)"
-                   chỉ check clinicalMetrics khác null, KHÔNG check chính field Boolean
-                   bên trong (fastingBloodSugar/exerciseAngina) có null hay không. Với
-                   lần khám nào có clinicalMetrics nhưng field Boolean đó chưa được nhập
-                   (null), SpEL ném "cannot convert from null to boolean" NGAY GIỮA LÚC
-                   server đang stream HTML về — response đã commit dở dang nên không
-                   hiện được cả trang lỗi 500, khiến trình duyệt nhận về 1 trang HTML/JS
-                   bị CẮT CỤT (thiếu toàn bộ <script> ở cuối), gây ReferenceError hàng
-                   loạt (viewDetails/toggleEdit/showLabRequestModal not defined) dù code
-                   JS đó hoàn toàn không có lỗi gì. Nay check thêm cả field con != null. -->
               <button class="btn"
                 style="padding: 6px 12px; font-size: 11px; background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 4px;"
                 th:data-date="${#temporals.format(r.visitDate, 'dd/MM/yyyy HH:mm')}"
+                th:data-doctor-name="${r.doctor != null ? r.doctor.fullName : 'Bác sĩ chưa xác định'}"
                 th:data-notes="${r.consultationNotes}" th:data-treatment-plan="${r.treatmentPlan}"
                 th:data-risk-level="${r.aiRiskPrediction != null ? r.aiRiskPrediction.riskLevel : 'Chưa có'}"
                 th:data-risk-score="${r.aiRiskPrediction != null ? #numbers.formatDecimal(r.aiRiskPrediction.riskScore, 1, 1) + '%' : '--'}"

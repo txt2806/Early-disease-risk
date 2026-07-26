@@ -23,6 +23,11 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     @Query("UPDATE Appointment a SET a.status = 'Cancelled' WHERE a.status = 'Pending' AND a.scheduledDate < CURRENT_DATE")
     void cancelOverduePendingAppointments();
 
+    @Query("SELECT COALESCE(MAX(a.dbQueueNumber), 0) FROM Appointment a")
+    Integer findMaxDbQueueNumber();
+
+    List<Appointment> findByScheduledDateBeforeAndStatusIn(java.time.LocalDate date, List<String> statuses);
+
     List<Appointment> findAllByOrderByScheduledDateDescTimeSlotAsc();
     @Query("SELECT a FROM Appointment a WHERE " +
            "(:date IS NULL OR a.scheduledDate = :date) AND " +

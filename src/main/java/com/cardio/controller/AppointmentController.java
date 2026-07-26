@@ -176,6 +176,10 @@ public class AppointmentController {
                 appointment.setBookingType("General");
             }
 
+            if (appointment.getDbQueueNumber() == null) {
+                appointment.setDbQueueNumber(appointmentRepository.findMaxDbQueueNumber() + 1);
+            }
+
             appointmentRepository.save(appointment);
 
             response.put("status", "success");

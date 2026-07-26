@@ -252,6 +252,10 @@ public class PatientController {
             appointment.setPreliminaryStatus(preliminaryStatus);
             appointment.setStatus(APPOINTMENT_STATUS_CONFIRMED);
 
+            if (appointment.getDbQueueNumber() == null) {
+                appointment.setDbQueueNumber(appointmentRepository.findMaxDbQueueNumber() + 1);
+            }
+
             appointmentRepository.save(appointment);
 
             // Tự động tạo hóa đơn tương ứng với lịch khám
