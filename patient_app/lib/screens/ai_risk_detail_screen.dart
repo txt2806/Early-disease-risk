@@ -12,8 +12,11 @@ class AIRiskDetailScreen extends StatelessWidget {
     final String level = item.riskLevel ?? 'LOW';
     
     Color accentColor = const Color(0xFF10B981);
-    if (level.toUpperCase().contains('HIGH')) accentColor = const Color(0xFFDC3545);
-    else if (level.toUpperCase().contains('MEDIUM')) accentColor = const Color(0xFFF59E0B);
+    if (level.toUpperCase().contains('HIGH')) {
+      accentColor = const Color(0xFFDC3545);
+    } else if (level.toUpperCase().contains('MEDIUM')) {
+      accentColor = const Color(0xFFF59E0B);
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),

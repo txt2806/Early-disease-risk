@@ -381,6 +381,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   ? null
                   : () async {
                       if (formKey.currentState!.validate()) {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final nav = Navigator.of(context);
                         setDialogState(() => isSubmitting = true);
                         final res = await _service.changePassword(
                           username,
@@ -389,19 +391,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         );
                         setDialogState(() => isSubmitting = false);
                         if (res['status'] == 'success') {
-                          Navigator.pop(ctx);
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          if (mounted) nav.pop();
+                          messenger.showSnackBar(
                             const SnackBar(
                               content: Text('Đổi mật khẩu thành công! Chào mừng bạn.'),
                               backgroundColor: Colors.green,
                             ),
                           );
-                          Navigator.pushReplacement(
-                            context,
+                          nav.pushReplacement(
                             MaterialPageRoute(builder: (_) => const MainNavigationShell()),
                           );
                         } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          messenger.showSnackBar(
                             SnackBar(
                               content: Text(res['message'] ?? 'Lỗi đổi mật khẩu'),
                               backgroundColor: Colors.red,

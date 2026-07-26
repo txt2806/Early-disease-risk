@@ -106,7 +106,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                   const Text('Bác sĩ', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFFDC3545))),
                   const SizedBox(height: 4),
                   DropdownButtonFormField<int>(
-                    value: selectedDoctorId,
+                    initialValue: selectedDoctorId,
                     isExpanded: true,
                     decoration: InputDecoration(
                       filled: true,
