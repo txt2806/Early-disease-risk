@@ -14,23 +14,25 @@ class SymptomUpdateScreen extends StatefulWidget {
 class _SymptomUpdateScreenState extends State<SymptomUpdateScreen> {
   final PatientService _service = PatientService();
 
+  // Tài liệu tham khảo chuẩn Y tế (Bệnh viện Tâm Anh - TS.BS Nguyễn Anh Dũng):
+  //https://tamanhhospital.vn/trieu-chung-tim-mach/
   final List<String> _commonSymptoms = [
-    'Đau ngực dữ dội',
+    'Đau ngực / Đau thắt ngực',
+    'Đau lan ra vai / cằm / sau lưng',
     'Khó thở / Thở dốc',
-    'Chóng mặt / Xây xẩm',
+    'Thường xuyên mệt mỏi',
+    'Ho dai dẳng / Khò khè',
+    'Buồn nôn / Chán ăn',
     'Hồi hộp đánh trống ngực',
-    'Vã mồ hôi lạnh',
-    'Mệt mỏi kiệt sức',
-    'Đau lan ra vai / tay trái',
-    'Tê bì chân tay',
-    'Buồn nôn / Nôn',
-    'Đau đầu dồn dập',
+    'Đổ nhiều mồ hôi / Thở nhanh',
+    'Chóng mặt / Ngất xỉu',
+    'Phù nề (mặt, mí mắt, chân)',
   ];
 
   final List<String> _urgentSymptoms = [
-    'Đau ngực dữ dội',
-    'Khó thở / Thở dốc',
-    'Đau lan ra vai / tay trái',
+    'Đau ngực / Đau thắt ngực',
+    'Đau lan ra vai / cằm / sau lưng',
+    'Chóng mặt / Ngất xỉu',
   ];
 
   final List<String> _selectedSymptoms = [];
@@ -39,6 +41,12 @@ class _SymptomUpdateScreenState extends State<SymptomUpdateScreen> {
   String _selectedDuration = 'Khoảng 30 phút';
   final TextEditingController _notesController = TextEditingController();
   bool _isSubmitting = false;
+
+  Color get _severityColor {
+    if (_severityScore >= 7) return Colors.red;
+    if (_severityScore >= 4) return Colors.orange;
+    return Colors.teal;
+  }
 
   final List<String> _durations = [
     'Vừa xuất hiện (< 15 phút)',
@@ -90,7 +98,7 @@ class _SymptomUpdateScreenState extends State<SymptomUpdateScreen> {
   }
 
   void _showResultModal(BuildContext context, SymptomReport report) {
-    final bool isHighRisk = report.severityScore >= 8 ||
+    final bool isHighRisk = report.severityScore >= 7 ||
         report.symptoms.any((s) => _urgentSymptoms.contains(s));
 
     showDialog(
@@ -118,69 +126,71 @@ class _SymptomUpdateScreenState extends State<SymptomUpdateScreen> {
             ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isHighRisk ? Colors.red.shade50 : Colors.teal.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isHighRisk ? Colors.red.shade200 : Colors.teal.shade200,
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isHighRisk ? Colors.red.shade50 : Colors.teal.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isHighRisk ? Colors.red.shade200 : Colors.teal.shade200,
+                  ),
+                ),
+                child: Text(
+                  report.aiRiskAssessment,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: isHighRisk ? Colors.red.shade900 : Colors.teal.shade900,
+                  ),
                 ),
               ),
-              child: Text(
-                report.aiRiskAssessment,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: isHighRisk ? Colors.red.shade900 : Colors.teal.shade900,
+              const SizedBox(height: 14),
+              const Text(
+                'Triệu chứng đã chọn:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              ),
+              const SizedBox(height: 4),
+              Text(report.symptoms.join(' • '), style: const TextStyle(fontSize: 13)),
+              const SizedBox(height: 8),
+              Text('Mức độ đau/khó chịu: ${report.severityScore}/10',
+                  style: const TextStyle(fontSize: 13)),
+              const SizedBox(height: 8),
+              Text('Thời gian: ${report.duration}',
+                  style: const TextStyle(fontSize: 13)),
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFBBF7D0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.psychology, color: Color(0xFF166534), size: 18),
+                        SizedBox(width: 6),
+                        Text('Lời khuyên xử lý từ AI:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF166534))),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      report.aiAdvice,
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF1E293B), height: 1.4),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: 14),
-            const Text(
-              'Triệu chứng đã chọn:',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-            ),
-            const SizedBox(height: 4),
-            Text(report.symptoms.join(' • '), style: const TextStyle(fontSize: 13)),
-            const SizedBox(height: 8),
-            Text('Mức độ đau/khó chịu: ${report.severityScore}/10',
-                style: const TextStyle(fontSize: 13)),
-            const SizedBox(height: 8),
-            Text('Thời gian: ${report.duration}',
-                style: const TextStyle(fontSize: 13)),
-            const SizedBox(height: 14),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0FDF4),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFBBF7D0)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.psychology, color: Color(0xFF166534), size: 18),
-                      SizedBox(width: 6),
-                      Text('Lời khuyên xử lý từ AI:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF166534))),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    report.aiAdvice,
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF1E293B), height: 1.4),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           if (isHighRisk)
@@ -304,13 +314,11 @@ class _SymptomUpdateScreenState extends State<SymptomUpdateScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _severityScore >= 8
-                        ? Colors.red
-                        : (_severityScore >= 5 ? Colors.orange : Colors.teal),
+                    color: _severityColor,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Text(
-                    '${_severityScore.round()} / 10',
+                    '${_severityScore.round()} / 10 (Thang VAS)',
                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
@@ -322,9 +330,7 @@ class _SymptomUpdateScreenState extends State<SymptomUpdateScreen> {
               min: 1.0,
               max: 10.0,
               divisions: 9,
-              activeColor: _severityScore >= 8
-                  ? Colors.red
-                  : (_severityScore >= 5 ? Colors.orange : Colors.teal),
+              activeColor: _severityColor,
               inactiveColor: Colors.grey.shade300,
               label: '${_severityScore.round()}',
               onChanged: (val) {
@@ -336,9 +342,11 @@ class _SymptomUpdateScreenState extends State<SymptomUpdateScreen> {
             const Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('1 - Rất nhẹ', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                Text('5 - Vừa phải', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                Text('10 - Rất dữ dội', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                //tham khảo tài liệu:
+                //https://medlatec.vn/tin-tuc/thang-diem-vas-danh-gia-dau-nhung-dieu-nen-biet
+                Text('1 - 3: Nhẹ', style: TextStyle(fontSize: 11, color: Colors.teal, fontWeight: FontWeight.bold)),
+                Text('4 - 6: Trung bình', style: TextStyle(fontSize: 11, color: Colors.orange, fontWeight: FontWeight.bold)),
+                Text('7 - 10: Nặng / Dữ dội', style: TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.bold)),
               ],
             ),
 
@@ -404,7 +412,7 @@ class _SymptomUpdateScreenState extends State<SymptomUpdateScreen> {
 
             const SizedBox(height: 24),
             const Text(
-              '4. Mô tả chi tiết bổ sung (không bắt buộc)',
+              '5. Mô tả chi tiết bổ sung (không bắt buộc)',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
             ),
             const SizedBox(height: 10),

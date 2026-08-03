@@ -398,8 +398,13 @@ class PatientService extends ChangeNotifier {
   }) async {
     String riskAssessment = 'Nguy cơ Thấp: Tiếp tục theo dõi sức khỏe.';
     bool triggerAcuteAlert = false;
+    final hasSevereChestPain = selectedSymptoms.any((s) => s.contains('Đau ngực'));
+    final hasShortnessOfBreath = selectedSymptoms.any((s) => s.contains('Khó thở'));
+    final hasRadiatingPain = selectedSymptoms.any((s) => s.contains('Đau lan'));
+    final hasDizziness = selectedSymptoms.any((s) => s.contains('Chóng mặt') || s.contains('Ngất'));
 
-    if (severityScore >= 8 || selectedSymptoms.contains('Đau ngực dữ dội') || selectedSymptoms.contains('Khó thở / Thở dốc')) {
+    // Tham khảo tài liệu Thang điểm VAS: https://medlatec.vn/tin-tuc/thang-diem-vas-danh-gia-dau-nhung-dieu-nen-biet
+    if (severityScore >= 7 || hasSevereChestPain || hasShortnessOfBreath || hasRadiatingPain) {
       riskAssessment = 'NGUY CƠ CẤP TÍNH CAO: Cần can thiệp y tế ngay lập tức!';
       triggerAcuteAlert = true;
     }
@@ -410,11 +415,11 @@ class PatientService extends ChangeNotifier {
       aiAdvice += '🆘 HỖ TRỢ KHẨN CẤP: Nếu bạn đang cảm thấy bế tắc hoặc gặp khủng hoảng tinh thần, hãy chia sẻ ngay với người thân hoặc liên hệ Tổng đài tư vấn / Gọi 115 để được hỗ trợ kịp thời!\n\n';
     }
 
-    if (severityScore >= 8 || selectedSymptoms.contains('Đau ngực dữ dội') || selectedSymptoms.contains('Khó thở / Thở dốc') || selectedSymptoms.contains('Đau lan ra vai / tay trái')) {
+    if (severityScore >= 7 || hasSevereChestPain || hasShortnessOfBreath || hasRadiatingPain) {
       aiAdvice += '• Giữ tĩnh lặng: Dừng mọi vận động, ngồi hoặc nằm tư thế thoải mái, nới lỏng quần áo.\n'
           '• Hỗ trợ y tế: Nhờ người thân đưa đến cơ sở y tế gần nhất hoặc bấm nút "GỌI BÁC SĨ TƯ VẤN".\n'
           '• An toàn: Không tự lái xe hay làm việc nặng khi có dấu hiệu đau ngực/khó thở.';
-    } else if (severityScore >= 5 || selectedSymptoms.contains('Chóng mặt / Xây xẩm') || selectedSymptoms.contains('Hồi hộp đánh trống ngực')) {
+    } else if (severityScore >= 4 || hasDizziness || selectedSymptoms.any((s) => s.contains('Hồi hộp'))) {
       aiAdvice += '• Nghỉ ngơi tại chỗ: Nghỉ ngơi ở nơi thoáng mát, uống ít nước ấm từ từ.\n'
           '• Theo dõi chỉ số: Kiểm tra lại nhịp tim và huyết áp sau 15 phút nghỉ ngơi.\n'
           '• Tham khảo bác sĩ: Nếu triệu chứng kéo dài trên 30 phút, nên liên hệ phòng khám.';
