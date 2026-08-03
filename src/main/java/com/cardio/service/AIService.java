@@ -230,4 +230,55 @@ public class AIService {
             return Map.of(); // view sẽ hiển thị "N/A" nếu rỗng, không vỡ trang
         }
     }
+
+    // [MỚI] [FIX] Chuẩn hoá giá trị "Giới tính" trước khi gửi sang FastAPI.
+    // FastAPI dùng LabelEncoder học từ dataset UCI với đúng 2 nhãn PHÂN BIỆT
+    // HOA/THƯỜNG: "Male"/"Female" — sai 1 ký tự hoa/thường cũng bị từ chối
+    // với lỗi 422 INVALID_CATEGORICAL_VALUE (vd nhận "MALE" nhưng chỉ chấp
+    // nhận "Male").
+    //
+    // Trong khi đó DB đang lưu giá trị giới tính KHÔNG đồng nhất tuỳ nguồn
+    // ghi nhận (vd bệnh nhân tự khai qua app di động có thể lưu "MALE" viết
+    // hoa, hồ sơ đăng ký có thể lưu "Nam"/"Nữ"...). Vì vậy MỌI nơi lấy giá
+    // trị "sex" từ DB để gửi cho FastAPI đều nên đi qua hàm này thay vì gửi
+    // thẳng giá trị thô. Nếu không nhận diện được, trả về nguyên gốc để
+    // FastAPI báo lỗi 422 rõ ràng (đúng triết lý "fail loud" của hệ thống)
+    // thay vì âm thầm đoán liều.
+    public static String normalizeSex(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String v = raw.trim().toLowerCase();
+        if (v.equals("nam") || v.equals("male") || v.equals("m")) {
+            return "Male";
+        }
+        if (v.equals("nữ") || v.equals("nu") || v.equals("female") || v.equals("f")) {
+            return "Female";
+        }
+        return raw;
+    }
+
+    // [MỚI] [FIX] Chuẩn hoá CHUNG cho các trường phân loại dạng chuỗi tự do
+    // khác (slope, thal...) — cùng NGUYÊN NHÂN với lỗi 'sex' ở trên: các
+    // cột này được ghi trực tiếp dưới dạng String (KHÔNG qua mapping số như
+    // 'cp'/'restecg'), nên dữ liệu cũ/từ nhiều nguồn có thể lệch hoa-thường
+    // so với đúng nhãn LabelEncoder đã học (vd DB có "Downsloping" nhưng
+    // FastAPI chỉ chấp nhận "downsloping").
+    //
+    // So khớp KHÔNG phân biệt hoa/thường với danh sách giá trị hợp lệ
+    // (validValues) rồi trả về ĐÚNG dạng viết mà FastAPI mong đợi. Nếu
+    // không khớp giá trị nào, trả nguyên gốc để FastAPI báo lỗi 422 rõ
+    // ràng thay vì âm thầm đoán liều (đúng triết lý "fail loud").
+    public static String normalizeCategorical(String raw, String... validValues) {
+        if (raw == null) {
+            return null;
+        }
+        String trimmed = raw.trim();
+        for (String valid : validValues) {
+            if (valid.equalsIgnoreCase(trimmed)) {
+                return valid;
+            }
+        }
+        return raw;
+    }
 }

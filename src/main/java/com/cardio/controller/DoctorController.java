@@ -128,6 +128,18 @@ public class DoctorController {
                 System.err.println("Error querying alerts: " + ex.getMessage());
             }
             long highAlerts = alerts.stream().filter(a -> a != null && "HIGH".equals(a.getRiskLevel())).count();
+            // [FIX] Đồng bộ định nghĩa "cảnh báo" với trang /doctor/alerts —
+            // trước đây totalAlerts đếm TOÀN BỘ bản ghi AIRiskPrediction (kể
+            // cả đã xử lý, kể cả UNKNOWN/INVALID_DATA), khiến số ở Dashboard
+            // (vd 77) không khớp với tổng HIGH+MEDIUM+LOW CHƯA xử lý hiển thị
+            // ở trang Cảnh báo (vd 34). Giờ chỉ đếm cảnh báo thật sự đang chờ
+            // xử lý (chưa xử lý + risk level HIGH/MEDIUM/LOW).
+            long totalAlertsUnhandled = alerts.stream()
+                    .filter(a -> a != null
+                    && (a.getIsAlertSent() == null || !a.getIsAlertSent())
+                    && ("HIGH".equals(a.getRiskLevel()) || "MEDIUM".equals(a.getRiskLevel())
+                    || "LOW".equals(a.getRiskLevel())))
+                    .count();
 
             long totalApps = 0;
             List<Appointment> appsList = List.of();
@@ -629,6 +641,29 @@ public class DoctorController {
         return "doctor/ai-predict";
     }
 
+    // Helper: chuyển 1 bản ghi HeartClinicalMetrics (do nhân viên y tế nhập)
+    // sang AIRequest để tự-điền form / tính lịch sử xu hướng. `fallback` chỉ
+    // được dùng để giữ nguyên Tuổi/Giới tính đã nhập ở lần khám hiện tại khi
+    // bản ghi cũ thiếu 2 trường này (giữ đúng hành vi của doAnalyze trước đây).
+    private AIRequest metricsToAIRequest(HeartClinicalMetrics m, AIRequest fallback) {
+        AIRequest req = new AIRequest();
+        req.setAge(m.getAge() != null ? m.getAge().doubleValue() : (fallback != null ? fallback.getAge() : null));
+        req.setSex(AIService.normalizeSex(
+                m.getSex() != null ? m.getSex() : (fallback != null ? fallback.getSex() : null)));
+        req.setCp(mapCpInt(m.getChestPainType()));
+        req.setTrestbps(m.getRestingBP() != null ? m.getRestingBP().doubleValue() : null);
+        req.setChol(m.getCholesterol() != null ? m.getCholesterol().doubleValue() : null);
+        req.setFbs(m.getFastingBloodSugar() != null ? (m.getFastingBloodSugar() ? "1.0" : "0.0") : null);
+        req.setThalch(m.getMaxHeartRate() != null ? m.getMaxHeartRate().doubleValue() : null);
+        req.setExang(m.getExerciseAngina() != null ? (m.getExerciseAngina() ? "1.0" : "0.0") : null);
+        req.setRestecg(mapRestecgInt(m.getRestingECG()));
+        req.setOldpeak(m.getOldpeak());
+        req.setCa(m.getCa() != null ? m.getCa().doubleValue() : null);
+        req.setSlope(AIService.normalizeCategorical(m.getSlope(), "upsloping", "flat", "downsloping"));
+        req.setThal(AIService.normalizeCategorical(m.getThal(), "normal", "fixed defect", "reversable defect"));
+        return req;
+    }
+
     @PostMapping("/ai-predict/analyze")
     public String runAIAnalyze(@ModelAttribute AIRequest aiRequest,
             @RequestParam Integer patientId,
@@ -691,30 +726,17 @@ public class DoctorController {
                     .filter(r -> r.getClinicalMetrics() != null)
                     .filter(r -> {
                         var m = r.getClinicalMetrics();
-                        return m.getChestPainType() != null
-                                && m.getOldpeak() != null
-                                && m.getSlope() != null
-                                && m.getThal() != null
-                                && m.getCa() != null;
+                        return m.getChestPainType() != null && m.getOldpeak() != null
+                                && m.getSlope() != null && m.getThal() != null && m.getCa() != null
+                                && m.getRestingECG() != null; // [FIX] thêm điều kiện thiếu
                     })
-                    .map(r -> {
-                        var m = r.getClinicalMetrics();
-                        AIRequest req = new AIRequest();
-                        req.setAge(m.getAge() != null ? m.getAge().doubleValue() : aiRequest.getAge());
-                        req.setSex(m.getSex() != null ? m.getSex() : aiRequest.getSex());
-                        req.setCp(mapCpInt(m.getChestPainType()));
-                        req.setTrestbps(m.getRestingBP() != null ? m.getRestingBP().doubleValue() : null);
-                        req.setChol(m.getCholesterol() != null ? m.getCholesterol().doubleValue() : null);
-                        req.setFbs(m.getFastingBloodSugar() != null ? (m.getFastingBloodSugar() ? "1.0" : "0.0") : null);
-                        req.setThalch(m.getMaxHeartRate() != null ? m.getMaxHeartRate().doubleValue() : null);
-                        req.setExang(m.getExerciseAngina() != null ? (m.getExerciseAngina() ? "1.0" : "0.0") : null);
-                        req.setRestecg(mapRestecgInt(m.getRestingECG()));
-                        req.setOldpeak(m.getOldpeak().doubleValue());
-                        req.setCa(m.getCa().doubleValue());
-                        req.setSlope(m.getSlope());
-                        req.setThal(m.getThal());
-                        return req;
-                    })
+                    .map(r -> metricsToAIRequest(r.getClinicalMetrics(), aiRequest))
+                    // [FIX] Lọc bỏ mọi visit có bất kỳ trường categorical nào bị map ra null
+                    // (do dữ liệu cũ lưu giá trị ngoài khoảng hợp lệ 1-4/0-2). Một visit
+                    // lỗi trong lịch sử không được phép làm hỏng toàn bộ request /predict/trend.
+                    .filter(req -> req.getCp() != null && req.getRestecg() != null
+                    && req.getSlope() != null && req.getThal() != null
+                    && req.getFbs() != null && req.getExang() != null)
                     .collect(java.util.stream.Collectors.toList());
 
             visitHistory.add(aiRequest);
