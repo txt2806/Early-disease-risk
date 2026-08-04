@@ -18,7 +18,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _isPasswordVisible = false;
   bool _isLoading = false;
-  bool _rememberMe = true;
 
   @override
   void dispose() {
@@ -173,11 +172,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             controller: _usernameController,
                             keyboardType: TextInputType.emailAddress,
                             validator: (val) {
-                              if (val == null || val.trim().isEmpty) return 'Vui lòng nhập tên đăng nhập/Email/SĐT';
+                              if (val == null || val.trim().isEmpty) return 'Vui lòng nhập tên đăng nhập';
                               return null;
                             },
                             decoration: InputDecoration(
-                              labelText: 'Tên đăng nhập / Email / SĐT',
+                              labelText: 'Tên đăng nhập / Email',
                               prefixIcon: const Icon(Icons.person_outline, color: Colors.teal),
                               filled: true,
                               fillColor: Colors.grey.shade50,
@@ -220,32 +219,20 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
 
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 4),
 
-                          Row(
-                            children: [
-                              Checkbox(
-                                value: _rememberMe,
-                                activeColor: Colors.teal.shade800,
-                                onChanged: (val) {
-                                  setState(() {
-                                    _rememberMe = val ?? true;
-                                  });
-                                },
-                              ),
-                              const Text('Ghi nhớ đăng nhập', style: TextStyle(fontSize: 13, color: Color(0xFF475569))),
-                              const Spacer(),
-                              TextButton(
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Vui lòng liên hệ lễ tân Phòng khám hoặc hotline 115 để cấp lại mật khẩu!'),
-                                    ),
-                                  );
-                                },
-                                child: Text('Quên mật khẩu?', style: TextStyle(fontSize: 13, color: Colors.teal.shade800, fontWeight: FontWeight.bold)),
-                              ),
-                            ],
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Vui lòng liên hệ lễ tân Phòng khám hoặc hotline 115 để cấp lại mật khẩu!'),
+                                  ),
+                                );
+                              },
+                              child: Text('Quên mật khẩu?', style: TextStyle(fontSize: 13, color: Colors.teal.shade800, fontWeight: FontWeight.bold)),
+                            ),
                           ),
 
                           const SizedBox(height: 12),

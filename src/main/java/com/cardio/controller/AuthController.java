@@ -31,14 +31,8 @@ public class AuthController {
 
         String inputAccount = loginRequest.getUsername() != null ? loginRequest.getUsername().trim() : "";
 
-        // 1. Phân loại & Đối soát: Tìm theo Username (hoặc Email nếu Username lưu email)
+        // 1. Phân loại & Đối soát: Tìm theo Username / Email
         Optional<PatientProfile> patientOpt = patientRepository.findByUsernameIgnoreCase(inputAccount);
-
-        // 2. Nếu không thấy theo Username, kiểm tra nếu chuỗi nhập là SĐT (thử các biến thể 0... / +84...)
-        if (patientOpt.isEmpty()) {
-            java.util.List<String> phoneVariations = getPhoneVariations(inputAccount);
-            patientOpt = patientRepository.findByPhoneIn(phoneVariations).stream().findFirst();
-        }
 
         if (patientOpt.isEmpty()) {
             response.put("status", "failed");
